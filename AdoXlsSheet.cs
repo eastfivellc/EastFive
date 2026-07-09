@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace EastFive.Sheets
 {
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     class AdoXlsSheet : ISheet
     {
         private OleDbConnection conn;

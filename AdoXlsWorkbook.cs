@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace EastFive.Sheets
 {
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public class AdoXlsWorkbook : IUnderstandSheets
     {
         private OleDbConnection conn;
