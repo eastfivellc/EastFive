@@ -281,6 +281,7 @@ namespace EastFive.Generators
             // that the harness supplies (instigators) or that need no value.
             var typeName = p.Type.Name;
             if (typeName is "CancellationToken" or "IHttpRequest" or "IApplication"
+                or "IAzureApplication"
                 or "ElevenLabsHMACSignature" or "SessionToken" or "SessionTokenMaybe"
                 or "PracticeEnvironmentRef" or "AuthorizedAccount" or "IProvideClaims"
                 or "Security" or "IProvideDocumentSigningFlow")
