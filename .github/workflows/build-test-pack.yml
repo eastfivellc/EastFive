@@ -36,6 +36,11 @@ jobs:
       - name: Test
         run: |
           dotnet test tests/EastFive.Api.Tests/EastFive.Api.Tests.csproj -c Release --no-build
+          dotnet test tests/EastFive.Azure.Tests/EastFive.Azure.Tests.csproj -c Release --no-build
+
+      - name: Pack
+        run: dotnet pack EastFive.sln -c Release -o artifacts --no-build
+
       # Trusted Publishing: exchanges the workflow's OIDC token for a
       # short-lived nuget.org key (policy configured on the nuget.org account)
       - name: NuGet login
@@ -49,11 +54,6 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           dotnet nuget push "artifacts/*.nupkg" \
-            --api-key "${{ steps.nuget-login.outpuUGET_API_KEY }}" ]; then
-            echo "NUGET_API_KEY not configured; skipping publish."
-            exit 0
-          fi
-          dotnet nuget push "artifacts/*.nupkg" \
-            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
