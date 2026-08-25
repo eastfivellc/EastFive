@@ -1,0 +1,33 @@
+﻿@model UserInfo[]
+
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/ >
+    <title>Affirm System Health</title>
+</head>
+<body>
+    <br>
+    <br>
+    <br>
+
+    <h1> Nope, it's actually here</h1>
+
+    <br>
+    <br>
+    <br>
+
+    <table border="1">
+        <tr>
+            <td>UserId</td>
+            <td>Link</td>
+        </tr>
+        <tr>
+            @foreach (var item in model.items)
+            {
+                <td>@model.UserId</td>
+                <td>@model.Link</td>
+            }
+        </tr>
+    </table>
+</body>
+</html>

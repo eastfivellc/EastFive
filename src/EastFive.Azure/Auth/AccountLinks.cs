@@ -1,0 +1,157 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+
+using EastFive;
+using EastFive.Extensions;
+using EastFive.Reflection;
+using EastFive.Linq;
+using EastFive.Persistence.Azure.StorageTables;
+using EastFive.Collections.Generic;
+using EastFive.Persistence;
+using Microsoft.Azure.Cosmos.Table;
+
+namespace EastFive.Azure.Auth
+{
+    public struct AccountLinks
+    {
+        public AccountLink[] accountLinks;
+
+        public TResult GetLinkForMethod<TResult>(IRef<Method> methodRef,
+            Func<string, TResult> onMatched,
+            Func<TResult> onNotMatched)
+        {
+            return this.accountLinks
+                .Where(al => al.method.id == methodRef.id)
+                .First(
+                    (accountLink, next) => onMatched(accountLink.externalAccountKey),
+                    () => onNotMatched());
+        }
+    }
+
+    public struct AccountLink
+    {
+        public IRef<Method> method;
+        public string externalAccountKey;
+    }
+
+    public class AccountLinksAttribute : StorageLookupAttribute, IPersistInAzureStorageTables
+    {
+        public override TResult GetLookupKeys<TResult>(MemberInfo decoratedMember,
+            IEnumerable<KeyValuePair<MemberInfo, object>> lookupValues,
+            Func<IEnumerable<IRefAst>, TResult> onLookupValuesMatch,
+            Func<string, TResult> onNoMatch)
+        {
+            if (!typeof(AccountLinks).IsAssignableFrom(decoratedMember.GetPropertyOrFieldType()))
+                return onNoMatch(
+                    $"{nameof(AccountLinksAttribute)} should not be used to decorate any type other than {nameof(AccountLinks)}." +
+                    $" Please modify {decoratedMember.DeclaringType.FullName}..{decoratedMember.Name}");
+
+            var accountLinks = (AccountLinks)lookupValues
+                .Where(lookupValue => lookupValue.Key.Name.Equals(decoratedMember.Name))
+                .SelectValues()
+                .Single();
+
+            return onLookupValuesMatch(accountLinks.accountLinks
+                .NullToEmpty()
+                .Select(
+                    accountLink =>
+                    {
+                        return accountLink.externalAccountKey
+                            .AsAstRef($"AM{accountLink.method.id.ToString("n")}");
+                    }));
+        }
+
+        #region IPersistInAzureStorageTables
+
+        public string Name => "AccountLinks";
+
+        public string GetTablePropertyName(MemberInfo member)
+        {
+            var tablePropertyName = this.Name;
+            if (tablePropertyName.IsNullOrWhiteSpace())
+                return member.Name;
+            return tablePropertyName;
+        }
+
+        public KeyValuePair<string, EntityProperty>[] ConvertValue<EntityType>(MemberInfo memberInfo,
+            object value, IWrapTableEntity<EntityType> tableEntityWrapper)
+        {
+            var accountLinks = (AccountLinks)value;
+            // One column per link: the first link of a method keeps the legacy
+            // AM{methodId} name; additional links of the SAME method (an account
+            // deliberately holding e.g. two Google identities) get an ordinal suffix.
+            return accountLinks.accountLinks
+                .NullToEmpty()
+                .GroupBy(accountLink => accountLink.method.id)
+                .SelectMany(
+                    methodGroup => methodGroup.Select(
+                        (accountLink, index) =>
+                        {
+                            var key = index == 0 ?
+                                $"AM{accountLink.method.id.ToString("n")}"
+                                :
+                                $"AM{accountLink.method.id.ToString("n")}_{index}";
+                            var value = EntityProperty.GeneratePropertyForString(accountLink.externalAccountKey);
+                            return key.PairWithValue(value);
+                        }))
+                .ToArray();
+        }
+
+        public object GetMemberValue(MemberInfo memberInfo,
+            IDictionary<string, EntityProperty> values,
+            out bool shouldSkip,
+            Func<object> getDefaultValue = default)
+        {
+            shouldSkip = false;
+            var accountLinks = values
+                .TryWhere(
+                    (KeyValuePair<string, EntityProperty> kvp, out AccountLink accountLink) =>
+                    {
+                        if (kvp.Key.Length < 2)
+                        {
+                            accountLink = default;
+                            return false;
+                        }
+
+                        var methodIdStr = kvp.Key.Substring(2);
+                        // Additional links of the same method carry an "_<ordinal>" suffix.
+                        var suffixIndex = methodIdStr.IndexOf('_');
+                        if (suffixIndex >= 0)
+                            methodIdStr = methodIdStr.Substring(0, suffixIndex);
+                        if (!Guid.TryParse(methodIdStr, out Guid methodId))
+                        {
+                            accountLink = default;
+                            return false;
+                        }
+
+                        if (kvp.Value.PropertyType != EdmType.String)
+                        {
+                            accountLink = default;
+                            return false;
+                        }
+
+                        var externalKey = kvp.Value.StringValue;
+                        accountLink = new AccountLink
+                        {
+                            method = methodId.AsRef<Method>(),
+                            externalAccountKey = externalKey,
+                        };
+                        return true;
+                    })
+                .Select(tpl => tpl.@out)
+                .ToArray();
+
+            return new AccountLinks
+            {
+                accountLinks = accountLinks,
+            };
+        }
+
+
+        #endregion
+    }
+
+}
+

@@ -1,0 +1,45 @@
+﻿@model EastFive.Api.Azure.Credentials.CredentialProcessDocument[]
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/ >
+    <title>Affirm System Health</title>
+</head>
+<body>
+    <br>
+    <br>
+    <br>
+        
+    <h1> I'm In this FILE!!!!</h1>
+
+    <br>
+    <br>
+    <br>
+
+    <br>
+    <table border="1">
+        <tr>
+            <td>ID</td>
+            <td>When</td>
+            <td>Authorization ID</td>
+            <td>Action</td>
+            <td>Method</td>
+            <td>Message</td>
+        </tr>
+        <tr>
+            @foreach (var item in Model)
+            {
+                <td><a href="@item.Id">@item.Id</a></td>
+                <td>@DateTime.FromFileTimeUtc(item.Time)</td>
+                <td>@item.AuthorizationId</td>
+                <td>@item.Action</td>
+                <td>@item.Method</td>
+                <td>@item.Message</td>
+            }
+        </tr>
+    </table>
+</body>
+</html>

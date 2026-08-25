@@ -1,0 +1,193 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="indexPage" xml:space="preserve">
+    <value>&lt;html&gt;&lt;head&gt;&lt;title&gt;TODO: Load spa page here&lt;/title&gt;&lt;/head&gt;&lt;body&gt;&lt;/body&gt;&lt;/html&gt;</value>
+  </data>
+  <data name="loginHtml" xml:space="preserve">
+    <value>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8" /&gt;
+&lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
+&lt;title&gt;Sign in&lt;/title&gt;
+&lt;style&gt;
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f6f8;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+.card{background:#fff;border:1px solid #e2e5ea;border-radius:8px;padding:2rem;width:20rem;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+h1{font-size:1.15rem;margin:0 0 1.25rem}
+label{display:block;font-size:.8rem;color:#555;margin:.75rem 0 .25rem}
+input{width:100%;box-sizing:border-box;padding:.5rem;border:1px solid #cfd4dc;border-radius:4px;font-size:.95rem}
+button{margin-top:1.25rem;width:100%;padding:.6rem;border:0;border-radius:4px;background:#2563eb;color:#fff;font-size:.95rem;cursor:pointer}
+button:disabled{opacity:.6;cursor:default}
+.error{color:#b91c1c;font-size:.85rem;margin-top:.75rem;min-height:1.2em}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;form class="card" id="loginForm"&gt;
+&lt;h1&gt;Sign in&lt;/h1&gt;
+&lt;label for="user"&gt;Username or email&lt;/label&gt;
+&lt;input id="user" name="user_identification" autocomplete="username" required autofocus /&gt;
+&lt;label for="pass"&gt;Password&lt;/label&gt;
+&lt;input id="pass" name="password" type="password" autocomplete="current-password" required /&gt;
+&lt;button id="submit" type="submit"&gt;Sign in&lt;/button&gt;
+&lt;div class="error" id="error"&gt;&lt;/div&gt;
+&lt;/form&gt;
+&lt;script&gt;
+(function () {
+  var form = document.getElementById('loginForm');
+  var errorEl = document.getElementById('error');
+  var button = document.getElementById('submit');
+  var authenticationId = new URLSearchParams(window.location.search).get('id');
+  if (!authenticationId)
+    errorEl.textContent = 'Missing authentication id \u2014 restart the sign-in flow.';
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!authenticationId) return;
+    button.disabled = true;
+    errorEl.textContent = '';
+    var query = '?id=' + encodeURIComponent(authenticationId) + '&amp;hold=true';
+    fetch(window.location.pathname + query, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        user_identification: document.getElementById('user').value,
+        password: document.getElementById('pass').value
+      })
+    }).then(function (resp) {
+      if (resp.ok)
+        return resp.json().then(function (auth) {
+          window.location.assign('/api/LoginRedirection?state=' + encodeURIComponent(auth.state)
+            + '&amp;token=' + encodeURIComponent(auth.token));
+        });
+      var reason = resp.headers.get('X-Reason');
+      return resp.text().then(function (bodyText) {
+        errorEl.textContent = reason || bodyText || ('Sign-in failed (' + resp.status + ')');
+        button.disabled = false;
+      });
+    }).catch(function () {
+      errorEl.textContent = 'Could not reach the server.';
+      button.disabled = false;
+    });
+  });
+})();
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</value>
+  </data>
+</root>
