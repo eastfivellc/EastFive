@@ -55,14 +55,14 @@ namespace EastFive.Azure.Auth.CredentialProviders
             HtmlResponse onGeneralFailure)
         {
             //The way this works...
-            //1.  User clicks Third Party Applications\AffirmHealth over in Athena.
-            //2.  Athena calls Ping
+            //1.  User clicks the third-party application link in the EMR.
+            //2.  The EMR calls Ping.
             //3.  Ping redirects to /PingResponseController with a token.
             //4.  This code validates the token, parses it out, and redirects to the interactive report matching the patient id.
 
             //To debug, you have to grab the token from Ping that comes in here.  If you don't, the token will get used and it won't work again
             //To do this, uncomment the commented line and comment out the call to ParsePingResponseAsync.  That way the token won't be used.
-            //After the uncomment/comment, publish to dev and then click third party apps\Affirm Health in Athena.
+            //After the uncomment/comment, publish to dev and then click the third-party app link in the EMR.
             //Grab the token from the browser.
             //Then, switch the uncommented/commented lines back and run the server in debug.
             //Send the token via Postman to debug and see any errors that might come back from Ping.
@@ -86,12 +86,12 @@ namespace EastFive.Azure.Auth.CredentialProviders
                 var methodName = PingProvider.IntegrationName;
                 var method = EastFive.Azure.Auth.Method.ByMethodName(methodName, application);
 
-                var failureHtml = "<html><title>{0}</title><body>{1} Please report:<code>{2}</code> to Affirm Health if the issue persists.</body></html>";
+                var failureHtml = "<html><title>{0}</title><body>{1} Please report:<code>{2}</code> to support if the issue persists.</body></html>";
 
-                return await EastFive.Web.Configuration.Settings.GetString($"AffirmHealth.PDMS.PingRedirect.{tag}.PingAuthName",
+                return await EastFive.Azure.Auth.PingRedirectConfiguration.GetPingAuthName(tag,
                     async pingAuthName =>
                     {
-                        return await EastFive.Web.Configuration.Settings.GetGuid($"AffirmHealth.PDMS.PingRedirect.{tag}.PingReportSetId",
+                        return await EastFive.Azure.Auth.PingRedirectConfiguration.GetPingReportSetId(tag,
                             async reportSetId =>
                             {
                                 var requestParams = request.RequestUri
@@ -111,8 +111,8 @@ namespace EastFive.Azure.Auth.CredentialProviders
                                     (why) =>
                                     {
                                         var failureText = String.Format(failureHtml,
-                                            "PING/ATHENA credential service offline",
-                                            "Could not connect to PING (the authorization service used by Athena) to verify the provided link. Affirm Health will work with Athena/Ping to resolve this issue.",
+                                            "PING credential service offline",
+                                            "Could not connect to PING (the EMR's authorization service) to verify the provided link.",
                                             why);
                                         return onCouldNotConnect(why);
                                     },

@@ -207,10 +207,10 @@ namespace EastFive.Azure.Auth
                                 async (externalId, loginProvider) =>
                                 {
                                     var tag = "ACPTool";
-                                    return await EastFive.Web.Configuration.Settings.GetString($"AffirmHealth.PDMS.PingRedirect.{tag}.PingAuthName",
+                                    return await EastFive.Azure.Auth.PingRedirectConfiguration.GetPingAuthName(tag,
                                         async pingAuthName =>
                                         {
-                                            return await EastFive.Web.Configuration.Settings.GetGuid($"AffirmHealth.PDMS.PingRedirect.{tag}.PingReportSetId",
+                                            return await EastFive.Azure.Auth.PingRedirectConfiguration.GetPingReportSetId(tag,
                                                 async (reportSetId) =>
                                                 {
                                                     var requestParams = authorization.parameters

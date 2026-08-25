@@ -9,7 +9,7 @@ namespace EastFive.Azure.Persistence.StorageTables
 {
     /// <summary>
     /// Decorator interface implemented by per-datastore attributes (e.g.
-    /// <c>[RosemaryDataStorage]</c>, <c>[RosemaryDataLake]</c>). The loader
+    /// <c>[MyAppDataStorage]</c>, <c>[MyAppDataLake]</c>). The loader
     /// attribute walks parameter → method → declaring type → assembly to find
     /// the first <see cref="IProvideStorageDriver"/> in scope and uses it to
     /// build the driver for the load.
@@ -52,7 +52,7 @@ namespace EastFive.Azure.Persistence.StorageTables
                     () => throw new System.InvalidOperationException(
                         $"No [IProvideStorageDriver] attribute in scope for parameter " +
                         $"'{parameter.Name}' of '{method?.DeclaringType?.FullName}.{method?.Name}'. " +
-                        $"Apply one (e.g. [RosemaryDataStorage]) at the parameter, method, " +
+                        $"Apply one (e.g. [MyAppDataStorage]) at the parameter, method, " +
                         $"declaring type, or assembly."));
         }
 
@@ -72,7 +72,7 @@ namespace EastFive.Azure.Persistence.StorageTables
                     (provider, next) => provider,
                     () => throw new System.InvalidOperationException(
                         $"No [IProvideStorageDriver] attribute in scope for type " +
-                        $"'{type.FullName}'. Apply one (e.g. [RosemaryDataStorage]) at the " +
+                        $"'{type.FullName}'. Apply one (e.g. [MyAppDataStorage]) at the " +
                         $"type or assembly."));
         }
     }

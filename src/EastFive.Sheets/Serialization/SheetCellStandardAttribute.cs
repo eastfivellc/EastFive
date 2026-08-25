@@ -122,7 +122,7 @@ namespace EastFive.Sheets
             var matchValueRow = sourceCell.WorksheetRow().RowNumber();
 
             var cellLink = worksheet.Cell(matchValueRow, matchValueColNumber + 1);
-            var externalSheetName = headerData.externalSheetName; // "'Affirm Quality Measure Types'";
+            var externalSheetName = headerData.externalSheetName; // e.g. "'Reference Types'"
             var externalSheetPrefix = $"'{externalSheetName}'!";
             var externalColumnMatch = "A";
             var externalColumnDisplay = "B";

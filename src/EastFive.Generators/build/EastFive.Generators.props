@@ -1,0 +1,8 @@
+<Project>
+  <!-- Makes the harness wiring properties visible to the TestHarnessGenerator analyzer -->
+  <ItemGroup>
+    <CompilerVisibleProperty Include="EastFiveTestHarnessNamespace" />
+    <CompilerVisibleProperty Include="EastFiveTestHarnessTargetAssemblies" />
+    <CompilerVisibleProperty Include="EastFiveTestHarnessGeneratedNamespace" />
+  </ItemGroup>
+</Project>

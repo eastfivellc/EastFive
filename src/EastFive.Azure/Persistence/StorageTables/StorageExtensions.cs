@@ -741,7 +741,7 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
         /// </summary>
         /// <remarks>
         /// MIXING CONCERN: queryable-bound reads deliberately bypass <c>FromSettings()</c> so
-        /// per-parameter datastore overrides (e.g. <c>[AffirmDataStorage][StorageEntities]</c>)
+        /// per-parameter datastore overrides (e.g. <c>[MyAppDataStorage][StorageEntities]</c>)
         /// actually take effect. This is the read-side mirror of <see cref="StorageInsertAsync"/>;
         /// the scoped driver's <c>FindBy</c> uses <c>Compile</c> to build up the execution.
         /// Use <see cref="StorageGet{TEntity}"/> instead when the default datastore is intended.
@@ -787,7 +787,7 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
         /// it computes the row/partition key and issues a single <c>FindByIdAsync</c> retrieve on the
         /// queryable's <see cref="StorageQuery{TEntity}.StorageDriver"/> rather than the ambient
         /// <c>FromSettings()</c> driver, so per-parameter datastore overrides
-        /// (e.g. <c>[AffirmDataStorage][StorageEntities]</c>) take effect. Use this instead of
+        /// (e.g. <c>[MyAppDataStorage][StorageEntities]</c>) take effect. Use this instead of
         /// <c>.Where(x =&gt; x.id == ref).StorageExecute().FirstAsync(...)</c> for a single-entity read by id;
         /// it avoids the expression-tree compile path entirely and is a true key lookup.
         /// </summary>
@@ -1190,7 +1190,7 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
         /// <remarks>
         /// MIXING CONCERN: queryable-bound writes deliberately bypass
         /// <c>FromSettings()</c> so per-parameter datastore overrides
-        /// (e.g. <c>[RosemaryDataLake][StorageEntities]</c>) actually take effect for
+        /// (e.g. <c>[MyAppDataLake][StorageEntities]</c>) actually take effect for
         /// inserts. Pairs with the read-side <c>StorageEntity{T}</c> pipeline.
         /// </remarks>
         public static Task<TResult> StorageInsertAsync<TEntity, TResult>(

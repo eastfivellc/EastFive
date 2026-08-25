@@ -604,8 +604,7 @@ namespace EastFive.Api.Azure
                 // AllowTokensWithoutScopes = false)], which 401s a token lacking the scope --
                 // reported as ungated and was attributed instead to the SessionTokenMaybe it
                 // binds, i.e. to the one parameter that gates nothing. Found by the endpoint
-                // security audit screen. See AuthorizationTokenAttributesAreRegistered in
-                // Rosemary.Tests/Api/EndpointSecurityTests for the ratchet.
+                // security audit screen and ratcheted by a consumer-side registration test.
                 attr is EastFive.Azure.OAuth.Server.RequiredScopeAttribute;
         }
 

@@ -900,7 +900,7 @@ namespace EastFive.Azure.Auth.Salesforce
                             onPropertyValueNotUnique.IsNotDefaultOrNull(),
 						(errorResponse) =>
 						{
-                            // duplicate value found: AffirmId__c duplicates value on record with id: 0018M000003uKqq
+                            // duplicate value found: ExternalId__c duplicates value on record with id: 0018M000003uKqq
                             // duplicate value found: NPI__c duplicates value on record with id: 0035e00000qL5Jz
                             return errorResponse.message.MatchRegexInvoke(
 								"duplicate value.*:\\s*(?<property>[0-9a-zA-Z_]+)\\s*duplicates.*:\\s*(?<value>[0-9a-zA-Z]+)",

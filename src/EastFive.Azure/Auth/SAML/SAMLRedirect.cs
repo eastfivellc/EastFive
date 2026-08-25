@@ -47,8 +47,8 @@ namespace EastFive.Azure.Auth
             // mechanism — whether to run the SMART auth sequence or fall back to the
             // tag's launch page. Launches without SMART context go straight to the
             // launch page. Unconfigured tags fall through to redemption, which fails
-            // with "SAMLResponse parameter was not provided" — the same answer
-            // AffirmHealth gives this shape.
+            // with "SAMLResponse parameter was not provided" — the same answer the
+            // original implementation gives this shape.
             if (!parameters.ContainsKey(SamlResponseParameter))
             {
                 parameters.TryGetValue("iss", out var iss);
@@ -119,10 +119,10 @@ namespace EastFive.Azure.Auth
             var methodName = SAMLProvider.IntegrationName;
             var method = EastFive.Azure.Auth.Method.ByMethodName(methodName, application);
 
-            return await EastFive.Web.Configuration.Settings.GetString($"AffirmHealth.PDMS.PingRedirect.{tag}.PingAuthName",
+            return await EastFive.Azure.Auth.PingRedirectConfiguration.GetPingAuthName(tag,
                 async pingAuthName =>
                 {
-                    return await EastFive.Web.Configuration.Settings.GetGuid($"AffirmHealth.PDMS.PingRedirect.{tag}.PingReportSetId",
+                    return await EastFive.Azure.Auth.PingRedirectConfiguration.GetPingReportSetId(tag,
                         async reportSetId =>
                         {
                             return await EastFive.Azure.AppSettings.SAML.GetMetadataLocation(tag).ConfigurationUri(

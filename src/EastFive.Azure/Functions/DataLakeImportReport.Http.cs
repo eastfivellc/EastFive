@@ -42,7 +42,7 @@ namespace EastFive.Azure.Functions
             public int? patientsMatched;
             public int? patientsMatchedRecon;
             public int? patientsMatchedRoster;
-            public int? patientsMatchedAffirm;
+            public int? patientsMatchedPrimary;
             public bool? success;
         }
 

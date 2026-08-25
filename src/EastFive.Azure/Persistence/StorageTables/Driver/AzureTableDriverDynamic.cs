@@ -1461,7 +1461,7 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
                         var entity = ((IAzureStorageTableEntity<TData>)result.Result).Entity;
                         return onSuccess(created, entity);
                         // Cosmos.Table.TableResult
-                        // 	result.Result	{EastFive.Persistence.Azure.StorageTables.StorageTableAttribute.TableEntity<AffirmHealth.Computations.PatientQualityMeasureStatus>}	
+                        // 	result.Result	{EastFive.Persistence.Azure.StorageTables.StorageTableAttribute.TableEntity<TData>}	
                     }
                     catch (StorageException ex)
                     {

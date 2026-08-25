@@ -14,7 +14,7 @@ namespace EastFive.Api.Meta.Flows.Scripted
     {
         /// <summary>
         /// Optional override for the generated API struct's type name. Defaults to the
-        /// sanitized assembly name suffixed with <c>Api</c> (e.g. <c>RosemaryApi</c>).
+        /// sanitized assembly name suffixed with <c>Api</c> (e.g. <c>MyAppApi</c>).
         /// </summary>
         public string ApiTypeName { get; set; }
     }

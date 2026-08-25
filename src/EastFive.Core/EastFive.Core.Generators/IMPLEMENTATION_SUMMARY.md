@@ -160,7 +160,7 @@ dotnet build EastFive.Core/
 # ✅ Generated 15 InvokeDelayed overloads
 
 # Build entire solution
-dotnet build AffirmHealth.sln
+dotnet build EastFive.sln
 # ✅ Build succeeded (102 warnings, 0 errors)
 ```
 
@@ -208,7 +208,7 @@ Each overload follows this structure:
 ### Modified:
 - ✅ `/EastFive.Core/Functional/DiscriminatedFunctions.cs` (made partial)
 - ✅ `/EastFive.Core/EastFive.Core.csproj` (added generator reference)
-- ✅ `/AffirmHealth.sln` (added generator project)
+- ✅ `/EastFive.sln` (added generator project)
 
 ## Maintenance
 

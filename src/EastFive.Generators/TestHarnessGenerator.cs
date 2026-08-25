@@ -30,53 +30,84 @@ namespace EastFive.Generators
         private const string ResponseReturnTypeName = "IHttpResponse";
 
         /// <summary>
-        /// Marker type that only exists in the test project. The generator
-        /// emits nothing unless the compilation can see it — so it stays inert
-        /// when the shared analyzer runs against the production assembly.
+        /// Consumer wiring, read from compiler-visible build properties (declared
+        /// in build/EastFive.Generators.props inside the package):
+        /// <c>EastFiveTestHarnessNamespace</c> — namespace holding the harness
+        /// contract types (TestSession, ResponseBranchCapture, GeneratedAssert,
+        /// HarnessReflection); <c>EastFiveTestHarnessTargetAssemblies</c> —
+        /// semicolon-separated assembly names to scan for controllers;
+        /// <c>EastFiveTestHarnessGeneratedNamespace</c> — namespace to emit into
+        /// (defaults to "{harness namespace}.Generated").
+        /// The generator stays inert unless the harness namespace is configured
+        /// AND its TestSession marker type is visible in the compilation — so it
+        /// emits nothing when the analyzer runs against a production assembly.
         /// </summary>
-        private const string TestSessionMetadataName = "Rosemary.Tests.Harness.TestSession";
-
-        /// <summary>
-        /// Assemblies whose controllers the harness generates extensions for.
-        /// Controllers live in referenced assemblies (not the test project's
-        /// own syntax), so the generator walks symbols rather than syntax.
-        /// </summary>
-        private static readonly HashSet<string> TargetAssemblies = new(StringComparer.Ordinal)
+        private readonly struct HarnessConfig
         {
-            "Rosemary",
-        };
+            public HarnessConfig(string harnessNamespace, string targetAssemblies, string generatedNamespace)
+            {
+                HarnessNamespace = harnessNamespace;
+                TargetAssemblies = targetAssemblies;
+                GeneratedNamespace = generatedNamespace;
+            }
+
+            public string HarnessNamespace { get; }
+            public string TargetAssemblies { get; }
+            public string GeneratedNamespace { get; }
+            public string TestSessionMetadataName => HarnessNamespace + ".TestSession";
+        }
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
-            context.RegisterSourceOutput(context.CompilationProvider,
-                static (spc, compilation) =>
+            var config = context.AnalyzerConfigOptionsProvider.Select(static (provider, _) =>
+            {
+                provider.GlobalOptions.TryGetValue("build_property.EastFiveTestHarnessNamespace", out var harnessNs);
+                provider.GlobalOptions.TryGetValue("build_property.EastFiveTestHarnessTargetAssemblies", out var targets);
+                provider.GlobalOptions.TryGetValue("build_property.EastFiveTestHarnessGeneratedNamespace", out var generatedNs);
+                if (string.IsNullOrWhiteSpace(harnessNs))
+                    return default(HarnessConfig?);
+                return new HarnessConfig(
+                    harnessNs!.Trim(),
+                    targets ?? string.Empty,
+                    string.IsNullOrWhiteSpace(generatedNs) ? harnessNs.Trim() + ".Generated" : generatedNs!.Trim());
+            });
+
+            context.RegisterSourceOutput(context.CompilationProvider.Combine(config),
+                static (spc, source) =>
                 {
+                    var (compilation, maybeConfig) = source;
+                    if (maybeConfig is not HarnessConfig cfg)
+                        return;
+
                     // Only run in the test compilation (the one that owns the harness).
-                    if (compilation.GetTypeByMetadataName(TestSessionMetadataName) is null)
+                    if (compilation.GetTypeByMetadataName(cfg.TestSessionMetadataName) is null)
                         return;
 
                     var seen = new HashSet<string>(StringComparer.Ordinal);
-                    foreach (var controllerType in EnumerateControllers(compilation))
+                    foreach (var controllerType in EnumerateControllers(compilation, cfg))
                     {
                         var model = BuildController(controllerType);
                         if (model is not ControllerModel value || value.Methods.IsDefaultOrEmpty)
                             continue;
                         if (!seen.Add(value.HintName))
                             continue;
-                        spc.AddSource(value.HintName, SourceText.From(Render(value), Encoding.UTF8));
+                        spc.AddSource(value.HintName, SourceText.From(Render(value, cfg), Encoding.UTF8));
                     }
                 });
         }
 
         // ---- Symbol enumeration ------------------------------------------------
 
-        private static IEnumerable<INamedTypeSymbol> EnumerateControllers(Compilation compilation)
+        private static IEnumerable<INamedTypeSymbol> EnumerateControllers(Compilation compilation, HarnessConfig cfg)
         {
+            var targets = new HashSet<string>(
+                cfg.TargetAssemblies.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(a => a.Trim()),
+                StringComparer.Ordinal);
             var assemblies = new List<IAssemblySymbol> { compilation.Assembly };
             foreach (var reference in compilation.References)
             {
                 if (compilation.GetAssemblyOrModuleSymbol(reference) is IAssemblySymbol asm
-                    && TargetAssemblies.Contains(asm.Name))
+                    && targets.Contains(asm.Name))
                     assemblies.Add(asm);
             }
 
@@ -302,14 +333,14 @@ namespace EastFive.Generators
 
         // ---- Rendering ---------------------------------------------------------
 
-        private static string Render(ControllerModel controller)
+        private static string Render(ControllerModel controller, HarnessConfig cfg)
         {
             var sb = new StringBuilder();
             sb.AppendLine("// <auto-generated/> EastFive test harness extensions.");
             sb.AppendLine("#nullable enable");
             sb.AppendLine("using System;");
             sb.AppendLine();
-            sb.AppendLine("namespace Rosemary.Tests.Generated");
+            sb.AppendLine($"namespace {cfg.GeneratedNamespace}");
             sb.AppendLine("{");
 
             var emittable = controller.Methods.Where(m => m.SkipReason == null && !m.Surfaced.IsDefault).ToArray();
@@ -322,7 +353,7 @@ namespace EastFive.Generators
 
             // Result structs
             foreach (var m in emittable)
-                RenderResultStruct(sb, controller, m);
+                RenderResultStruct(sb, controller, m, cfg);
 
             // Extension class
             sb.AppendLine($"    /// <summary>Generated test extensions for <see cref=\"{controller.FullyQualified}\"/>.</summary>");
@@ -330,21 +361,22 @@ namespace EastFive.Generators
             sb.AppendLine("    {");
             var usedNames = new HashSet<string>(StringComparer.Ordinal);
             foreach (var m in emittable)
-                RenderExtension(sb, controller, m, usedNames);
+                RenderExtension(sb, controller, m, usedNames, cfg);
             sb.AppendLine("    }");
 
             sb.AppendLine("}");
             return sb.ToString();
         }
 
-        private static void RenderResultStruct(StringBuilder sb, ControllerModel controller, MethodModel m)
+        private static void RenderResultStruct(StringBuilder sb, ControllerModel controller, MethodModel m, HarnessConfig cfg)
         {
+            var harness = "global::" + cfg.HarnessNamespace;
             var resultType = $"{controller.SimpleName}{m.Name}Result";
             sb.AppendLine($"    /// <summary>Typed result of <c>{controller.SimpleName}_{m.Name}</c>; exposes the captured response branch.</summary>");
             sb.AppendLine($"    public readonly struct {resultType}");
             sb.AppendLine("    {");
-            sb.AppendLine("        private readonly global::Rosemary.Tests.Harness.ResponseBranchCapture capture;");
-            sb.AppendLine($"        public {resultType}(global::Rosemary.Tests.Harness.ResponseBranchCapture capture) => this.capture = capture;");
+            sb.AppendLine($"        private readonly {harness}.ResponseBranchCapture capture;");
+            sb.AppendLine($"        public {resultType}({harness}.ResponseBranchCapture capture) => this.capture = capture;");
             sb.AppendLine("        /// <summary>Name of the response delegate the controller invoked, or <c>null</c> if none fired.</summary>");
             sb.AppendLine("        public string? WhichBranch => this.capture.BranchName;");
 
@@ -354,18 +386,18 @@ namespace EastFive.Generators
                 if (r.ArgTypes.IsDefaultOrEmpty)
                 {
                     sb.AppendLine($"        /// <summary>Asserts the controller invoked <c>{r.ParamName}</c>.</summary>");
-                    sb.AppendLine($"        public void {assertName}() => global::Rosemary.Tests.Harness.GeneratedAssert.Branch(this.capture, \"{r.ParamName}\");");
+                    sb.AppendLine($"        public void {assertName}() => {harness}.GeneratedAssert.Branch(this.capture, \"{r.ParamName}\");");
                 }
                 else if (r.ArgTypes.Length <= 3)
                 {
                     var typeArgs = string.Join(", ", r.ArgTypes);
                     sb.AppendLine($"        /// <summary>Asserts the controller invoked <c>{r.ParamName}</c>; optionally validates the response arguments.</summary>");
-                    sb.AppendLine($"        public void {assertName}(global::System.Action<{typeArgs}>? validate = null) => global::Rosemary.Tests.Harness.GeneratedAssert.Branch(this.capture, \"{r.ParamName}\", validate);");
+                    sb.AppendLine($"        public void {assertName}(global::System.Action<{typeArgs}>? validate = null) => {harness}.GeneratedAssert.Branch(this.capture, \"{r.ParamName}\", validate);");
                 }
                 else
                 {
                     sb.AppendLine($"        /// <summary>Asserts the controller invoked <c>{r.ParamName}</c> (argument validation unsupported for this arity).</summary>");
-                    sb.AppendLine($"        public void {assertName}() => global::Rosemary.Tests.Harness.GeneratedAssert.Branch(this.capture, \"{r.ParamName}\");");
+                    sb.AppendLine($"        public void {assertName}() => {harness}.GeneratedAssert.Branch(this.capture, \"{r.ParamName}\");");
                 }
             }
 
@@ -373,8 +405,9 @@ namespace EastFive.Generators
             sb.AppendLine();
         }
 
-        private static void RenderExtension(StringBuilder sb, ControllerModel controller, MethodModel m, HashSet<string> usedNames)
+        private static void RenderExtension(StringBuilder sb, ControllerModel controller, MethodModel m, HashSet<string> usedNames, HarnessConfig cfg)
         {
+            var harness = "global::" + cfg.HarnessNamespace;
             var resultType = $"{controller.SimpleName}{m.Name}Result";
             var extName = $"{controller.SimpleName}_{m.Name}";
             var suffix = 2;
@@ -387,7 +420,7 @@ namespace EastFive.Generators
 
             sb.AppendLine($"        /// <summary>Invokes <c>{controller.FullyQualified}.{m.Name}</c> through the test dispatch pipeline.</summary>");
             sb.AppendLine($"        public static async global::System.Threading.Tasks.Task<{resultType}> {extName}(");
-            sb.AppendLine("            this global::Rosemary.Tests.Harness.TestSession session,");
+            sb.AppendLine($"            this {harness}.TestSession session,");
             foreach (var s in required)
                 sb.AppendLine($"            {s.SurfacedTypeFq} {Escape(s.ParamName)},");
             foreach (var s in optional)
@@ -412,7 +445,7 @@ namespace EastFive.Generators
             var paramNamesArray = m.AllParamNames.IsDefaultOrEmpty
                 ? "new string[] { }"
                 : $"new[] {{ {paramNamesLiteral} }}";
-            sb.AppendLine("            var __method = global::Rosemary.Tests.Harness.HarnessReflection.ResolveControllerMethod(");
+            sb.AppendLine($"            var __method = {harness}.HarnessReflection.ResolveControllerMethod(");
             sb.AppendLine($"                typeof({controller.FullyQualified}), \"{m.Name}\", {paramNamesArray});");
             sb.AppendLine("            var __capture = await session.DispatchMethodAsync(__method,");
             sb.AppendLine("                __body.Count == 0 ? null : __body,");
