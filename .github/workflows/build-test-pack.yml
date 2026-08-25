@@ -8,6 +8,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      azurite:
+        image: mcr.microsoft.com/azure-storage/azurite
+        ports:
+          - 10000:10000
+          - 10001:10001
+          - 10002:10002
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,8 +29,9 @@ jobs:
         run: dotnet build EastFive.sln -c Release
 
       - name: Test
-        run: dotnet test tests/EastFive.Api.Tests/EastFive.Api.Tests.csproj -c Release --no-build
-        # When EastFive.Azure.Tests lands, run Azurite as a service container here
+        run: |
+          dotnet test tests/EastFive.Api.Tests/EastFive.Api.Tests.csproj -c Release --no-build
+          dotnet test tests/EastFive.Azure.Tests/EastFive.Azure.Tests.csproj -c Release --no-build
 
       - name: Pack
         run: dotnet pack EastFive.sln -c Release -o artifacts --no-build
