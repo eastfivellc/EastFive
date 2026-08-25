@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "title": "JSON Schema for my JSON file format",
+
+  "type": "object",
+
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier"
+    },
+    "replaced_with": {
+      "type": "string",
+      "description": "Path of substitution_option parameter with which this has been replaced."
+    }
+  },
+  "required": [ "id" ]
+}
+//const schema = {
+//    "type": "object",
+//    "properties": {
+//        "code": { "type": "string" },
+//        "error": {
+//            "type": "object",
+//            "properties": {
+//                "message": { type: "string" }
+//            },
+//            "required": ["message"]
+//        }
+//    },
+//    "required": ["code", "error"]
+//};

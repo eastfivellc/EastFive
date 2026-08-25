@@ -1,0 +1,529 @@
+﻿@*@model EastFive.Api.Resources.Manifest*@
+@using System.Collections.Generic;
+@using EastFive.Collections.Generic;
+@using EastFive.Linq;
+@using EastFive;
+@*@{
+
+        Layout = null;
+    }*@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Manifest</title>
+
+    <style>
+
+        #integrationUploadForm {
+            font-family: sans-serif;
+        }
+
+        ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            border: 0;
+        }
+
+        li {
+            margin: 0;
+            padding: 0;
+        }
+
+        pre {
+            font-family: "Anonymous Pro", "Menlo", "Consolas", "Bitstream Vera Sans Mono", "Courier New", monospace;
+            background-color: #fcf6db;
+            border: 1px solid #e5e0c6;
+            padding: 10px;
+        }
+
+        .resource {
+            margin: 0;
+            padding: 0;
+            border: 0;
+            font-size: 100%;
+            font: inherit;
+            vertical-align: baseline;
+        }
+
+        div.heading {
+            border: 1px solid transparent;
+            float: none;
+            clear: both;
+            overflow: hidden;
+            display: block;
+            margin: 0;
+            padding: 0;
+            font-size: 100%;
+            font: inherit;
+            vertical-align: baseline;
+            margin: 0;
+            padding: 0;
+            font-size: 100%;
+            font: inherit;
+            vertical-align: baseline;
+        }
+
+        li.resource div.heading h2 {
+            color: #999999;
+            padding-left: 0;
+            display: block;
+            clear: none;
+            float: left;
+            font-family: "Droid Sans", sans-serif;
+            font-weight: bold;
+            margin: 0;
+        }
+
+            li.resource div.heading h2 a {
+                color: #999999;
+                text-decoration: none;
+            }
+
+        li.resource.active div.heading h2 a {
+            color: black;
+        }
+
+        li.resource div.model h4 {
+            color: #222222;
+            border: 1px solid #111111;
+            padding: 0;
+        }
+
+            li.resource div.model h4 span.title-text {
+                color: #ebf3f9;
+                background: #111111;
+                padding: 0.2em;
+            }
+
+            li.resource div.model h4 span.properties {
+                float: right;
+                margin: 0.1em;
+                font-size: 0.9em;
+                font-weight: 400;
+                text-decoration: underline;
+                cursor: pointer;
+            }
+
+        li.resource div.heading ul.options {
+            overflow: hidden;
+            padding: 0;
+            display: block;
+            clear: none;
+            float: right;
+            margin: 14px 10px 0 0;
+            border: 0;
+            font-size: 100%;
+            font: inherit;
+            vertical-align: baseline;
+        }
+
+            li.resource div.heading ul.options li {
+                float: left;
+                clear: none;
+                margin: 0;
+                padding: 2px 10px;
+                border-right: 1px solid #dddddd;
+                color: #666666;
+                font-size: 0.9em;
+                vertical-align: baseline;
+            }
+
+        li.resource div.heading {
+            border: 1px solid transparent;
+            float: none;
+            clear: both;
+            overflow: hidden;
+            display: block;
+        }
+
+        table.model-properties {
+            padding-left: 1.5em;
+            margin-bottom: 2em;
+        }
+
+        table.parameters {
+            padding-left: 1.5em;
+        }
+
+        ul.responses {
+            padding-left: 1.5em;
+        }
+
+        ul.operations li.operation {
+            float: none;
+            clear: both;
+            overflow: hidden;
+            display: block;
+            margin: 0 0 10px;
+            padding: 0;
+        }
+
+
+        li.operation div.heading h3 {
+            display: block;
+            clear: none;
+            float: left;
+            width: auto;
+            margin: 0;
+            padding: 0;
+            line-height: 1.1em;
+            color: black;
+            font-size: 1.1em;
+            border: 0;
+            font: inherit;
+            vertical-align: baseline;
+        }
+
+            li.operation div.heading h3 span.http_method a {
+                text-transform: uppercase;
+                text-decoration: none;
+                color: white;
+                display: inline-block;
+                width: 50px;
+                font-size: 0.7em;
+                text-align: center;
+                padding: 7px 0 4px;
+                border-radius: 2px;
+            }
+
+            li.operation div.heading h3 span.path a {
+                color: black;
+                text-decoration: none;
+                margin: 0;
+                padding: 0;
+                border: 0;
+                font-size: 100%;
+                font: inherit;
+                vertical-align: baseline;
+            }
+
+        li.operation div.content h4 {
+            color: #0f6ab4;
+        }
+
+        li.operation div.heading span.method-name {
+            float: right;
+            margin: 0.1em;
+            padding-right: 1em;
+            font-size: 0.9em;
+            font-weight: 400;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        li.operation.get div.heading h3 span.http_method a {
+            background-color: #0f6ab4;
+        }
+
+        li.operation.get div.content h4 {
+            color: #0f6ab4;
+        }
+
+        li.operation.get div.heading {
+            background-color: #ebf3f9;
+            border: 1px solid #c3d9ec;
+        }
+
+        li.operation.get div.content {
+            background-color: #ebf3f9;
+            border: 1px solid #c3d9ec;
+        }
+
+        li.operation.post div.heading h3 span.http_method a {
+            background-color: #10a54a;
+        }
+
+        li.operation.post div.heading {
+            background-color: #e7f6ec;
+            border: 1px solid #c3e8d1;
+        }
+
+        li.operation.post div.content {
+            background-color: #e7f6ec;
+            border: 1px solid #c3e8d1;
+        }
+
+            li.operation.post div.content h4 {
+                color: #10a54a;
+            }
+
+        li.operation.put div.heading h3 span.http_method a {
+            background-color: #c5862b;
+        }
+
+        li.operation.put div.content h4 {
+            color: #c5862b;
+        }
+
+        li.operation.put div.heading {
+            background-color: #f9f2e9;
+            border: 1px solid #f0e0ca;
+        }
+
+        li.operation.put div.content {
+            background-color: #f9f2e9;
+            border: 1px solid #f0e0ca;
+        }
+
+        li.operation.delete div.heading h3 span.http_method a {
+            background-color: #a41e22;
+        }
+
+        li.operation.delete div.content h4 {
+            color: #a41e22;
+        }
+
+        li.operation.delete div.heading {
+            background-color: #f5e8e8;
+            border: 1px solid #e8c6c7;
+        }
+
+        li.operation.delete div.content {
+            background-color: #f5e8e8;
+            border: 1px solid #e8c6c7;
+        }
+
+        li.operation.patch div.heading h3 span.http_method a {
+            background-color: #c5862b;
+        }
+
+        li.operation.patch div.content h4 {
+            color: #c5862b;
+        }
+
+        li.operation.patch div.heading {
+            background-color: #f9f2e9;
+            border: 1px solid #f0e0ca;
+        }
+
+        li.operation.patch div.content {
+            background-color: #f9f2e9;
+            border: 1px solid #f0e0ca;
+        }
+
+        li.operation.options div.heading h3 span.http_method a {
+            background-color: #a5a5a5;
+        }
+
+        li.operation.options div.content h4 {
+            color: #a5a5a5;
+        }
+
+        li.operation.options div.heading {
+            background-color: #f6f6f6;
+            border: 1px solid #e8e8e8;
+        }
+
+        li.operation.options div.content {
+            background-color: #f6f6f6;
+            border: 1px solid #e8e8e8;
+        }
+    </style>
+
+    <script type="text/javascript">
+
+        function showHide(resourceId) {
+            var x = document.getElementById(resourceId);
+            if (x.style.display === "none") {
+                x.style.display = "block";
+            } else {
+                x.style.display = "none";
+            }
+        }
+
+        function showHideResource(routeName) {
+            showHide('model-' + routeName);
+            showHide('endpoints-' + routeName);
+        }
+
+        function setFileName(elem) {
+            var fileName = elem.files.length > 0 ? elem.files[0].name : '';
+            document.getElementById("integrationFileName").innerHTML = fileName;
+        }
+    </script>
+</head>
+<body id="integrationUploadForm">
+    <section>
+        <h1>Resources </h1>
+        <ul>
+            @foreach (var route in @Model.Routes)
+            {
+                <li class="resource">
+                    <div class="heading">
+                        <h2>
+                            <a href="#!/@route.Name" class="toggleEndpointList" data-id="@route.Name">@route.Name</a>
+                        </h2>
+                        <ul class="options">
+                            <li>
+                                <a href="#!/@route.Name" id="endpointListTogger_@route.Name" class="toggleEndpointList" data-id="@route.Name" data-sw-translate="" onclick="showHideResource('@route.Name')">Show/Hide</a>
+                            </li>
+                            <li>
+                                <a href="#" class="collapseResource" data-id="@route.Name" data-sw-translate="">
+                                    List Operations
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#" class="expandResource" data-id="@route.Name" data-sw-translate="">
+                                    Expand Operations
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div id="model-@route.Name" class="model" style="display:none">
+                        <div class="heading">
+                            <h4 data-sw-translate="">
+                                <span class="title-text">Model</span>
+                                <span class="properties" onclick="showHide('properties-@route.Name')">Properties</span>
+                            </h4>
+                        </div>
+                        <table id="properties-@route.Name" class="fullwidth model-properties" style="display:none">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px; max-width: 100px" data-sw-translate="">Property</th>
+                                    <th style="width: 310px; max-width: 310px" data-sw-translate="">Value</th>
+                                    <th style="width: 200px; max-width: 200px" data-sw-translate="">Description</th>
+                                    <th style="width: 220px; max-width: 230px" data-sw-translate="">Data Type</th>
+                                </tr>
+                            </thead>
+                            <tbody class="models-properties">
+                                @foreach (var property in @route.Properties)
+                                {
+                                    <tr>
+                                        <td class="code"><label for="mresult.method0.013694710793461073">@property.Name</label></td>
+                                        <td>
+                                            <select class="parameter " name="result.method" id="mresult.method0.013694710793461073">
+                                                <option selected="" value=""></option>
+                                                @foreach (var optionKvp in property.Options)
+                                                {
+                                                    <option value="@optionKvp.Key">@optionKvp.Value</option>
+                                                }
+                                            </select>
+                                        </td>
+                                        <td class="markdown">@property.Description</td>
+                                        <td><span class="model-signature">@property.Type</span></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <ul id="endpoints-@route.Name" class="endpoints operations" style="display:none">
+                        @foreach (var method in @route.Methods)
+                        {
+                            <li class="endpoint @method.HttpMethod.ToLower() operation">
+                                <div class="heading">
+                                    <h3>
+                                        @{
+                                            var routePath = "#!/" + route.Name + "/" + route.Name + "_" + method.HttpMethod;
+                                        }
+                                        <span class="http_method">
+                                            <a href="@routePath" class="toggleOperation">@method.HttpMethod</a>
+                                        </span>
+                                        @*<span class="path">
+                                                @{
+                                                    var defaultParams = method.Parameters.Where(p => p.Default);
+                                                    var defaultFile = defaultParams.Any() ? "/{" + defaultParams.First().Name + "=" + defaultParams.First().Type + "}" : "";
+                                                    var queryParams = method.Parameters.Where(p => !p.Default);
+                                                    var queryList = queryParams.Select(p => p.Name + "={" + p.Type + "}").Join("&");
+                                                    var query = queryParams.Any() ? ("?" + queryList)  : "";
+                                                }
+                                                <a href="@routePath" class="toggleOperation ">/api/@route.Name@defaultFile@query</a>
+                                            </span>*@
+                                    </h3>
+                                    <span class="method-name" onclick="showHide('@route.Name-@method.HttpMethod-@method.Name')">@method.Name</span>
+                                </div>
+                                <div class="content" id="@route.Name-@method.HttpMethod-@method.Name" style="display:none">
+                                    @if (!string.IsNullOrWhiteSpace(method.Description))
+                                    {
+                                        <div class="description">@method.Description</div>
+                                    }
+                                    <div accept-charset="UTF-8" class="parameters">
+                                        <div style="margin:0;padding:0;display:inline"></div>
+                                        <h4 data-sw-translate="">Parameters</h4>
+                                        <table class="fullwidth parameters">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 100px; max-width: 100px" data-sw-translate="">Parameter</th>
+                                                    <th style="width: 310px; max-width: 310px" data-sw-translate="">Value</th>
+                                                    <th style="width: 100px; max-width: 100px" data-sw-translate="">Default</th>
+                                                    <th style="width: 100px; max-width: 100px" data-sw-translate="">Required</th>
+                                                    <th style="width: 100px; max-width: 100px" data-sw-translate="">Parameter Type</th>
+                                                    <th style="width: 220px; max-width: 230px" data-sw-translate="">Data Type</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="operation-params">
+                                                @foreach (var parameter in @method.Parameters)
+                                                {
+                                                    <tr>
+                                                        <td class="code"><label for="mresult.method0.013694710793461073">@parameter.Name</label></td>
+                                                        <td>
+                                                            <select class="parameter " name="result.method" id="mresult.method0.013694710793461073">
+                                                                <option selected="" value=""></option>
+                                                                <option value="0"> 0  </option>
+                                                            </select>
+                                                        </td>
+                                                        <td class="markdown">@parameter.Default</td>
+                                                        <td class="markdown">@parameter.Required</td>
+                                                        <td>@parameter.Where</td>
+                                                        <td><span class="model-signature">@parameter.Type</span></td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div accept-charset="UTF-8" class="responses">
+                                        <div style="margin:0;padding:0;display:inline"></div>
+                                        <h4 data-sw-translate="">Responses</h4>
+                                        <ul accept-charset="UTF-8" class="responses">
+                                            @foreach (var response in @method.Responses)
+                                            {
+                                                <li class="response">
+                                                    <h5><span data-sw-translate="">@response.Name</span> (<span data-sw-translate="">Status</span> @((int)(response.StatusCode))/@response.StatusCode.ToString())</h5>
+                                                    @if (response.Example.HasBlackSpace())
+                                                    {
+                                                        <p>
+                                                            <div class="model-signature">
+                                                                <a class="description-link" href="#" data-sw-translate="">Model</a>
+                                                                <div class="signature-container">
+                                                                    <div class="description" style="display: none;">
+                                                                        <span class="strong">Inline Model {</span><span class="strong">}</span>
+                                                                    </div>
+                                                                    <div class="snippet" style="display: block;">
+                                                                        <div class="snippet_json" style="display: block;">
+                                                                            <pre><code>{@response.Example}</code></pre>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </p>
+                                                    }
+                                                    @if (response.Headers.AnyNullSafe())
+                                                    {
+                                                        <p>
+                                                            <div class="model-signature">
+                                                                <a class="description-link" href="#" data-sw-translate="">Header Values</a>
+                                                                <ul>
+                                                                    @foreach (var header in @response.Headers)
+                                                                    {
+                                                                        <li><span>@header.Key</span>@header.Value</li>
+                                                                    }
+                                                                </ul>
+                                                            </div>
+                                                        </p>
+                                                    }
+                                                </li>
+                                            }
+                                        </ul>
+                                    </div>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                </li>
+            }
+        </ul>
+    </section>
+</body>
+</html>

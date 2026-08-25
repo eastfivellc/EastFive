@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="FVC\**" />
+    <EmbeddedResource Remove="FVC\**" />
+    <None Remove="FVC\**" />
+    <None Remove="Auth\Tokens\" />
+    <None Remove="Auth\Claims\" />
+    <None Remove="Diagnositcs\" />
+    <None Remove="Microsoft.IdentityModel.Tokens" />
+    <None Remove="System.IdentityModel.Tokens.Jwt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Meta\Manifest\Manifest.cshtml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Meta\Manifest\Manifest.cshtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.2.0" />
+    <PackageReference Include="RazorEngineCore" Version="2020.3.3" />
+    <PackageReference Include="System.Drawing.Common" Version="9.0.1" />
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="6.36.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.36.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\EastFive.Core\EastFive.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Auth\Tokens\" />
+    <Folder Include="Auth\Claims\" />
+    <Folder Include="Diagnositcs\" />
+  </ItemGroup>
+</Project>
