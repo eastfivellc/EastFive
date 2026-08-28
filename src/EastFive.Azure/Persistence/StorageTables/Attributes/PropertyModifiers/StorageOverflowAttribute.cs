@@ -119,7 +119,7 @@ namespace EastFive.Persistence
                 var compactedBytes = values
                     .Where(value => value.Value.PropertyType == EdmType.Binary)
                     .Where(value => value.Key.StartsWith($"{propName}_overflow_"))
-                    .OrderBy(value => value.Key)
+                    .OrderBy(value => ChunkIndex(propName, value.Key))
                     .Aggregate(new byte[] { },
                         (bytes, valueKvp) => bytes.Concat(valueKvp.Value.BinaryValue).ToArray());
                 return propName.PairWithValue(new EntityProperty(compactedBytes));
@@ -133,7 +133,7 @@ namespace EastFive.Persistence
                 var stringBuilder = values
                     .Where(value => value.Value.PropertyType == EdmType.String)
                     .Where(value => value.Key.StartsWith($"{propName}_overflow_"))
-                    .OrderBy(value => value.Key)
+                    .OrderBy(value => ChunkIndex(propName, value.Key))
                     .Aggregate(new StringBuilder(),
                         (sb, valueKvp) => sb.Append(valueKvp.Value.StringValue));
                 return propName.PairWithValue(new EntityProperty(stringBuilder.ToString()));
@@ -142,6 +142,12 @@ namespace EastFive.Persistence
             return Empty();
 
             KeyValuePair<string, EntityProperty> Empty() => propName.PairWithValue(storageValue);
+
+            // Chunk suffixes are decimal indexes: string ordering breaks past _9 (_10 < _2).
+            static int ChunkIndex(string propName, string key)
+                => int.TryParse(key.Substring($"{propName}_overflow_".Length), out var index)
+                    ? index
+                    : int.MaxValue;
         }
     }
 
