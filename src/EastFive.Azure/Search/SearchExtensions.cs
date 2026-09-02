@@ -131,24 +131,81 @@ namespace EastFive.Azure.Search
         public static async Task<IndexDocumentsResult> SearchUpdateBatchAsync<T>(this IEnumerableAsync<T> items)
         {
             var searchClient = GetClient<T>();
-            var itemsArray = await items
+            var sourceItems = await items.ToArrayAsync();
+            var itemsArray = sourceItems
                 .Select(item => IndexDocumentsAction.Upload<T>(item))
-                .ToArrayAsync();
+                .ToArray();
             var batch = IndexDocumentsBatch.Create(itemsArray);
             
             try
             {
                 var result = await searchClient.IndexDocumentsAsync(batch);
+                ReportPartialFailures<T>("upload", result.Value);
                 return result.Value;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Sometimes when your Search service is under load, indexing will fail for some of the documents in
-                // the batch. Depending on your application, you can take compensating actions like delaying and
-                // retrying. For now, just log the failed document keys and continue.
-                Console.WriteLine("Failed to index some of the documents: {0}");
+                ReportBatchFailure("upload", ex, sourceItems);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Whole-batch failure (RequestFailedException: auth, index missing, throttling past the SDK's retries).
+        /// Every key in the batch failed; name them and the reason. The caller rethrows -- consumers rely on
+        /// the exception to report failure, so the diagnostic must never replace it.
+        /// </summary>
+        private static void ReportBatchFailure<T>(string operation, Exception ex, T[] items)
+        {
+            var keys = GetSearchKeys(items);
+            Console.WriteLine(
+                $"Search {operation} batch failed for index '{typeof(T).GetIndexName()}' ({items.Length} document(s)): {ex.Message}");
+            Console.WriteLine($"  keys: {keys.Join(", ")}");
+        }
+
+        /// <summary>
+        /// Partial failure (HTTP 207). The SDK does not throw; per-key outcome rides <see cref="IndexDocumentsResult.Results"/>.
+        /// Reports only the keys with <c>Succeeded == false</c>. Deliberately does NOT throw: the result is
+        /// returned to the caller, who can inspect <c>Results</c> and retry the failed subset; throwing would
+        /// make one throttled document fail the entire batch for callers that treat exceptions as total failure.
+        /// </summary>
+        private static void ReportPartialFailures<T>(string operation, IndexDocumentsResult result)
+        {
+            if (result.IsDefaultOrNull() || result.Results.IsDefaultOrNull())
+                return;
+            var failures = result.Results
+                .Where(r => !r.Succeeded)
+                .ToArray();
+            if (failures.None())
+                return;
+
+            Console.WriteLine(
+                $"Search {operation} batch for index '{typeof(T).GetIndexName()}' partially failed: {failures.Length} of {result.Results.Count} document(s) rejected");
+            foreach (var failure in failures)
+                Console.WriteLine($"  key '{failure.Key}' status {failure.Status}: {failure.ErrorMessage}");
+        }
+
+        /// <summary>Serialized key of each item, read from the member carrying <see cref="SearchKeyAttribute"/>.</summary>
+        private static string[] GetSearchKeys<T>(T[] items)
+        {
+            var keyMember = typeof(T)
+                .GetPropertyAndFieldsWithAttributesInterface<IProvideSearchField>()
+                .Where(tpl => tpl.Item2 is SearchKeyAttribute)
+                .Select(tpl => tpl.Item1)
+                .FirstOrDefault();
+            if (keyMember.IsDefaultOrNull())
+                return new[] { $"(no [SearchKey] member on {typeof(T).FullName})" };
+
+            return items
+                .Select(
+                    item =>
+                    {
+                        var value = keyMember.GetPropertyOrFieldValue(item);
+                        if (value is IReferenceable referenceable)
+                            return referenceable.id.ToString();
+                        return value?.ToString() ?? "(null)";
+                    })
+                .ToArray();
         }
 
         public static async Task<IndexDocumentsResult[]> SearchUpdateBatchAsync<T>(this IEnumerable<T> items)
@@ -175,6 +232,7 @@ namespace EastFive.Azure.Search
             try
             {
                 var result = await searchClient.IndexDocumentsAsync(batch);
+                ReportPartialFailures<T>("merge-or-upload", result.Value);
                 if(remainingItems.Any())
                 {
                     var remainingResults = await SearchUpdateBatchAsync(remainingItems);
@@ -182,12 +240,9 @@ namespace EastFive.Azure.Search
                 }
                 return result.Value.AsArray();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Sometimes when your Search service is under load, indexing will fail for some of the documents in
-                // the batch. Depending on your application, you can take compensating actions like delaying and
-                // retrying. For now, just log the failed document keys and continue.
-                Console.WriteLine("Failed to index some of the documents: {0}");
+                ReportBatchFailure("merge-or-upload", ex, itemsToProcess);
                 throw;
             }
         }
@@ -228,9 +283,10 @@ namespace EastFive.Azure.Search
                 // .Batch()
                 .Segments(5000)
                 .Select(
-                    async items =>
+                    async segment =>
                     {
-                        var itemsArray = items
+                        var segmentItems = segment.ToArray();
+                        var itemsArray = segmentItems
                             .Select(
                                 item =>
                                 {
@@ -242,14 +298,12 @@ namespace EastFive.Azure.Search
                         try
                         {
                             var result = await searchClient.IndexDocumentsAsync(batch);
+                            ReportPartialFailures<T>("delete", result.Value);
                             return result.Value;
                         }
-                        catch (Exception)
+                        catch (Exception ex)
                         {
-                            // Sometimes when your Search service is under load, indexing will fail for some of the documents in
-                            // the batch. Depending on your application, you can take compensating actions like delaying and
-                            // retrying. For now, just log the failed document keys and continue.
-                            Console.WriteLine("Failed to index some of the documents: {0}");
+                            ReportBatchFailure("delete", ex, segmentItems);
                             throw;
                         }
                     })
