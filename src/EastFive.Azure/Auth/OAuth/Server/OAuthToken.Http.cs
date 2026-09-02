@@ -21,9 +21,12 @@ namespace EastFive.Azure.OAuth.Server
     /// <summary>
     /// POST /oauth/token — OAuth 2.1 token endpoint (RFC 6749 §3.2).
     /// Grants: authorization_code (+ mandatory PKCE), refresh_token (rotating,
-    /// with family reuse-detection). Access tokens are RSA JWTs signed with the
-    /// same key/claims as session tokens, so the existing SessionToken instigator
-    /// and role gates accept them unchanged.
+    /// with family reuse-detection), client_credentials (confidential machine
+    /// clients; token carries client_id + scp only, no refresh token). Access
+    /// tokens are RSA JWTs signed with the same key/claims as session tokens, so
+    /// the existing SessionToken instigator and role gates accept them unchanged.
+    /// Client authentication accepts the current secret or, during a rotation
+    /// grace period, the retained previous one (<see cref="ClientCredential.MatchesSecret"/>).
     /// </summary>
     [FunctionViewController(
         Namespace = "oauth",

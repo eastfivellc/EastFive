@@ -51,9 +51,37 @@ The `ClientCredential` resource has been updated to be fully compliant with OAut
 - Parameters: `client_id` and `client_secret`
 
 **Implementation:**
-- `clientSecret` stored (should be hashed in production)
-- `HashSecret()` and `VerifyHashedSecret()` methods using PBKDF2-SHA256
-- Constant-time comparison to prevent timing attacks
+- `clientSecret` is stored as a hash (`OAuthServer.ComputeSecretHash`, SHA-256 base64url);
+  the plaintext is returned EXACTLY once, from create / `rotate-secret`, and is never
+  serialized afterwards (`[JsonIgnore]`).
+- Verification is constant-time (`OAuthServer.SecretMatchesHash` →
+  `CryptographicOperations.FixedTimeEquals`) through one matcher,
+  `ClientCredential.MatchesSecret`, used by both `/oauth/token` and the admin
+  `/authenticate` action.
+- Both `client_secret_basic` (RFC 6749 §2.3.1 — id and secret form-urlencoded, then
+  HTTP Basic) and `client_secret_post` are accepted at the token endpoint
+  (`OAuthToken.ReadClientAuthentication`).
+- Rows written before hashing (plaintext `clientSecret`) still authenticate against the
+  primary slot; they are upgraded to a hash on their next `rotate-secret`.
+
+### Secret rotation with a grace period (dual secrets)
+
+A confidential client has two hashed slots:
+
+| Slot | Field | Accepted at `/oauth/token` | Serialized |
+|------|-------|----------------------------|------------|
+| current | `clientSecret` | yes | never |
+| previous | `clientSecretSecondary` | yes, until retired or displaced | never |
+
+- `POST /OAuth/ClientCredential/{id}/rotate-secret` (`[SuperAdminClaim]`) generates a new
+  current secret (returned in plaintext once, with `previous_secret_retained: true`) and
+  moves the old current hash into `clientSecretSecondary`. A fleet can roll to the new
+  secret without a window where token requests fail.
+- `POST /OAuth/ClientCredential/{id}/retire-secondary` (`[SuperAdminClaim]`) clears the
+  previous slot, ending the grace period. Idempotent.
+- A second `rotate-secret` displaces the previous slot, so the oldest secret is dropped —
+  at most two secrets are ever live.
+- The previous slot is hash-only (no legacy plaintext fallback).
 
 ### 2.4 Registration Requirements
 
@@ -164,6 +192,58 @@ Supported grant types per RFC 6749:
 }
 ```
 
+## Client Credentials Grant (RFC 6749 §4.4) at `POST /oauth/token`
+
+For admin-provisioned machine clients (e.g. a CLI calling a deployed service). No user
+account is involved.
+
+**Request** — `application/x-www-form-urlencoded`, client authenticated by HTTP Basic
+(preferred) or `client_id`/`client_secret` in the body:
+
+```
+grant_type=client_credentials&scope=rosemary.engine
+```
+
+**Checks, in order, and the RFC 6749 §5.2 error each produces:**
+
+| Condition | `error` |
+|-----------|---------|
+| `grant_type` missing | `invalid_request` |
+| unknown `client_id`, wrong secret, or inactive client | `invalid_client` |
+| `grant_type` present but not supported | `unsupported_grant_type` |
+| client is not `confidential`, or no secret presented | `unauthorized_client` |
+| `grant_types` registration lacks `client_credentials` | `unauthorized_client` |
+| requested `scope` not a subset of the registered `scope` | `invalid_scope` |
+
+**Response** — `access_token` (RSA JWT signed like session tokens), `token_type: Bearer`,
+`expires_in` (seconds; `EastFive.Azure.OAuth.AccessTokenExpirationInMinutes`, default 60),
+`scope` (the requested scope, or the registered scope when none was requested). No refresh
+token (OAuth 2.1: the client can simply re-authenticate). `Cache-Control: no-store`.
+
+**What the token can reach.** The JWT carries only `client_id` and `scp` claims. It passes
+`[RequiredScope("x")]` gates whose scope is in `scp` (403 `insufficient_scope` otherwise)
+and does NOT satisfy account/role gates such as `[SuperAdminClaim]` — a machine identity is
+not a user. Session-token-only endpoints stay closed to it by construction.
+
+### Client-side helper: `EastFive.Api.Auth.ClientCredentialsHandler`
+
+A `DelegatingHandler` (in `EastFive.Api`, no Azure dependency) that gives an `HttpClient`
+a client-credentials identity:
+
+```csharp
+var handler = ClientCredentialsHandler.FromConfiguration(
+    "Rosemary.TokenEndpoint", "Rosemary.ClientId", "Rosemary.ClientSecret", "Rosemary.Scope");
+var http = new HttpClient(handler) { BaseAddress = rosemaryBaseUri };
+```
+
+- Lazily POSTs the grant with HTTP Basic auth; caches the token until `exp − 60s`
+  (`RefreshGuardBand`); coalesces concurrent first fetches.
+- On a downstream 401: refreshes once, retries once (body buffered); a second 401 is returned.
+- Token-endpoint failures throw `ClientCredentialsTokenException` with `Error` /
+  `ErrorDescription` (§5.2), the HTTP status, and the raw body.
+- `FromConfiguration` resolves through `ConfigurationString`, so `ClientId` can live in
+  appsettings and `ClientSecret` in Key Vault; the scope key is optional.
+
 ## Helper Methods
 
 ### ClientCredential.ValidateRegistration()
@@ -201,9 +281,11 @@ Checks if a client is authorized to use a specific grant type.
 ### Client Secret Storage
 
 Per RFC 6749 Section 10.1:
-- Client secrets SHOULD be hashed before storage
-- Use `HashSecret()` for secure PBKDF2-SHA256 hashing
-- Use `VerifyHashedSecret()` for constant-time comparison
+- Client secrets are hashed before storage (`OAuthServer.ComputeSecretHash`) and
+  compared in constant time (`ClientCredential.MatchesSecret`)
+- The plaintext is returned exactly once (create / `rotate-secret`) and never serialized
+- Rotation retains the previous hash for a grace period; `retire-secondary` ends it
+  (see "Secret rotation with a grace period" above)
 
 ### Public Client Security
 
