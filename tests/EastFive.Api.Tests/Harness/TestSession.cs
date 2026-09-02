@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 
 using EastFive.Api;
 using EastFive.Api.Binding;
+using EastFive.Api.Bindings;
 using EastFive.Api.Routing;
 
 namespace EastFive.Api.Tests.Harness;
@@ -20,9 +21,13 @@ namespace EastFive.Api.Tests.Harness;
 /// The <see cref="CaptureResponseBranchesAttribute"/> adds a single
 /// <c>IHandleMethodInvocation</c> handler that swaps in stub response
 /// delegates and records their invocations. Shared so attribute discovery
-/// happens once per process.
+/// happens once per process. Carries the standard string/JToken binders a
+/// consuming application declares, so query-string ids bind to
+/// <c>IRef&lt;T&gt;</c> the way they do in production.
 /// </summary>
 [CaptureResponseBranches]
+[StandardStringBindings]
+[StandardJTokenBindings]
 public sealed class TestApplication : HttpApplication
 {
     private static readonly Lazy<TestApplication> instance = new(BuildShared);
@@ -92,6 +97,7 @@ public class TestSession
                     $"({request.Method?.Method} {request.RequestUri?.AbsolutePath}): " +
                     $"status={response?.StatusCode}");
 
+            capture.Response = response;
             return capture;
         }
         finally

@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 
+using EastFive.Api;
+
 namespace EastFive.Api.Tests.Harness;
 
 /// <summary>
@@ -16,6 +18,11 @@ public sealed class ResponseBranchCapture
 
     public string? BranchName { get; private set; }
     public object?[]? Arguments { get; private set; }
+
+    /// <summary>The response the pipeline ultimately returned. When a method-level
+    /// gate (auth attribute) short-circuits, no branch fires and this is the only
+    /// evidence of the outcome (status code, WWW-Authenticate, X-Reason).</summary>
+    public IHttpResponse? Response { get; set; }
 
     public void Record(string branchName, object?[] arguments)
     {

@@ -27,6 +27,8 @@
     <ProjectReference Include="..\..\src\EastFive.Core\EastFive.Core.csproj" />
     <ProjectReference Include="..\..\src\EastFive.Api\EastFive.Api.csproj" />
     <ProjectReference Include="..\..\src\EastFive.Azure\EastFive.Azure.csproj" />
+    <!-- Real-pipeline dispatch harness (TestSession.DispatchRawAsync) -->
+    <ProjectReference Include="..\EastFive.Api.Tests\EastFive.Api.Tests.csproj" />
   </ItemGroup>
 
   <ItemGroup>

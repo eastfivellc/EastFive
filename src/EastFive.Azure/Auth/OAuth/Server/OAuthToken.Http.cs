@@ -47,6 +47,11 @@ namespace EastFive.Azure.OAuth.Server
             var grantType = (string)form["grant_type"];
             var (clientId, clientSecret) = ReadClientAuthentication(request);
 
+            // RFC 6749 s5.2: a missing REQUIRED parameter is invalid_request;
+            // unsupported_grant_type is reserved for a grant_type that IS present but unknown.
+            if (grantType.IsNullOrWhiteSpace())
+                return Error(onError, "invalid_request", "grant_type is required.");
+
             if (clientId.IsNullOrWhiteSpace())
                 return Error(onError, "invalid_client", "client_id is required.");
 

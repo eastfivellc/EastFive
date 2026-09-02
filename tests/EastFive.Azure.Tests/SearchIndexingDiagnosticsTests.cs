@@ -8,8 +8,6 @@ using Azure.Core;
 using Azure.Core.Pipeline;
 using Azure.Search.Documents;
 
-using Microsoft.Extensions.Configuration;
-
 using EastFive.Azure.Search;
 
 namespace EastFive.Azure.Tests;
@@ -134,22 +132,13 @@ public class SearchIndexingDiagnosticsTests
     }
 
     /// <summary>Point the static client factory at a fake service: an https-looking endpoint in
-    /// configuration (the SDK validates the scheme, nothing else), scripted transport underneath.
+    /// configuration (the SDK validates the scheme, nothing else; published process-wide by
+    /// <see cref="TestConfiguration"/>), scripted transport underneath.
     /// Serialized across tests because both the options and the console are process-global;
     /// disposing restores the default options for the rest of the suite.</summary>
     private static IDisposable ScriptService(HttpStatusCode status, string body)
     {
         TestConfiguration.Ensure();
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(AppContext.BaseDirectory)
-            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                [AppSettings.Search.EndPoint] = "https://fake-search.test/",
-                [AppSettings.Search.AdminApiKey] = "fake-admin-key",
-            })
-            .Build();
-        EastFive.Web.Configuration.ConfigurationExtensions.Initialize(configuration);
 
         var previous = SearchExtensions.ClientOptions;
         var options = new SearchClientOptions
