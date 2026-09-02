@@ -26,6 +26,11 @@ namespace EastFive.Azure.Search
 {
     public static class SearchExtensions
     {
+        /// <summary>Options every SearchIndexClient here is built with. Production leaves the
+        /// default; tests set <c>Transport</c> to script the service (the SDK rejects non-https
+        /// endpoints, so a loopback listener is not an option).</summary>
+        public static SearchClientOptions ClientOptions { get; set; } = new SearchClientOptions();
+
         public static SearchIndexClient GetIndexClient()
         {
             return AppSettings.Search.EndPoint.ConfigurationString(
@@ -35,7 +40,8 @@ namespace EastFive.Azure.Search
                         adminApiKey =>
                         {
                             var indexClient = new SearchIndexClient(
-                                new Uri(searchServiceEndPoint), new AzureKeyCredential(adminApiKey));
+                                new Uri(searchServiceEndPoint), new AzureKeyCredential(adminApiKey),
+                                ClientOptions);
                             return indexClient;
                         });
                 });
