@@ -237,10 +237,10 @@ public class ClientCredentialsGrantTests : TestSession
 
     #endregion
 
-    #region Secret rotation
+    #region Secret rotation (dual secrets with a grace period)
 
     [Fact]
-    public async Task RotateSecret_ReturnsPlaintextOnce_AndOldSecretStopsWorking()
+    public async Task RotateSecret_ReturnsPlaintextOnce_AndPreviousSecretWorksUntilRetired()
     {
         var seeded = await OAuthFixtures.SeedConfidentialClientAsync();
 
@@ -250,23 +250,56 @@ public class ClientCredentialsGrantTests : TestSession
         Assert.NotEqual(seeded.Secret, rotated.ClientSecret);
 
         // the new secret authenticates
-        var withNew = await RequestTokenAsync(
-            form: new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
-            basic: (seeded.Client.clientId, rotated.ClientSecret));
-        Assert.IsType<TokenSuccessResponse>(withNew.Issued);
+        Assert.IsType<TokenSuccessResponse>(
+            (await RequestTokenAsync(seeded.Client.clientId, rotated.ClientSecret)).Issued);
 
-        // the old one no longer does
-        var withOld = await RequestTokenAsync(
-            form: new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
-            basic: (seeded.Client.clientId, seeded.Secret));
-        Assert.Equal("invalid_client", withOld.Error?.Error);
+        // grace period: the previous secret still authenticates until retired
+        Assert.IsType<TokenSuccessResponse>(
+            (await RequestTokenAsync(seeded.Client.clientId, seeded.Secret)).Issued);
 
-        // "once": the stored row never exposes the secret (or its hash) on the wire
+        await RetireSecondarySecretAsync(seeded.Client.id);
+
+        Assert.Equal("invalid_client",
+            (await RequestTokenAsync(seeded.Client.clientId, seeded.Secret)).Error?.Error);
+        Assert.IsType<TokenSuccessResponse>(
+            (await RequestTokenAsync(seeded.Client.clientId, rotated.ClientSecret)).Issued);
+
+        // "once": the stored row never exposes either secret (or hash) on the wire
         var stored = await seeded.Client.@ref.StorageGetAsync(c => c, () => default);
         var wire = JsonConvert.SerializeObject(stored);
         Assert.DoesNotContain(rotated.ClientSecret, wire);
         Assert.DoesNotContain(OAuthServer.ComputeSecretHash(rotated.ClientSecret), wire);
+        Assert.DoesNotContain(OAuthServer.ComputeSecretHash(seeded.Secret), wire);
         Assert.DoesNotContain("\"client_secret\":", wire);
+        Assert.DoesNotContain("secondary", wire, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SecondRotation_DropsTheOldestSecret()
+    {
+        var seeded = await OAuthFixtures.SeedConfidentialClientAsync();
+        var secret0 = seeded.Secret;
+
+        var secret1 = (await RotateSecretAsync(seeded.Client.id)).ClientSecret;
+        var secret2 = (await RotateSecretAsync(seeded.Client.id)).ClientSecret;
+
+        Assert.Equal("invalid_client",
+            (await RequestTokenAsync(seeded.Client.clientId, secret0)).Error?.Error);
+        Assert.IsType<TokenSuccessResponse>(
+            (await RequestTokenAsync(seeded.Client.clientId, secret1)).Issued);
+        Assert.IsType<TokenSuccessResponse>(
+            (await RequestTokenAsync(seeded.Client.clientId, secret2)).Issued);
+    }
+
+    [Fact]
+    public async Task RetireSecondary_WithNothingToRetire_IsIdempotent()
+    {
+        var seeded = await OAuthFixtures.SeedConfidentialClientAsync();
+
+        await RetireSecondarySecretAsync(seeded.Client.id);
+
+        Assert.IsType<TokenSuccessResponse>(
+            (await RequestTokenAsync(seeded.Client.clientId, seeded.Secret)).Issued);
     }
 
     #endregion
@@ -274,6 +307,11 @@ public class ClientCredentialsGrantTests : TestSession
     #region Drivers
 
     protected sealed record TokenOutcome(TokenSuccessResponse? Issued, OAuthTokenError? Error);
+
+    protected Task<TokenOutcome> RequestTokenAsync(string clientId, string clientSecret) =>
+        RequestTokenAsync(
+            form: new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+            basic: (clientId, clientSecret));
 
     protected async Task<TokenOutcome> RequestTokenAsync(
         IReadOnlyDictionary<string, string> form,
@@ -331,6 +369,20 @@ public class ClientCredentialsGrantTests : TestSession
         Assert.True(capture.TryGet("onRotated", out var args),
             $"rotate-secret did not rotate; branch={capture.BranchName} status={capture.Response?.StatusCode} reason={capture.Response?.ReasonPhrase}");
         return Assert.IsType<ClientSecretResponse>(args[0]);
+    }
+
+    protected async Task<ClientCredential> RetireSecondarySecretAsync(Guid clientRecordId)
+    {
+        var method = typeof(ClientCredential).GetMethod(nameof(ClientCredential.RetireSecondarySecretAsync))!;
+        var request = OAuthRequests.Bare(HttpMethod.Post, "/api/OAuth/ClientCredential/retire-secondary",
+            bearer: OAuthFixtures.SuperAdminToken(),
+            query: new Dictionary<string, string> { ["id"] = clientRecordId.ToString() });
+
+        var capture = await DispatchRawAsync(method, request);
+
+        Assert.True(capture.TryGet("onRetired", out var args),
+            $"retire-secondary did not retire; branch={capture.BranchName} status={capture.Response?.StatusCode} reason={capture.Response?.ReasonPhrase}");
+        return Assert.IsType<ClientCredential>(args[0]);
     }
 
     #endregion

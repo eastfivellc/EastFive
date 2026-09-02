@@ -180,11 +180,8 @@ namespace EastFive.Azure.OAuth
             if (!client.isActive)
                 return onUnauthorized().AddReason("Client is not active");
 
-            // Validate client secret (hashed comparison; legacy plaintext fallback)
-            var secretMatches =
-                Server.OAuthServer.SecretMatchesHash(clientSecret, client.clientSecret)
-                || client.clientSecret == clientSecret;
-            if (!secretMatches)
+            // Validate client secret (current or grace-period secondary; legacy plaintext fallback)
+            if (!client.MatchesSecret(clientSecret))
                 return onUnauthorized().AddReason("Invalid client credentials");
 
             // Update last used timestamp (fire and forget for performance)
@@ -211,8 +208,11 @@ namespace EastFive.Azure.OAuth
         }
 
         /// <summary>
-        /// POST /OAuth/ClientCredential/{id}/rotate-secret - Rotate client secret
-        /// Generates a new client secret for security purposes
+        /// POST /OAuth/ClientCredential/{id}/rotate-secret - Rotate client secret.
+        /// Generates a new primary secret (returned in plaintext EXACTLY once) and moves the
+        /// previous primary into the secondary slot, where the token endpoint keeps accepting
+        /// it until <c>retire-secondary</c> is called or the next rotation displaces it.
+        /// A second rotation therefore drops the oldest secret.
         /// </summary>
         [HttpAction("POST", "rotate-secret")]
         [SuperAdminClaim]
@@ -226,6 +226,8 @@ namespace EastFive.Azure.OAuth
             return await clientRef.StorageUpdateAsync2(
                 client =>
                 {
+                    if (client.clientSecret.HasBlackSpace())
+                        client.clientSecretSecondary = client.clientSecret;
                     client.clientSecret = Server.OAuthServer.ComputeSecretHash(newSecret);
                     client.updatedAt = DateTime.UtcNow;
 
@@ -237,10 +239,34 @@ namespace EastFive.Azure.OAuth
                     {
                         ClientId = updatedClient.clientId,
                         ClientSecret = newSecret,
-                        UpdatedAt = updatedClient.updatedAt
+                        UpdatedAt = updatedClient.updatedAt,
+                        PreviousSecretRetained = updatedClient.clientSecretSecondary.HasBlackSpace(),
                     };
                     return onRotated(response);
                 },
+                () => onNotFound());
+        }
+
+        /// <summary>
+        /// POST /OAuth/ClientCredential/{id}/retire-secondary - End the rotation grace period:
+        /// clears the retained previous secret so only the current one authenticates.
+        /// Idempotent.
+        /// </summary>
+        [HttpAction("POST", "retire-secondary")]
+        [SuperAdminClaim]
+        public static async Task<IHttpResponse> RetireSecondarySecretAsync(
+                [UpdateId] IRef<ClientCredential> clientRef,
+            ContentTypeResponse<ClientCredential> onRetired,
+            NotFoundResponse onNotFound)
+        {
+            return await clientRef.StorageUpdateAsync2(
+                client =>
+                {
+                    client.clientSecretSecondary = default;
+                    client.updatedAt = DateTime.UtcNow;
+                    return client;
+                },
+                updatedClient => onRetired(updatedClient),
                 () => onNotFound());
         }
 
@@ -318,6 +344,10 @@ namespace EastFive.Azure.OAuth
 
         [JsonProperty("updated_at")]
         public DateTime UpdatedAt { get; set; }
+
+        /// <summary>True when the previous secret is still accepted (call retire-secondary to end the grace period).</summary>
+        [JsonProperty("previous_secret_retained")]
+        public bool PreviousSecretRetained { get; set; }
     }
 
     /// <summary>

@@ -437,12 +437,7 @@ namespace EastFive.Azure.OAuth.Server
         {
             if (client.tokenEndpointAuthMethod == ClientCredential.TokenEndpointAuthMethods.None)
                 return true; // public client: PKCE is the proof of possession
-            if (providedSecret.IsNullOrWhiteSpace() || client.clientSecret.IsNullOrWhiteSpace())
-                return false;
-            // hashed comparison when the stored value is a hash; legacy plaintext fallback
-            if (OAuthServer.SecretMatchesHash(providedSecret, client.clientSecret))
-                return true;
-            return String.Equals(client.clientSecret, providedSecret, StringComparison.Ordinal);
+            return client.MatchesSecret(providedSecret);
         }
 
         #endregion

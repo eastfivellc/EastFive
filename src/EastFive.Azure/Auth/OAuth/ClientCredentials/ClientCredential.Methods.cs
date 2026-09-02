@@ -189,9 +189,34 @@ namespace EastFive.Azure.OAuth
         #region Secret Management
 
         /// <summary>
+        /// Constant-time check of a presented secret against BOTH stored slots: the current
+        /// hash, the retained previous hash (rotation grace period), and -- for rows written
+        /// before hashing -- the current slot as plaintext. This is the single source of
+        /// truth for client authentication; the token endpoint and the admin
+        /// <c>/authenticate</c> action both call it.
+        /// </summary>
+        public bool MatchesSecret(string providedSecret)
+        {
+            if (string.IsNullOrWhiteSpace(providedSecret))
+                return false;
+
+            if (Server.OAuthServer.SecretMatchesHash(providedSecret, this.clientSecret))
+                return true;
+            if (Server.OAuthServer.SecretMatchesHash(providedSecret, this.clientSecretSecondary))
+                return true;
+
+            // legacy plaintext rows (pre-hashing); primary slot only
+            return this.clientSecret.HasBlackSpace()
+                && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                    Encoding.UTF8.GetBytes(this.clientSecret),
+                    Encoding.UTF8.GetBytes(providedSecret));
+        }
+
+        /// <summary>
         /// Validates if the provided client secret matches the stored secret
         /// In production, this should use secure hashing (e.g., BCrypt, PBKDF2)
         /// </summary>
+        [Obsolete("Plaintext-only comparison. Use MatchesSecret, which honors hashed primary and secondary slots.")]
         public bool ValidateSecret(string providedSecret)
         {
             if (string.IsNullOrWhiteSpace(providedSecret))

@@ -74,6 +74,17 @@ namespace EastFive.Azure.OAuth
         [Storage]
         public string clientSecret;
 
+        /// <summary>
+        /// Previous client secret, retained (hashed) for a grace period after
+        /// <c>rotate-secret</c> so a fleet can roll to the new secret without an outage.
+        /// Accepted by the token endpoint exactly like <see cref="clientSecret"/> until
+        /// <c>retire-secondary</c> clears it or the next rotation replaces it. Hash-only:
+        /// no legacy-plaintext fallback applies to this slot. NEVER serialized.
+        /// </summary>
+        [JsonIgnore]
+        [Storage]
+        public string clientSecretSecondary;
+
         const string RedirectUrisPropertyName = "redirect_uris";
         /// <summary>
         /// Redirection endpoint URIs (RFC 6749 Section 3.1.2)
