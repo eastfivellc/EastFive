@@ -50,6 +50,33 @@ public static class PropertyPatchProbe
 }
 
 /// <summary>
+/// Regression probe for object-target binding: [Body] parameters typed
+/// <c>IDictionary&lt;string, object&gt;</c> / <c>object</c> must bind from any
+/// JSON native. Before ObjectBinder, nothing claimed <c>typeof(object)</c>, so
+/// dictionary values fell to PocoBinder — which supplies only onNull/onObject —
+/// and a JSON string 400'd with WrongSourceType("object", "String").
+/// </summary>
+[FunctionViewController(Route = "object-binding-probe")]
+public static class ObjectBindingProbe
+{
+    public static bool LastValuesSpecified;
+    public static System.Collections.Generic.IDictionary<string, object>? LastValues;
+    public static object? LastSingle;
+
+    [HttpPost]
+    public static IHttpResponse Receive(
+            [Body(Name = "values")] Property<System.Collections.Generic.IDictionary<string, object>> values,
+            [Body(Name = "single")] object single,
+        ContentTypeResponse<string> onReceived)
+    {
+        LastValuesSpecified = values.specified;
+        LastValues = values.value;
+        LastSingle = single;
+        return onReceived("bound");
+    }
+}
+
+/// <summary>
 /// Simple controller the TestHarnessGenerator can fully model — proves the
 /// parameterized generator emits wrappers from build-property configuration.
 /// </summary>

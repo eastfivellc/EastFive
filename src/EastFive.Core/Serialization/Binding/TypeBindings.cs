@@ -41,6 +41,9 @@ namespace EastFive.Serialization.Binding
             yield return new PrimitiveBinder();
             yield return new ArrayBinder();
             yield return new DictionaryBinder();
+            // object targets accept any native; must precede the PocoBinder
+            // catch-all or they fail on every non-object source shape.
+            yield return new ObjectBinder();
             // Catch-all: any class/struct with bindable members. Registered last so
             // every specific binder gets first crack.
             yield return new PocoBinder();
