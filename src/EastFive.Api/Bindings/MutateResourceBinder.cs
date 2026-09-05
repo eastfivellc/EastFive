@@ -110,7 +110,7 @@ namespace EastFive.Api.Bindings
                 {
                     var memberContext = member.ScopeInto(context);
                     var memberBindings = memberContext.TypeBindings.ForSlot(memberContext.Slot);
-                    return await await memberBindings.Bind(
+                    var continuation = await memberBindings.Bind<object>(
                         member.MemberType,
                         source,
                         memberContext,
@@ -126,6 +126,7 @@ namespace EastFive.Api.Bindings
                             return onFailure(outer).AsTask();
                         },
                         onNull: () => next(t => (T)member.WithMember(mutator(t), null)));
+                    return await (Task<TResult>)continuation;
                 },
                 onComplete: mutator => onBound(new MutateResource<T>(mutator)).AsTask());
         }
