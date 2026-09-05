@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using EastFive.Api;
+using MutateEntityAttribute = EastFive.Api.Binding.MutateEntityAttribute;
 using EastFive.Api.Serialization.Json;
 using EastFive.Azure.Auth;
 using EastFive.Azure.Persistence;
@@ -115,8 +116,8 @@ namespace EastFive.Azure.OAuth
         [HttpPatch]
         [SuperAdminClaim]
         public static async Task<IHttpResponse> UpdateAsync(
-                [UpdateId] IRef<ClientCredential> clientRef,
-                MutateResource<ClientCredential> mutateResource,
+            [EastFive.Api.Binding.UpdateId] IRef<ClientCredential> clientRef,
+            [MutateEntity] MutateResource<ClientCredential> mutateResource,
             ContentTypeResponse<ClientCredential> onUpdated,
             NotFoundResponse onNotFound)
         {

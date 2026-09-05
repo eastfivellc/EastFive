@@ -2,6 +2,7 @@ using System;
 using Newtonsoft.Json;
 using EastFive;
 using EastFive.Api;
+using V3ApiPropertyAttribute = EastFive.Api.Binding.ApiPropertyAttribute;
 using EastFive.Persistence;
 using EastFive.Persistence.Azure.StorageTables;
 
@@ -58,6 +59,7 @@ namespace EastFive.Azure.OAuth
         ///         "public" - incapable of maintaining credential confidentiality
         /// </summary>
         [ApiProperty(PropertyName = ClientTypePropertyName)]
+        [V3ApiProperty(Name = ClientTypePropertyName)]
         [JsonProperty(PropertyName = ClientTypePropertyName)]
         [Storage]
         public string clientType;
@@ -92,6 +94,7 @@ namespace EastFive.Azure.OAuth
         /// REQUIRED for public clients and confidential clients using implicit grant.
         /// </summary>
         [ApiProperty(PropertyName = RedirectUrisPropertyName)]
+        [V3ApiProperty(Name = RedirectUrisPropertyName)]
         [JsonProperty(PropertyName = RedirectUrisPropertyName)]
         [Storage]
         public string redirectUris;
@@ -102,6 +105,7 @@ namespace EastFive.Azure.OAuth
         /// Comma-separated list. Values: "authorization_code", "implicit", "password", "client_credentials", "refresh_token"
         /// </summary>
         [ApiProperty(PropertyName = GrantTypesPropertyName)]
+        [V3ApiProperty(Name = GrantTypesPropertyName)]
         [JsonProperty(PropertyName = GrantTypesPropertyName)]
         [Storage]
         public string grantTypes;
@@ -112,6 +116,7 @@ namespace EastFive.Azure.OAuth
         /// Values: "client_secret_basic", "client_secret_post", "none"
         /// </summary>
         [ApiProperty(PropertyName = TokenEndpointAuthMethodPropertyName)]
+        [V3ApiProperty(Name = TokenEndpointAuthMethodPropertyName)]
         [JsonProperty(PropertyName = TokenEndpointAuthMethodPropertyName)]
         [Storage]
         public string tokenEndpointAuthMethod;
@@ -125,6 +130,7 @@ namespace EastFive.Azure.OAuth
         /// Human-readable name for the client application
         /// </summary>
         [ApiProperty(PropertyName = NamePropertyName)]
+        [V3ApiProperty(Name = NamePropertyName)]
         [JsonProperty(PropertyName = NamePropertyName)]
         [Storage]
         public string name;
@@ -134,6 +140,7 @@ namespace EastFive.Azure.OAuth
         /// Description of the client application's purpose
         /// </summary>
         [ApiProperty(PropertyName = DescriptionPropertyName)]
+        [V3ApiProperty(Name = DescriptionPropertyName)]
         [JsonProperty(PropertyName = DescriptionPropertyName)]
         [Storage]
         public string description;
@@ -143,6 +150,7 @@ namespace EastFive.Azure.OAuth
         /// Space-delimited list of scopes this client is authorized to request (RFC 6749 Section 3.3)
         /// </summary>
         [ApiProperty(PropertyName = ScopePropertyName)]
+        [V3ApiProperty(Name = ScopePropertyName)]
         [JsonProperty(PropertyName = ScopePropertyName)]
         [Storage]
         public string scope;
@@ -156,6 +164,7 @@ namespace EastFive.Azure.OAuth
         /// Whether this client is currently active and can authenticate
         /// </summary>
         [ApiProperty(PropertyName = IsActivePropertyName)]
+        [V3ApiProperty(Name = IsActivePropertyName)]
         [JsonProperty(PropertyName = IsActivePropertyName)]
         [Storage]
         public bool isActive;
@@ -196,6 +205,7 @@ namespace EastFive.Azure.OAuth
         /// Contact email for the client application owner
         /// </summary>
         [ApiProperty(PropertyName = ContactEmailPropertyName)]
+        [V3ApiProperty(Name = ContactEmailPropertyName)]
         [JsonProperty(PropertyName = ContactEmailPropertyName)]
         [Storage]
         public string contactEmail;
