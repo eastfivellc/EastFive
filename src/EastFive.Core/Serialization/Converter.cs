@@ -16,6 +16,8 @@ namespace EastFive.Serialization.Json
     {
         public override bool CanConvert(Type objectType)
         {
+            if (typeof(JToken).IsAssignableFrom(objectType))
+                return false;
             if (objectType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
                 return true;
             if (objectType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
@@ -277,6 +279,11 @@ namespace EastFive.Serialization.Json
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
+            if (value is JToken token)
+            {
+                token.WriteTo(writer);
+                return;
+            }
             if (!value.TryGetType(out Type valueType))
             {
                 writer.WriteNull();
