@@ -76,8 +76,10 @@ namespace EastFive.Configuration
 
         /// <summary>
         /// The doctor's view: every Required or Secret key the source does not answer, in
-        /// declaration order, without constructing a configuration. <c>Load</c> stops at the
-        /// FIRST missing member (the caller may supply it); a checklist wants all of them at once.
+        /// declaration order, without running validation. <c>Load</c> stops at the FIRST missing
+        /// member (the caller may supply it); a checklist wants all of them at once. Members that
+        /// ARE present are populated as it goes, so a secret reference derived from an earlier
+        /// member (account or tenant identity) names the same key <c>Load</c> would read.
         /// A throwing source propagates, since a checklist over an unreachable source is not a
         /// checklist.
         /// </summary>
@@ -85,11 +87,21 @@ namespace EastFive.Configuration
             where TConfig : IProvideConfiguration, new()
         {
             var config = new TConfig();
-            return ConfigurationMembers.For<TConfig>().Members
-                .Where(member => member.Kind is ConfigurationMemberKind.Required or ConfigurationMemberKind.Secret)
-                .Select(member => member.IsSecret ? config.SecretReference(member.Purpose!).Key : member.Key)
-                .Where(key => string.IsNullOrWhiteSpace(readSetting(key)))
-                .ToArray();
+            var missing = new System.Collections.Generic.List<string>();
+            foreach (var member in ConfigurationMembers.For<TConfig>().Members)
+            {
+                var key = member.IsSecret ? config.SecretReference(member.Purpose!).Key : member.Key;
+                var text = readSetting(key);
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    if (member.Kind is ConfigurationMemberKind.Required or ConfigurationMemberKind.Secret)
+                        missing.Add(key);
+                    continue;
+                }
+                if (!member.IsSecret && ConfigurationValueConverter.TryConvert(member.Property.PropertyType, text.Trim(), out var converted))
+                    member.Property.SetValue(config, converted);
+            }
+            return missing.ToArray();
         }
 
         private static TResult Attempt<TConfig, TResult>(
