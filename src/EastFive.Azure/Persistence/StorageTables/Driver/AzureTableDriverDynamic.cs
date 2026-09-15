@@ -21,6 +21,7 @@ using EastFive.Api;
 using EastFive.Extensions;
 using EastFive.Web.Configuration;
 using EastFive.Analytics;
+using EastFive.Azure.Persistence;
 using EastFive.Azure.Persistence.AzureStorageTables;
 using EastFive.Azure.Persistence.StorageTables;
 using EastFive.Azure.StorageTables.Driver;
@@ -187,10 +188,14 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
             }
         }
 
+        /// <summary>The default store resolves through <see cref="StorageTablesConfiguration"/>
+        /// (account name first, legacy connection string as the fallback); any OTHER key is
+        /// read as a raw connection string as before.</summary>
         public static AzureTableDriverDynamic FromSettings(string settingKey = default)
         {
-            if (settingKey.IsDefaultOrNull())
-                settingKey = EastFive.Azure.AppSettings.Persistence.StorageTables.ConnectionString.Key;
+            if (settingKey.IsDefaultOrNull()
+                    || string.Equals(settingKey, EastFive.Azure.AppSettings.Persistence.StorageTables.ConnectionStringKey, StringComparison.Ordinal))
+                return FromSettings<StorageTablesConfiguration>();
             return EastFive.Web.Configuration.Settings.GetString(settingKey,
                 (connectionString) => FromStorageString(connectionString),
                 (why) => throw new Exception(why));
@@ -198,10 +203,20 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
 
         public static AzureTableDriverDynamic FromSettings(ConnectionString settingKey)
         {
-            return settingKey.ConfigurationString(
-                (connectionString) => FromStorageString(connectionString),
-                (why) => throw new Exception(why));
+            if (settingKey.IsDefaultOrNull())
+                throw new ArgumentException("Configuration Key is null");
+            return FromSettings(settingKey.Key);
         }
+
+        /// <summary>A store described by its own <see cref="StorageAccountConfiguration"/> type,
+        /// read from the ambient configuration.</summary>
+        public static AzureTableDriverDynamic FromSettings<TConfig>()
+            where TConfig : StorageAccountConfiguration, new()
+            => StorageAccountConfiguration.Load<TConfig, AzureTableDriverDynamic>(
+                config => FromStorageString(config.ConnectionString.Reveal()),
+                (issue, _) => throw new Exception(issue.ToString()),
+                issue => throw new Exception(issue.ToString()),
+                issue => throw new Exception(issue.ToString()));
 
         public static AzureTableDriverDynamic FromStorageString(string connectionString)
         {

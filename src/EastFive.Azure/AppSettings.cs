@@ -37,7 +37,15 @@ namespace EastFive.Azure
                     DeploymentSecurityConcern = false,
                     Location = "Azure Portal | Storage | Connection Strings",
                     PrivateRepositoryOnly = true)]
-                public static readonly ConnectionString ConnectionString = new ConnectionString("EastFive.Azure.StorageTables.ConnectionString");
+                public static readonly ConnectionString ConnectionString = new ConnectionString(ConnectionStringKey);
+
+                public const string ConnectionStringKey = "EastFive.Azure.StorageTables.ConnectionString";
+
+                [ConfigKey("Storage ACCOUNT NAME of the default table store; its credential is the vault secret Azure-Storage-Account-{name}. Not a secret. When set, wins over ConnectionString.",
+                    DeploymentOverrides.Suggested,
+                    DeploymentSecurityConcern = false,
+                    Location = "Azure Portal | Storage account | Overview")]
+                public const string Account = "EastFive.Azure.StorageTables.Account";
 
                 public const string TableInformationToken = "EastFive.Azure.StorageTables.TableInformationToken";
 
@@ -53,7 +61,35 @@ namespace EastFive.Azure
                     DeploymentSecurityConcern = false,
                     Location = "Azure Portal | Storage | Connection Strings",
                     PrivateRepositoryOnly = true)]
-                public static readonly ConnectionString ConnectionString = new ConnectionString("EastFive.Azure.DataLake.ConnectionString");
+                public static readonly ConnectionString ConnectionString = new ConnectionString(ConnectionStringKey);
+
+                public const string ConnectionStringKey = "EastFive.Azure.DataLake.ConnectionString";
+
+                [ConfigKey("Storage ACCOUNT NAME of the data lake; credential is the vault secret Azure-Storage-Account-{name}. Not a secret.",
+                    DeploymentOverrides.Suggested,
+                    DeploymentSecurityConcern = false,
+                    Location = "Azure Portal | Storage account | Overview")]
+                public const string Account = "EastFive.Azure.DataLake.Account";
+            }
+
+            /// <summary>Keys shared by every <see cref="EastFive.Azure.Persistence.StorageAccountConfiguration"/>.</summary>
+            [Config]
+            public static class Storage
+            {
+                /// <summary>Config-key prefix the whole-vault provider serves <c>Azure-Storage-Account-{name}</c> under.</summary>
+                public const string AccountSecretPrefix = "Azure.Storage.Account.";
+
+                [ConfigKey("Blob port of the local storage emulator (queue and table follow at +1 and +2). Only consulted when a store names the emulator account devstoreaccount1.",
+                    DeploymentOverrides.Optional,
+                    DeploymentSecurityConcern = false,
+                    Location = "Azurite launch arguments")]
+                public const string EmulatorPort = "Azure.Storage.Emulator.Port";
+
+                [ConfigKey("Reserved: an explicit emulator connection string. Absent, one is fabricated from Azure.Storage.Emulator.Port. Never read from a vault.",
+                    DeploymentOverrides.Optional,
+                    DeploymentSecurityConcern = false,
+                    Location = "Machine-local appsettings only")]
+                public const string EmulatorConnectionString = "Azure.Storage.Emulator.ConnectionString";
             }
         }
 
@@ -88,6 +124,12 @@ namespace EastFive.Azure
                 DeploymentSecurityConcern = true,
                 PrivateRepositoryOnly = true)]
             public const string SpaStorage = "EastFive.Azure.Spa.ConnectionString";
+
+            [ConfigKey("Storage ACCOUNT NAME of the SPA store; credential is the vault secret Azure-Storage-Account-{name}. Not a secret.",
+                DeploymentOverrides.Suggested,
+                DeploymentSecurityConcern = false,
+                Location = "Azure Portal | Storage account | Overview")]
+            public const string SpaStorageAccount = "EastFive.Azure.Spa.Account";
 
             [ConfigKey("Comma-separated list of additional SPA package zip blob names (e.g. admin.zip) " +
                 "loaded from the same container as the primary spa.zip. Each zip must contain its own build config.",

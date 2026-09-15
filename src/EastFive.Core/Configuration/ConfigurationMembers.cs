@@ -70,9 +70,12 @@ namespace EastFive.Configuration
             if (!typeof(IProvideConfiguration).IsAssignableFrom(configurationType))
                 throw new InvalidOperationException($"{configurationType.Name} does not implement {nameof(IProvideConfiguration)}.");
 
+            // The BCL extension, explicitly: EastFive's own GetCustomAttribute<T> THROWS when the
+            // attribute is absent, and undeclared public properties (derived values) are legitimate.
             var members = configurationType
                 .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Select(property => (property, attribute: property.GetCustomAttribute<ConfigurationMemberAttribute>(inherit: true)))
+                .Select(property => (property, attribute: System.Reflection.CustomAttributeExtensions
+                    .GetCustomAttribute<ConfigurationMemberAttribute>(property, inherit: true)))
                 .Where(pair => pair.attribute != null)
                 .OrderBy(pair => pair.property.MetadataToken) // declaration order; GetProperties() does not promise one
                 .Select(pair => Declare(configurationType, pair.property, pair.attribute!))

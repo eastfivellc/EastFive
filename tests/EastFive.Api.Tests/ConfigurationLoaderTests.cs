@@ -41,6 +41,22 @@ public class ConfigurationLoaderTests
     {
         [ConfigurationMember("Loose.Only", Kind = ConfigurationMemberKind.Optional)]
         public string? Only { get; init; }
+
+        /// <summary>Derived, undeclared: a configuration type may expose computed members.</summary>
+        public string OnlyOrDefault => Only ?? "(default)";
+    }
+
+    /// <summary>A secret whose reference is derived from an earlier member (account -> secret name).</summary>
+    private sealed class AccountKeyed : IProvideConfiguration
+    {
+        [ConfigurationMember("Keyed.Account", Kind = ConfigurationMemberKind.Optional)]
+        public string? Account { get; set; }
+
+        [ConfigurationMember("Keyed.Key", Kind = ConfigurationMemberKind.Secret, Purpose = "api")]
+        public Secret Key { get; set; } = default!;
+
+        public SecretReference SecretReference(string purpose)
+            => new(string.IsNullOrWhiteSpace(Account) ? "Keyed.Key" : $"Keyed.{Account}.Key", purpose);
     }
 
     private static Dictionary<string, string> Complete() => new(StringComparer.Ordinal)
@@ -269,9 +285,20 @@ public class ConfigurationLoaderTests
     [Fact]
     public void ConfigurationWithoutLoadDriver_LoadsFine()
     {
-        Assert.Equal("configured", Load<Loose>(Source(new Dictionary<string, string>()), loose => Assert.Null(loose.Only)));
+        Assert.Equal("configured", Load<Loose>(Source(new Dictionary<string, string>()), loose => Assert.Equal("(default)", loose.OnlyOrDefault)));
         Assert.Equal("configured", Load<Loose>(Source(new Dictionary<string, string> { ["Loose.Only"] = "x" }), loose => Assert.Equal("x", loose.Only)));
         Assert.Null(((IProvideConfiguration)new Loose()).Validate());
+        Assert.Equal(new[] { "Loose.Only" }, ConfigurationMembers.Keys<Loose>());
+    }
+
+    [Fact]
+    public void SecretReferenceDerivedFromAnEarlierMember_IsHonoredByLoadAndByTheChecklist()
+    {
+        var values = new Dictionary<string, string> { ["Keyed.Account"] = "acme", ["Keyed.acme.Key"] = "k-acme", ["Keyed.Key"] = "k-global" };
+        Assert.Equal("configured", Load<AccountKeyed>(Source(values), keyed => Assert.Equal("k-acme", keyed.Key.Reveal())));
+        Assert.Equal("configured", Load<AccountKeyed>(Source(new Dictionary<string, string> { ["Keyed.Key"] = "k-global" }), keyed => Assert.Equal("k-global", keyed.Key.Reveal())));
+        Assert.Equal(new[] { "Keyed.acme.Key" }, ConfigurationLoader.Missing<AccountKeyed>(Source(new Dictionary<string, string> { ["Keyed.Account"] = "acme", ["Keyed.Key"] = "k-global" })));
+        Assert.Equal(new[] { "Keyed.Key" }, ConfigurationLoader.Missing<AccountKeyed>(Source(new Dictionary<string, string>())));
     }
 
     [Fact]
