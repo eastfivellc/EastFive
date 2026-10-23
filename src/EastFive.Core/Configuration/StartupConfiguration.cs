@@ -30,7 +30,7 @@ namespace EastFive.Configuration
 
         public static async Task<ConfigIssue[]> LoadAsync(IEnumerable<Type> configurationTypes)
         {
-            var issues = await Task.WhenAll(configurationTypes.Distinct().Select(LoadAsync));
+            var issues = await Task.WhenAll(configurationTypes.Distinct().Select(LoadAsync)).ConfigureAwait(false);
             return issues.OfType<ConfigIssue>().ToArray();
         }
 
@@ -44,7 +44,7 @@ namespace EastFive.Configuration
                 config => new Outcome(config, null),
                 (issue, _) => Task.FromResult(new Outcome(null, issue)),
                 issue => new Outcome(null, issue),
-                issue => new Outcome(null, issue));
+                issue => new Outcome(null, issue)).ConfigureAwait(false);
             loaded[configurationType] = outcome;
             return outcome.Issue;
         }

@@ -127,7 +127,7 @@ namespace EastFive.Configuration
             var statuses = new List<ConfigurationMemberStatus>();
             foreach (var member in declared.Members)
             {
-                var status = await InspectMember(config, declared, member, readValue, secrets);
+                var status = await InspectMember(config, declared, member, readValue, secrets).ConfigureAwait(false);
                 // An account that reads fine but cannot be a secret-name segment is invalid HERE.
                 if (member.IsAccount && status.Presence == ConfigurationMemberPresence.Present && declared.HasInvalidAccount(config))
                     status = status with { Presence = ConfigurationMemberPresence.Invalid };
@@ -144,7 +144,7 @@ namespace EastFive.Configuration
         /// finds: Required or Secret members that are missing, invalid or unreadable.</summary>
         public static async Task<string[]> MissingAsync<TConfig>(Func<string, string?> readValue, ISecretStore secrets)
             where TConfig : IProvideConfiguration, new()
-            => (await InspectAsync<TConfig>(readValue, secrets))
+            => (await InspectAsync<TConfig>(readValue, secrets).ConfigureAwait(false))
                 .Where(status => status.IsGap)
                 .Select(status => status.Name)
                 .Distinct(StringComparer.Ordinal)
@@ -290,7 +290,7 @@ namespace EastFive.Configuration
                     ? string.IsNullOrWhiteSpace(suppliedText)
                         ? Read.Invalid(Issue(ConfigIssueCategory.Invalid))
                         : Read.Answered(suppliedText)
-                    : await ReadMember(config, member, key, readValue, secrets, Issue);
+                    : await ReadMember(config, member, key, readValue, secrets, Issue).ConfigureAwait(false);
 
                 if (read.Issue is { } issue)
                     return issue.Category == ConfigIssueCategory.SourceFailure ? onSourceFailure(issue) : onInvalid(issue);
@@ -308,7 +308,7 @@ namespace EastFive.Configuration
                         default:
                             return await onMissing(Issue(ConfigIssueCategory.Missing),
                                 value => Attempt(construct, readValue, secrets, supplied.SetItem(key, value),
-                                    onConfigured, onMissing, onInvalid, onSourceFailure));
+                                    onConfigured, onMissing, onInvalid, onSourceFailure)).ConfigureAwait(false);
                     }
                 }
 
@@ -371,7 +371,7 @@ namespace EastFive.Configuration
             return await secrets.GetSecretAsync(name,
                 (secret, source) => Read.Answered(secret.Reveal(), source.ToString()),
                 () => Read.Answered(null),
-                _ => Read.Invalid(issue(ConfigIssueCategory.SourceFailure)));
+                _ => Read.Invalid(issue(ConfigIssueCategory.SourceFailure))).ConfigureAwait(false);
         }
 
         private static async Task<ConfigurationMemberStatus> InspectMember(IProvideConfiguration config, ConfigurationMembers declared,
@@ -383,7 +383,7 @@ namespace EastFive.Configuration
 
             var name = NameOf(config, member);
             var read = await ReadMember(config, member, name, readValue, secrets,
-                category => new ConfigIssue(config.GetType(), name, member.Kind, category));
+                category => new ConfigIssue(config.GetType(), name, member.Kind, category)).ConfigureAwait(false);
             if (read.Issue is { } issue)
                 return new ConfigurationMemberStatus(member, name,
                     issue.Category == ConfigIssueCategory.SourceFailure ? ConfigurationMemberPresence.Failed : ConfigurationMemberPresence.Invalid,

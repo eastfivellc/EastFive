@@ -54,12 +54,12 @@ public static class TestConfiguration
             // Synchronous framework readers (the storage driver factory, token signing) never load:
             // a host loads its configuration once at startup. Test code may block here; framework
             // code never does.
-            var issues = EastFive.Configuration.StartupConfiguration.LoadAsync(new[]
+            var issues = Task.Run(() => EastFive.Configuration.StartupConfiguration.LoadAsync(new[]
                 {
                     typeof(EastFive.Azure.Persistence.StorageTablesConfiguration),
                     typeof(EastFive.Security.Tokens.TokenSigningConfiguration),
                     typeof(SearchConfiguration),
-                })
+                }))
                 .GetAwaiter().GetResult();
             if (issues.Any())
                 throw new InvalidOperationException($"Test configuration did not load: {string.Join("; ", issues.Select(issue => issue.ToString()))}");

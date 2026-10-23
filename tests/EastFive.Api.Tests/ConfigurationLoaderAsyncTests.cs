@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Xunit;
@@ -187,5 +188,56 @@ public class ConfigurationLoaderAsyncTests
         Assert.Equal("Boot-Signing", issue!.Key);
         Assert.Equal(issue, StartupConfiguration.Get<Boot, ConfigIssue?>(_ => null, problem => problem));
         StartupConfiguration.Forget<Boot>();
+    }
+}
+
+/// <summary>
+/// A host or test harness that blocks on startup loading from a thread with a synchronization
+/// context (xUnit's, a UI thread) must not deadlock: the loader never resumes on the caller's
+/// context.
+/// </summary>
+public class ConfigurationLoaderContextTests
+{
+    /// <summary>A context whose posted continuations are never run — the deadlock a blocking
+    /// caller produces when every worker of its context is waiting.</summary>
+    private sealed class NeverPumped : SynchronizationContext
+    {
+        public int Posted;
+        public override void Post(SendOrPostCallback d, object? state) => Interlocked.Increment(ref Posted);
+    }
+
+    private sealed class Slow : ISecretStore
+    {
+        public IReadOnlyList<SecretSource> Sources => new[] { new SecretSource(SecretSource.Vault, "slow") };
+        public async Task<TResult> GetSecretAsync<TResult>(string name, Func<Secret, SecretSource, TResult> onFound,
+            Func<TResult> onMissing, Func<string, TResult> onFailure)
+        {
+            await Task.Delay(20).ConfigureAwait(false);
+            return onFound(new Secret("k-slow"), Sources[0]);
+        }
+    }
+
+    [ConfigurationType("Ctx")]
+    private sealed class Ctx : IProvideConfiguration
+    {
+        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
+        public Secret Key { get; set; } = default!;
+    }
+
+    [Fact]
+    public void BlockingOnLoadAsync_FromAContextThread_DoesNotDeadlock()
+    {
+        string? outcome = null;
+        var context = new NeverPumped();
+        var thread = new Thread(() =>
+        {
+            SynchronizationContext.SetSynchronizationContext(context);
+            outcome = ConfigurationLoader.LoadAsync<Ctx, string>(_ => null, new Slow(),
+                ctx => ctx.Key.Reveal(), issue => "missing", issue => "invalid", issue => "failed").GetAwaiter().GetResult();
+        });
+        thread.Start();
+        Assert.True(thread.Join(TimeSpan.FromSeconds(10)), "LoadAsync resumed on the caller's context and deadlocked");
+        Assert.Equal("k-slow", outcome);
+        Assert.Equal(0, context.Posted);
     }
 }
