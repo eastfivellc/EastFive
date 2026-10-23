@@ -15,7 +15,8 @@ namespace EastFive.Configuration
         bool IsAccount,
         ConfigurationMemberMetadata Metadata,
         string? SecretNameTemplate,
-        bool HasLookup);
+        bool HasLookup,
+        string? AccountSegmentTranslation = null);
 
     /// <summary>One configuration type: its generated-name segment, metadata, members, and whether it
     /// can test a draft.</summary>
@@ -35,6 +36,14 @@ namespace EastFive.Configuration
             => Members.Where(member => member.SecretNameTemplate != null)
                 .Select(member => member.SecretNameTemplate!.Replace(ConfigurationCatalog.AccountPlaceholder,
                     (account == null ? null : ConfigurationMembers.For(Type).AccountSegmentOf(account.Trim())) ?? ConfigurationCatalog.AccountPlaceholder));
+
+        /// <summary>
+        /// The account rule for a DRAFT value, before it is written: null when <paramref name="account"/>
+        /// (translated as this type declares) can be the account segment of a secret name, otherwise the
+        /// reason, naming the account member's key. Null for a type that names no account.
+        /// </summary>
+        public string? AccountProblem(string? account)
+            => ConfigurationMembers.For(Type).AccountProblem(account);
 
         public ITestConfiguration? Test
             => Type.GetCustomAttributes(inherit: true).OfType<ITestConfiguration>().FirstOrDefault();
@@ -80,7 +89,8 @@ namespace EastFive.Configuration
                             ? $"{declared.TypeName}-{member.Property.Name}"
                             : $"{declared.TypeName}-{AccountPlaceholder}-{member.Property.Name}"
                         : null,
-                    member.Lookup != null))
+                    member.Lookup != null,
+                    member.IsAccount ? member.AccountSegment?.GetType().Name : null))
                 .ToArray();
             return new ConfigurationTypeDescription(
                 configurationType,

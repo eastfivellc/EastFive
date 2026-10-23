@@ -111,6 +111,21 @@ namespace EastFive.Configuration
                 ? account
                 : translation.SecretAccountSegment(account);
 
+        /// <summary>Null when <paramref name="account"/>, translated as the account member declares, is a
+        /// valid secret-name segment (or the type has no account member); otherwise the reason, naming
+        /// the member's key. What load-time validation and an editor's draft check both apply.</summary>
+        public string? AccountProblem(string? account)
+        {
+            if (AccountMember == null)
+                return null;
+            var segment = AccountSegmentOf(account?.Trim());
+            return SecretNames.IsValidAccount(segment)
+                ? null
+                : $"[{AccountMember.Key}] '{account}' cannot name a secret"
+                    + (AccountMember.AccountSegment is { } translation ? $" (translated by {translation.GetType().Name} to '{segment}')" : string.Empty)
+                    + ": an account segment is letters, digits and inner dashes only.";
+        }
+
         /// <summary>The account member's value cannot be one segment of a secret name.</summary>
         public bool HasInvalidAccount(object configuration)
             => AccountMember != null && !SecretNames.IsValidAccount(AccountOf(configuration));
@@ -175,6 +190,13 @@ namespace EastFive.Configuration
             if (accounts.Length == 1)
             {
                 var account = accounts[0];
+                if (account.Default != null)
+                {
+                    var segment = account.AccountSegment?.SecretAccountSegment(account.Default.Trim()) ?? account.Default.Trim();
+                    if (!SecretNames.IsValidAccount(segment))
+                        throw new InvalidOperationException(
+                            $"{configurationType.Name}.{account.Property.Name} defaults to an account that cannot name a secret ('{account.Default}').");
+                }
                 var firstSecret = Array.FindIndex(members, member => member.IsSecret);
                 if (firstSecret >= 0 && Array.IndexOf(members, account) > firstSecret)
                     throw new InvalidOperationException(

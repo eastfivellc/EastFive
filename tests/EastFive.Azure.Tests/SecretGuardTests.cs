@@ -152,3 +152,41 @@ public class GoogleSecretNameTests
         Assert.Equal($"{clientId}|k-google", outcome);
     }
 }
+
+/// <summary>
+/// The audit behind the account rule: every framework account member either translates its value
+/// (a declared <see cref="IProvideSecretAccountSegment"/>) or names a vendor id whose format is
+/// always vault-safe — and that claim is checked against a real-shaped id for each one.
+/// </summary>
+public class AccountMemberAuditTests
+{
+    /// <summary>Configuration type → a real-shaped account value, and why the format is always safe.</summary>
+    private static readonly Dictionary<string, (string sample, string why)> SafeByFormat = new()
+    {
+        [nameof(EastFive.Azure.Persistence.StorageTablesConfiguration)] = ("rosemaryprod", "Azure storage account names are 3-24 lowercase letters and digits"),
+        [nameof(EastFive.Azure.Persistence.SpaStorageConfiguration)] = ("rosemaryprod", "Azure storage account names are 3-24 lowercase letters and digits"),
+        [nameof(EastFive.Azure.Persistence.DataLakeStorageConfiguration)] = ("affirmdatalake", "Azure storage account names are 3-24 lowercase letters and digits"),
+        [nameof(EastFive.Azure.Auth.MicrosoftLoginConfiguration)] = ("c4f2a1d3-0b9e-4f6a-8d7c-2e1b3a4c5d6e", "Entra application ids are GUIDs"),
+        [nameof(EastFive.Azure.ApplicationInsightsQueryConfiguration)] = ("7ef17a55-0e6e-42b7-a5d5-ba6db737a54a", "Application Insights application ids are GUIDs"),
+        [nameof(EastFive.Azure.ResourceManagement.AzureClientApplicationConfiguration)] = ("c4f2a1d3-0b9e-4f6a-8d7c-2e1b3a4c5d6e", "Entra application ids are GUIDs"),
+    };
+
+    [Fact]
+    public void EveryFrameworkAccountMember_TranslatesOrIsSafeByFormat()
+    {
+        var catalog = ConfigurationCatalog.For(new[] { typeof(EastFive.Azure.Persistence.StorageAccount).Assembly, typeof(Secret).Assembly, typeof(EastFive.Api.ApiKeyConfiguration).Assembly });
+        var withAccounts = catalog.Where(type => type.Members.Any(member => member.IsAccount)).ToArray();
+        Assert.NotEmpty(withAccounts);
+        Assert.All(withAccounts, type =>
+        {
+            var account = type.Members.Single(member => member.IsAccount);
+            if (account.AccountSegmentTranslation != null)
+                return;
+            Assert.True(SafeByFormat.TryGetValue(type.Type.Name, out var audit),
+                $"{type.Type.Name}.{account.Property} names secrets with its raw value: declare a translation or record why its format is always vault-safe.");
+            Assert.Null(type.AccountProblem(audit.sample));
+        });
+        Assert.Equal("GoogleClientIdSegmentAttribute",
+            catalog.Single(type => type.Type == typeof(EastFive.Azure.Auth.GoogleLoginConfiguration)).Members.Single(member => member.IsAccount).AccountSegmentTranslation);
+    }
+}
