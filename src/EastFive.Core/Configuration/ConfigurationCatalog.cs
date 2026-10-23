@@ -67,6 +67,18 @@ namespace EastFive.Configuration
         public static ConfigurationTypeDescription[] For(IEnumerable<Assembly> assemblies)
             => For(assemblies.Distinct().SelectMany(LoadableTypes));
 
+        /// <summary><see cref="For(IEnumerable{Assembly})"/> without the types whose declaration is
+        /// malformed — for a renderer that must show everything else rather than fail.</summary>
+        public static ConfigurationTypeDescription[] WellFormed(IEnumerable<Assembly> assemblies)
+            => assemblies.Distinct().SelectMany(LoadableTypes)
+                .Where(type => type is { IsClass: true, IsAbstract: false, ContainsGenericParameters: false }
+                    && typeof(IProvideConfiguration).IsAssignableFrom(type)
+                    && DeclaredMembersOrNull(type) != null)
+                .Distinct()
+                .OrderBy(type => type.FullName, StringComparer.Ordinal)
+                .Select(Describe)
+                .ToArray();
+
         public static ConfigurationTypeDescription[] For(IEnumerable<Type> types)
             => types
                 .Where(type => type is { IsClass: true, IsAbstract: false, ContainsGenericParameters: false }
@@ -150,8 +162,7 @@ namespace EastFive.Configuration
                 StringComparer.OrdinalIgnoreCase),
             System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
 
-        /// <summary>A malformed declaration throws when its type is loaded; it declares nothing here.</summary>
-        private static IEnumerable<ConfigurationMember> DeclaredMembersOrNone(Type type)
+        private static IEnumerable<ConfigurationMember>? DeclaredMembersOrNull(Type type)
         {
             try
             {
@@ -159,9 +170,13 @@ namespace EastFive.Configuration
             }
             catch (InvalidOperationException)
             {
-                return Enumerable.Empty<ConfigurationMember>();
+                return null;
             }
         }
+
+        /// <summary>A malformed declaration throws when its type is loaded; it declares nothing here.</summary>
+        private static IEnumerable<ConfigurationMember> DeclaredMembersOrNone(Type type)
+            => DeclaredMembersOrNull(type) ?? Enumerable.Empty<ConfigurationMember>();
 
         /// <summary>Whether a non-secret member of any loaded configuration type declares <paramref name="key"/>.
         /// Assemblies loaded after the first call are not seen; framework and host assemblies load first.</summary>
@@ -174,6 +189,20 @@ namespace EastFive.Configuration
                     || member.Key.Contains(IProvideConfigurationInstanceKey.Placeholder, StringComparison.Ordinal)
                 ? null
                 : ConfigurationLoader.ReadAmbient(member.Key);
+
+        /// <summary>The current value of a VALUE member of a keyed type for one instance, read by the
+        /// instance's key and then its fallback key. Null for secrets.</summary>
+        public static string? CurrentValue(Type keyedType, ConfigurationMemberDescription member, string instanceKey)
+        {
+            if (member.Kind == ConfigurationMemberKind.Secret || member.Key == null)
+                return null;
+            var declared = ConfigurationMembers.For(keyedType).Members.First(candidate => candidate.Property.Name == member.Property);
+            return new[] { declared.Key, declared.FallbackKey }
+                .OfType<string>()
+                .Select(key => ConfigurationLoader.ReadAmbient(
+                    key.Replace(IProvideConfigurationInstanceKey.Placeholder, instanceKey, StringComparison.Ordinal)))
+                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        }
 
         /// <summary>A type that names its own secrets instead of using the generated scheme.</summary>
         public static bool OverridesSecretReference(Type configurationType)

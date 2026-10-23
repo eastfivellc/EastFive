@@ -8,12 +8,12 @@ namespace EastFive.Security
 {
     /// <summary>The RSA key that signs and verifies voucher tokens. Secret <c>EastFiveVoucher-SigningKey</c>
     /// (base64 of the RSA key XML), loaded by the host at startup.</summary>
-    [ConfigurationType("EastFiveVoucher", Label = "Voucher credentials")]
+    [ConfigurationType("EastFiveVoucher", Label = "Voucher credentials", Description = "The key that signs voucher tokens, and the provider that issues them.", Scope = ConfigurationScope.Environment)]
     public sealed class VoucherConfiguration : IProvideConfiguration
     {
         public const string ProviderIdKey = "EastFive.Security.CredentialProvider.Voucher.Provider";
 
-        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Description = "Base64 of the RSA key XML.")]
+        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Description = "Base64 of the RSA key XML.", Label = "Signing key")]
         public Secret SigningKey { get; set; } = default!;
 
         [ConfigurationMember(ProviderIdKey, Kind = ConfigurationMemberKind.Optional,

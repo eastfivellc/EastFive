@@ -15,6 +15,7 @@ namespace EastFive.Azure.Tests;
 /// spelling as fallback), the catalog enumerating the configured tags, and login redirections
 /// written either as a JSON string or as a structured appsettings section.
 /// </summary>
+[Collection(AmbientConfigurationCollection.Name)]
 public class IdentityConfigurationTests
 {
     // Unique per run so concurrently running tests never see these tags, and nothing they set is

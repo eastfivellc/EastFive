@@ -10,7 +10,7 @@ namespace EastFive.Azure.Monitoring
     /// (which holds the query API key) so telemetry never depends on a secret it does not use.
     /// </summary>
     [ConfigurationType("ApplicationInsightsTelemetry", Label = "Application Insights telemetry",
-        Description = "Where this application's telemetry is sent, server-side and from the browser.")]
+        Description = "Where this application's telemetry is sent, server-side and from the browser.", Scope = ConfigurationScope.Environment)]
     public sealed class ApplicationInsightsTelemetryConfiguration : IProvideConfiguration
     {
         public const string ConnectionStringKey = "APPLICATIONINSIGHTS_CONNECTION_STRING";
@@ -33,7 +33,7 @@ namespace EastFive.Azure.Monitoring
     /// <summary>How exception notification cards identify this application. Values only: the webhook
     /// they post to is the secret on <see cref="TeamsNotificationConfiguration"/>.</summary>
     [ConfigurationType("TeamsNotificationCard", Label = "Teams notification card",
-        Description = "The name and image exception notification cards show for this application.")]
+        Description = "The name and image exception notification cards show for this application.", Scope = ConfigurationScope.Environment)]
     public sealed class TeamsNotificationCardConfiguration : IProvideConfiguration
     {
         public const string AppIdentificationKey = "EastFive.Azure.ApplicationInsights.TeamsAppIdentification";
@@ -52,7 +52,7 @@ namespace EastFive.Azure.Monitoring
 
     /// <summary>What Azure App Service says about the host — read to describe the server in notifications.</summary>
     [ConfigurationType("AppService", Label = "App Service host",
-        Description = "The variables Azure App Service sets on the host, used to name the server in notifications.")]
+        Description = "The variables Azure App Service sets on the host, used to name the server in notifications.", Scope = ConfigurationScope.Environment)]
     public sealed class AppServiceConfiguration : IProvideConfiguration
     {
         [ConfigurationMember("WEBSITE_SITE_NAME", Kind = ConfigurationMemberKind.Optional,

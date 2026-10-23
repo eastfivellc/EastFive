@@ -16,7 +16,8 @@ namespace EastFive.Configuration
         string? Location,
         string? MoreInfo,
         ConfigurationScope Scope,
-        ConfigurationFieldKind FieldKind);
+        ConfigurationFieldKind FieldKind,
+        bool ScopeDeclared = false);
 
     /// <summary>One declared member of a configuration type, resolved from its attribute.</summary>
     public sealed record ConfigurationMember(
@@ -271,13 +272,16 @@ namespace EastFive.Configuration
                 throw new InvalidOperationException($"{where} is Optional and must be nullable so absence is explicit.");
 
             var purpose = attribute.Kind == ConfigurationMemberKind.Secret ? attribute.Purpose ?? property.Name : null;
+            var typeAttribute = System.Reflection.CustomAttributeExtensions
+                .GetCustomAttribute<ConfigurationTypeAttribute>(configurationType, inherit: true);
             var metadata = new ConfigurationMemberMetadata(
                 attribute.Label ?? property.Name,
                 attribute.Description,
                 attribute.Location,
                 attribute.MoreInfo,
-                attribute.Scope,
-                attribute.FieldKind != ConfigurationFieldKind.Auto ? attribute.FieldKind : FieldKindOf(property.PropertyType, attribute));
+                attribute.ScopeDeclared ? attribute.Scope : typeAttribute?.Scope ?? ConfigurationScope.Environment,
+                attribute.FieldKind != ConfigurationFieldKind.Auto ? attribute.FieldKind : FieldKindOf(property.PropertyType, attribute),
+                attribute.ScopeDeclared || typeAttribute?.ScopeDeclared == true);
             if (attribute.FallbackKey != null && attribute.Kind == ConfigurationMemberKind.Secret)
                 throw new InvalidOperationException($"{where} is Secret and cannot carry a FallbackKey; secrets are read by name.");
             return new ConfigurationMember(property, attribute.Key, attribute.Kind, attribute.Default, purpose, attribute.Account, metadata, attribute.FallbackKey);

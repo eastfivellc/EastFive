@@ -8,7 +8,7 @@ namespace EastFive.Azure.Auth
 {
     /// <summary>EastFive's own sessions and logins: lifetimes, landing page, redirections.</summary>
     [ConfigurationType("EastFiveSessions", Label = "Sessions and logins",
-        Description = "How long sessions last, where logins land, and how login redirections behave.")]
+        Description = "How long sessions last, where logins land, and how login redirections behave.", Scope = ConfigurationScope.Environment)]
     public sealed class SessionServerConfiguration : IProvideConfiguration
     {
         public const string DebugLoginKey = "EastFive.Azure.Auth.DebugLogin";
@@ -79,7 +79,7 @@ namespace EastFive.Azure.Auth
 
     /// <summary>Sign in with Apple and Apple's domain-association files.</summary>
     [ConfigurationType("EastFiveApple", Label = "Apple",
-        Description = "Sign in with Apple, and the files Apple fetches to associate this domain with an app.")]
+        Description = "Sign in with Apple, and the files Apple fetches to associate this domain with an app.", Scope = ConfigurationScope.Environment)]
     public sealed class AppleConfiguration : IProvideConfiguration
     {
         public const string AppSiteAssociationIdKey = "EastFive.Azure.Apple.AppleAppSiteAssociation.AppId";
@@ -110,7 +110,7 @@ namespace EastFive.Azure.Auth
     /// <summary>One Ping redirect, per tag. Keys are <c>EastFive.Auth.PingRedirect.{tag}.*</c>; the former
     /// <c>AffirmHealth.PDMS.PingRedirect.{tag}.*</c> spellings are read as a fallback.</summary>
     [ConfigurationType("EastFivePingRedirect", Label = "Ping redirect",
-        Description = "A Ping login redirect, one per tag: the Ping auth name and report set.")]
+        Description = "A Ping login redirect, one per tag: the Ping auth name and report set.", Scope = ConfigurationScope.Environment)]
     public sealed class PingRedirectTagConfiguration : IProvideConfiguration, IProvideConfigurationInstanceKey
     {
         public PingRedirectTagConfiguration(string tag) => InstanceKey = tag;
@@ -131,7 +131,7 @@ namespace EastFive.Azure.Auth
 
     /// <summary>One SAML identity provider, per tag.</summary>
     [ConfigurationType("EastFiveSamlProvider", Label = "SAML provider",
-        Description = "A SAML identity provider, one per tag: where its metadata is and where a launch lands.")]
+        Description = "A SAML identity provider, one per tag: where its metadata is and where a launch lands.", Scope = ConfigurationScope.Environment)]
     public sealed class SamlTagConfiguration : IProvideConfiguration, IProvideConfigurationInstanceKey
     {
         public SamlTagConfiguration(string tag) => InstanceKey = tag;
@@ -165,7 +165,7 @@ namespace EastFive.Azure.Auth
 
     /// <summary>This application as a SAML service provider.</summary>
     [ConfigurationType("EastFiveSaml", Label = "SAML service provider",
-        Description = "How this application describes itself to SAML identity providers.")]
+        Description = "How this application describes itself to SAML identity providers.", Scope = ConfigurationScope.Environment)]
     public sealed class SamlConfiguration : IProvideConfiguration
     {
         public const string LoginIdAttributeNameKey = "EastFive.Security.CredentialProvider.SAML.LoginIdAttributeName";
@@ -193,7 +193,7 @@ namespace EastFive.Azure.OAuth.Server
 {
     /// <summary>EastFive's OAuth 2.0 server.</summary>
     [ConfigurationType("EastFiveOAuthServer", Label = "OAuth server",
-        Description = "Token lifetimes and advertised scopes of EastFive's OAuth 2.0 server.")]
+        Description = "Token lifetimes and advertised scopes of EastFive's OAuth 2.0 server.", Scope = ConfigurationScope.Environment)]
     public sealed class OAuthServerConfiguration : IProvideConfiguration
     {
         public const string AccessTokenExpirationInMinutesKey = "EastFive.Azure.OAuth.AccessTokenExpirationInMinutes";

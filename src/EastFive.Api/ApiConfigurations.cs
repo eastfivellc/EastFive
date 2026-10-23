@@ -7,7 +7,7 @@ namespace EastFive.Api
 {
     /// <summary>Which claims carry the acting account and the session.</summary>
     [ConfigurationType("EastFiveClaims", Label = "Claim types",
-        Description = "The claim types that carry the acting account id and the session id in EastFive tokens.")]
+        Description = "The claim types that carry the acting account id and the session id in EastFive tokens.", Scope = ConfigurationScope.Environment)]
     public sealed class ClaimTypesConfiguration : IProvideConfiguration
     {
         public const string ActorIdClaimTypeKey = "EastFive.Api.Security.AccountIdClaimType";
@@ -35,7 +35,7 @@ namespace EastFive.Api
 
     /// <summary>The super-administrator: who it is, and whether localhost is trusted as one.</summary>
     [ConfigurationType("EastFiveSuperAdmin", Label = "Super administrator",
-        Description = "The account and authorization that act as super administrator, and the localhost conveniences for development.")]
+        Description = "The account and authorization that act as super administrator, and the localhost conveniences for development.", Scope = ConfigurationScope.Environment)]
     public sealed class SuperAdminConfiguration : IProvideConfiguration
     {
         public const string ActorIdKey = "EastFive.Api.Security.SiteAdminAccountId";
@@ -78,7 +78,7 @@ namespace EastFive.Api
 
     /// <summary>The CORS correction handler.</summary>
     [ConfigurationType("EastFiveCors", Label = "CORS",
-        Description = "EastFive's CORS correction: which origins besides localhost and the server itself may call the API.")]
+        Description = "EastFive's CORS correction: which origins besides localhost and the server itself may call the API.", Scope = ConfigurationScope.Environment)]
     public sealed class CorsConfiguration : IProvideConfiguration
     {
         public const string EnabledKey = "EastFive.Api.CorsCorrection";
@@ -101,7 +101,7 @@ namespace EastFive.Api
 
     /// <summary>Where routes live and where the server is.</summary>
     [ConfigurationType("EastFiveRouting", Label = "Routing",
-        Description = "The default route directory and this server's public address.")]
+        Description = "The default route directory and this server's public address.", Scope = ConfigurationScope.Environment)]
     public sealed class RoutingConfiguration : IProvideConfiguration
     {
         public const string DefaultNamespaceKey = "EastFive.Api.DefaultNamespace";
@@ -121,7 +121,7 @@ namespace EastFive.Api
 
     /// <summary>How long access tokens and signed links live.</summary>
     [ConfigurationType("EastFiveAccessTokenLifetime", Label = "Access-token lifetime",
-        Description = "Lifetime of session tokens and signed access-token links.")]
+        Description = "Lifetime of session tokens and signed access-token links.", Scope = ConfigurationScope.Environment)]
     public sealed class AccessTokenLifetimeConfiguration : IProvideConfiguration
     {
         public const string ExpirationInMinutesKey = "EastFive.Api.AccessTokenExpirationInMinutes";

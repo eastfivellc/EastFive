@@ -12,7 +12,7 @@ namespace EastFive.Azure.ResourceManagement;
 /// webhook audience), so those never depend on a secret they do not use.
 /// </summary>
 [ConfigurationType("AzureApplicationIdentity", Label = "Azure application identity",
-    Description = "The Entra tenant and application id incoming service tokens and Event Grid webhooks are validated against.")]
+    Description = "The Entra tenant and application id incoming service tokens and Event Grid webhooks are validated against.", Scope = ConfigurationScope.Environment)]
 public sealed class AzureApplicationIdentityConfiguration : IProvideConfiguration
 {
     [ConfigurationMember(EastFive.Azure.ResourceManagement.AzureClientApplicationConfiguration.TenantIdKey, Kind = ConfigurationMemberKind.Optional,

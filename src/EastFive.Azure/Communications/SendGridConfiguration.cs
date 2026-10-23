@@ -8,7 +8,7 @@ namespace EastFive.Azure.Communications
     /// <summary>How SendGrid mail is redirected and copied outside production. Values only: the API key
     /// is handed to <see cref="EastFive.Communications.Azure.SendGridMailer"/> by its host.</summary>
     [ConfigurationType("SendGrid", Label = "SendGrid mail",
-        Description = "Redirect (mute) or blind-copy every SendGrid email, for non-production environments.")]
+        Description = "Redirect (mute) or blind-copy every SendGrid email, for non-production environments.", Scope = ConfigurationScope.Environment)]
     public sealed class SendGridConfiguration : IProvideConfiguration
     {
         public const string BccAllAddressesKey = "EastFive.SendGrid.BlindCopyAllAddresses";

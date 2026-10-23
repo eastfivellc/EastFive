@@ -31,5 +31,13 @@ namespace EastFive.Configuration
 
         /// <summary>What this configuration configures.</summary>
         public string? Description { get; init; }
+
+        private ConfigurationScope? scope;
+
+        /// <summary>The scope of every member that does not declare its own.</summary>
+        public ConfigurationScope Scope { get => scope ?? ConfigurationScope.Environment; init => scope = value; }
+
+        /// <summary>Whether <see cref="Scope"/> was set on this type.</summary>
+        public bool ScopeDeclared => scope.HasValue;
     }
 }

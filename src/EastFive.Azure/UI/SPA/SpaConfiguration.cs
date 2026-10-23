@@ -8,7 +8,7 @@ namespace EastFive.Azure
 {
     /// <summary>How the single-page application is served from its package.</summary>
     [ConfigurationType("EastFiveSpa", Label = "Single-page application",
-        Description = "Where the SPA lives and how its package is served.")]
+        Description = "Where the SPA lives and how its package is served.", Scope = ConfigurationScope.Environment)]
     public sealed class SpaConfiguration : IProvideConfiguration
     {
         public const string AdditionalPackagesKey = "EastFive.Azure.Spa.AdditionalPackages";
@@ -57,7 +57,7 @@ namespace EastFive.Azure
 
     /// <summary>The CDN this application's static calls go through.</summary>
     [ConfigurationType("EastFiveCdn", Label = "CDN",
-        Description = "The CDN endpoint that fronts this application's API.")]
+        Description = "The CDN endpoint that fronts this application's API.", Scope = ConfigurationScope.Environment)]
     public sealed class CdnConfiguration : IProvideConfiguration
     {
         public const string ApiRoutePrefixKey = "EastFive.Azure.CDNApiRoutePrefix";

@@ -7,10 +7,10 @@ namespace EastFive.Api
 {
     /// <summary>The shared API key <c>[ApiSecurity]</c> endpoints accept (query <c>ApiSecurityKey</c>
     /// or the Authorization header). Secret <c>EastFiveApi-ApiKey</c>; absent = no API-key access.</summary>
-    [ConfigurationType("EastFiveApi", Label = "API key", Description = "Shared key for [ApiSecurity] endpoints.")]
+    [ConfigurationType("EastFiveApi", Label = "API key", Description = "Shared key for [ApiSecurity] endpoints.", Scope = ConfigurationScope.Environment)]
     public sealed class ApiKeyConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "API key")]
+        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "API key", Description = "The key callers present to [ApiSecurity] endpoints; absent, API-key access is off.")]
         public Secret ApiKey { get; set; } = default!;
 
         public bool Accepts(string? presented)
@@ -20,10 +20,10 @@ namespace EastFive.Api
     /// <summary>A static bearer value that authenticates as the site super-admin. Secret
     /// <c>EastFiveSiteAdmin-Authorization</c>; absent = the back door is closed.</summary>
     [ConfigurationType("EastFiveSiteAdmin", Label = "Site admin authorization",
-        Description = "A static Authorization value that is granted the super-admin actor. Leave unset unless required.")]
+        Description = "A static Authorization value that is granted the super-admin actor. Leave unset unless required.", Scope = ConfigurationScope.Environment)]
     public sealed class SiteAdminAuthorizationConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
+        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Authorization value", Description = "The Authorization header value granted the super-admin actor.")]
         public Secret Authorization { get; set; } = default!;
 
         public bool Accepts(string? presented)
@@ -32,10 +32,10 @@ namespace EastFive.Api
 
     /// <summary>The GUID mixed into signed access-token URLs. Secret <c>EastFiveAccessTokens-SigningSecret</c>.</summary>
     [ConfigurationType("EastFiveAccessTokens", Label = "Access-token URL signing",
-        Description = "A GUID mixed into the envelope of signed access-token URLs.")]
+        Description = "A GUID mixed into the envelope of signed access-token URLs.", Scope = ConfigurationScope.Environment)]
     public sealed class AccessTokenSecretConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Description = "A GUID.")]
+        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Description = "A GUID.", Label = "Signing secret")]
         public Secret SigningSecret { get; set; } = default!;
 
         public Guid SigningGuid => Guid.Parse(SigningSecret.Reveal());
@@ -47,12 +47,12 @@ namespace EastFive.Api
     }
 
     /// <summary>The Postman API key the collection and monitoring endpoints use. Secret <c>Postman-ApiKey</c>.</summary>
-    [ConfigurationType("Postman", Label = "Postman")]
+    [ConfigurationType("Postman", Label = "Postman", Description = "The Postman API key, and the collection monitored requests are written to.", Scope = ConfigurationScope.Environment)]
     public sealed class PostmanConfiguration : IProvideConfiguration
     {
         public const string MonitoringCollectionIdKey = "EastFive.Api.Postman.MonitoringCollectionId";
 
-        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "API key", Location = "Postman | Settings | API keys")]
+        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "API key", Location = "Postman | Settings | API keys", Description = "Postman API key used to write collections.")]
         public Secret ApiKey { get; set; } = default!;
 
         [ConfigurationMember(MonitoringCollectionIdKey, Kind = ConfigurationMemberKind.Optional,

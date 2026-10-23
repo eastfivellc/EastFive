@@ -28,7 +28,7 @@ namespace EastFive.Security.Tokens
     /// <c>.Algorithm</c> from the values store, the key from the secret store as
     /// <c>EastFiveTokens-SigningKey</c>.</summary>
     [ConfigurationType("EastFiveTokens", Label = "Token signing",
-        Description = "Issuer and RSA key EastFive signs and validates its access tokens with.")]
+        Description = "Issuer and RSA key EastFive signs and validates its access tokens with.", Scope = ConfigurationScope.Environment)]
     public sealed class TokenSigningConfiguration : IProvideConfiguration
     {
         public const string AlgorithmKey = "EastFive.Security.Token.Algorithm";
@@ -43,7 +43,7 @@ namespace EastFive.Security.Tokens
         public string Issuer { get; set; } = default!;
 
         [ConfigurationMember(AlgorithmKey, Kind = ConfigurationMemberKind.Defaulted,
-            Default = TokenSigning.DefaultAlgorithm, Scope = ConfigurationScope.Shared)]
+            Default = TokenSigning.DefaultAlgorithm, Scope = ConfigurationScope.Shared, Label = "Algorithm", Description = "JWT signing algorithm.")]
         public string Algorithm { get; set; } = default!;
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Signing key",

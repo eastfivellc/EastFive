@@ -17,19 +17,19 @@ public interface IProvideArmClientSettings
 /// <summary>The application EastFive's Azure management calls authenticate as: tenant and client id
 /// from the values store, the secret <c>AzureClientApplication-{clientId}-ClientSecret</c>. Loaded at startup.</summary>
 [ConfigurationType("AzureClientApplication", Label = "Azure client application",
-    Description = "Entra application used for Azure Resource Manager and Event Grid calls.")]
+    Description = "Entra application used for Azure Resource Manager and Event Grid calls.", Scope = ConfigurationScope.Environment)]
 public sealed class AzureClientApplicationConfiguration : IProvideConfiguration, IProvideArmClientSettings
 {
     public const string ClientIdKey = "EastFive.Azure.ClientId";
     public const string TenantIdKey = "EastFive.Azure.TenantId";
 
-    [ConfigurationMember(TenantIdKey, Label = "Tenant ID")]
+    [ConfigurationMember(TenantIdKey, Label = "Tenant ID", Description = "The Entra tenant the application belongs to.")]
     public string TenantId { get; set; } = default!;
 
-    [ConfigurationMember(ClientIdKey, Account = true, Label = "Client ID")]
+    [ConfigurationMember(ClientIdKey, Account = true, Label = "Client ID", Description = "This application's Entra application (client) id; it also names the client-secret secret.")]
     public string ClientId { get; set; } = default!;
 
-    [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Client secret")]
+    [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Client secret", Description = "The Entra application's client secret, used for Azure Resource Manager.")]
     public Secret ClientSecret { get; set; } = default!;
 
     public TResult WithCredentials<TResult>(Func<string, string, Secret, TResult> onCredentials, Func<string, TResult> onUnavailable)
