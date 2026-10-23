@@ -314,12 +314,9 @@ namespace EastFive.Azure.Spa
                                         if (!indexFiles.Contains(entity.FullName, StringComparison.OrdinalIgnoreCase))
                                             return entity.FullName.PairWithValue(fileBytes);
 
-                                        var aiInstrumentationKey = EastFive.Azure.AppSettings.ApplicationInsights.InstrumentationKey.ConfigurationString(
-                                            (value) => value,
-                                            (missingKey) => string.Empty);
-                                        var aiConnectionString = EastFive.Azure.AppSettings.ApplicationInsights.ConnectionString.ConfigurationString(
-                                            (value) => value,
-                                            (missingKey) => string.Empty);
+                                        var telemetry = EastFive.Azure.Monitoring.ApplicationInsightsTelemetryConfiguration.Current();
+                                        var aiInstrumentationKey = telemetry?.InstrumentationKey ?? string.Empty;
+                                        var aiConnectionString = telemetry?.ConnectionString ?? string.Empty;
                                         return fileBytes
                                             .GetString()
                                             .Replace("2734e0b8-5801-4b33-86a1-e5ae322399d6", aiInstrumentationKey, StringComparison.OrdinalIgnoreCase)

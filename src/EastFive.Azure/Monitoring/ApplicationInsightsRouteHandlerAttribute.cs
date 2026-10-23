@@ -52,7 +52,7 @@ namespace EastFive.Azure.Monitoring
             if (sessionIdMaybe.HasValue)
                 telemetry.Context.Session.Id = sessionIdMaybe.Value.ToString().ToUpper();
             
-            var accountIdClaimType = EastFive.Api.AppSettings.ActorIdClaimType.ConfigurationString(
+            var accountIdClaimType = EastFive.Api.ClaimTypesConfiguration.WithActorIdClaimType(
                 (accIdCT) => accIdCT,
                 (why) => default);
             if (accountIdClaimType.HasBlackSpace())

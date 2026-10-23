@@ -67,8 +67,7 @@ namespace EastFive.Azure.Persistence
                                 return claims.GetActorId(
                                     (accountId) =>
                                     {
-                                        var offset = EastFive.Api.AppSettings.AccessTokenExpirationInMinutes.ConfigurationDouble(
-                                            (minutes) => TimeSpan.FromMinutes(minutes));
+                                        var offset = EastFive.Api.AccessTokenLifetimeConfiguration.RequiredLifetime();
                                         var expiresOn = DateTime.UtcNow + offset;
                                         return url.SignWithAccessTokenAccount(sessionId, accountId, expiresOn,
                                             async signedUrl =>

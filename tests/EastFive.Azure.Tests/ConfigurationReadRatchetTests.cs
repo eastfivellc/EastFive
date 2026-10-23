@@ -9,7 +9,7 @@ namespace EastFive.Azure.Tests;
 public class ConfigurationReadRatchetTests
 {
     [Fact]
-    public void Azure_RawConfigurationReads_OnlyFall() => ConfigurationReadRatchet.AssertPinned("Azure", 25);
+    public void Azure_RawConfigurationReads_OnlyFall() => ConfigurationReadRatchet.AssertPinned("Azure", 12);
 
     [Fact]
     public void Sheets_RawConfigurationReads_OnlyFall() => ConfigurationReadRatchet.AssertPinned("Sheets", 0);

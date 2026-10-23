@@ -1,5 +1,4 @@
-﻿using EastFive.Web.Configuration;
-using Microsoft.ApplicationInsights;
+﻿using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Extensibility;
 
 namespace EastFive.Azure.Monitoring
@@ -11,21 +10,12 @@ namespace EastFive.Azure.Monitoring
         static TelemetryExtensions()
         {
             
-            client = EastFive.Azure.AppSettings.ApplicationInsights.ConnectionString.ConfigurationString(
-                key =>
-                {
-                    var config = new TelemetryConfiguration()
-                    {
-                        ConnectionString = key,
-                    };
-                    return new TelemetryClient(config);
-                },
-                (why) =>
-                {
-#pragma warning disable 0618
-                    var configuration = TelemetryConfiguration.Active;
-                    return new TelemetryClient(configuration);
-                });
+            client = ApplicationInsightsTelemetryConfiguration.Current()?.ConnectionString is { } connectionString
+                    && !string.IsNullOrWhiteSpace(connectionString)
+                ? new TelemetryClient(new TelemetryConfiguration() { ConnectionString = connectionString })
+#pragma warning disable 0618 // TelemetryConfiguration.Active: the SDK's own fallback when no connection string is configured.
+                : new TelemetryClient(TelemetryConfiguration.Active);
+#pragma warning restore 0618
         }
 
         public static TelemetryClient LoadTelemetryClient()

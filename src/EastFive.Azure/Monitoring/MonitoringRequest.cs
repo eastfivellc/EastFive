@@ -328,7 +328,7 @@ namespace EastFive.Api.Azure.Monitoring
             NotFoundResponse onNotFound,
             GeneralFailureResponse onFailure)
         {
-            return await EastFive.Api.AppSettings.Postman.MonitoringCollectionId.ConfigurationString(
+            return await EastFive.Api.Meta.Postman.Resources.Collection.Collection.WithMonitoringCollection(
                 async collectionId =>
                 {
                     return await await EastFive.Api.Meta.Postman.Resources.Collection.Collection.GetAsync(collectionId,
@@ -482,7 +482,7 @@ namespace EastFive.Api.Azure.Monitoring
             Func<string, TResult> onFailure)
         {
             var postmanItem = await itemToCreateOrUpdate.ConvertToPostmanItemAsync();
-            return await EastFive.Api.AppSettings.Postman.MonitoringCollectionId.ConfigurationString(
+            return await EastFive.Api.Meta.Postman.Resources.Collection.Collection.WithMonitoringCollection(
                 async collectionId =>
                 {
                     return await await EastFive.Api.Meta.Postman.Resources.Collection.Collection.GetAsync(collectionId,
