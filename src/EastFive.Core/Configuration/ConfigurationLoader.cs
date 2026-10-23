@@ -75,7 +75,7 @@ namespace EastFive.Configuration
         /// Unset reads as <c>null</c>; an uninitialized configuration throws, which the loader
         /// reports as <see cref="ConfigIssueCategory.SourceFailure"/>.</summary>
         public static string? ReadAmbient(string key)
-            => key.ConfigurationString(value => value, _ => (string?)null);
+            => key.ConfigurationString(value => value, _ => EastFive.Web.Configuration.ConfigurationExtensions.SectionJson(key));
 
         #region Asynchronous: values + secret store
 

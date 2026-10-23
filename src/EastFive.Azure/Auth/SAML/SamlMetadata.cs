@@ -62,8 +62,11 @@ namespace EastFive.Azure.Auth
                             .ById(tag)
                             .CompileRequest()
                             .RequestUri;
-            var nameIdFormat = GetOptionalString(AppSettings.SAML.NameIdFormat, DefaultNameIdFormat);
-            var signingCertBase64 = GetOptionalCertificateBase64(AppSettings.SAML.ServiceProviderCertificate);
+            var samlConfiguration = SamlConfiguration.Current();
+            var nameIdFormat = samlConfiguration?.NameIdFormat is { } configuredFormat && !string.IsNullOrWhiteSpace(configuredFormat)
+                ? configuredFormat
+                : DefaultNameIdFormat;
+            var signingCertBase64 = CertificateBase64(samlConfiguration?.ServiceProviderCertificate);
             var xml = BuildMetadataDocument(entityId, acsUri, sloUri, nameIdFormat, signingCertBase64);
             return onSuccess(xml);
         }
@@ -117,25 +120,18 @@ namespace EastFive.Azure.Auth
             return document.ToString(SaveOptions.DisableFormatting);
         }
 
-        private static string GetOptionalString(string key, string defaultValue)
+        private static string CertificateBase64(string configured)
         {
-            return Settings.GetString(key,
-                (value) => value,
-                (why) => defaultValue);
-        }
-
-        private static Uri GetOptionalUri(string key)
-        {
-            return Settings.GetUri(key,
-                (uri) => uri,
-                (why) => default);
-        }
-
-        private static string GetOptionalCertificateBase64(string key)
-        {
-            return Settings.GetBase64Bytes(key,
-                (bytes) => Convert.ToBase64String(bytes),
-                (why) => default);
+            if (string.IsNullOrWhiteSpace(configured))
+                return default;
+            try
+            {
+                return Convert.ToBase64String(Convert.FromBase64String(configured));
+            }
+            catch (FormatException)
+            {
+                return default;
+            }
         }
     }
 }

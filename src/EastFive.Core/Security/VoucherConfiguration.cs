@@ -14,6 +14,10 @@ namespace EastFive.Security
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Description = "Base64 of the RSA key XML.")]
         public Secret SigningKey { get; set; } = default!;
 
+        [ConfigurationMember(AppSettings.CredentialProviderVoucherProviderId, Kind = ConfigurationMemberKind.Optional,
+            Label = "Trusted provider", Description = "Provider id vouchers are issued under.")]
+        public Uri? ProviderId { get; set; }
+
         /// <summary>The host's voucher key, opened. Never loads.</summary>
         public static TResult WithKey<TResult>(Func<RSACryptoServiceProvider, TResult> onKey,
             Func<TResult> onMissing, Func<string, TResult> onInvalid)

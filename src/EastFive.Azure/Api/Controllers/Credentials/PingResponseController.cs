@@ -67,13 +67,13 @@ namespace EastFive.Azure.Auth.CredentialProviders
             //Then, switch the uncommented/commented lines back and run the server in debug.
             //Send the token via Postman to debug and see any errors that might come back from Ping.
 
-            return EastFive.Azure.AppSettings.Auth.DebugLogin.ConfigurationUri(
+            return EastFive.Azure.Auth.SessionServerConfiguration.WithDebugLogin(
                 debugRedirect =>
                 {
                     var populatedUri = debugRedirect.CopyPathAndQuery(request.RequestUri);
                     return onRedirectResponse(populatedUri).AsTask();
                 },
-                onFailure: (why) => ContinueAsync(),
+                onUnspecified: (why) => ContinueAsync(),
                 onNotSpecified: () => ContinueAsync());
 
             //return onRedirectResponse(new Uri("https://www.google.com"));

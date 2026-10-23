@@ -16,11 +16,9 @@ namespace EastFive.Azure.Auth
 
         public bool AllowLocalHost { get; set; } = false;
 
-        private static bool allowLocalHostGlobal = EastFive.Azure.AppSettings.Auth.AllowLocalHostGlobalSuperAdmin
-            .ConfigurationBoolean(
-                allow => allow,
-                onFailure: (why) => false,
-                onNotSpecified: () => false);
+        /// <summary>Read at use (the static was read once, before configuration might be initialized).</summary>
+        private static bool allowLocalHostGlobal
+            => EastFive.Api.SuperAdminConfiguration.Current(config => config.AllowLocalHostGlobalSuperAdmin, () => false);
 
         public Task<IHttpResponse> HandleMethodInvocationAsync(
             KeyValuePair<ParameterInfo, object>[] parameters,

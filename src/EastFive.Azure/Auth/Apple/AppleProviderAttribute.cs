@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using EastFive;
 using EastFive.Extensions;
 using EastFive.Linq;
-using EastFive.Web.Configuration;
 
 namespace EastFive.Azure.Auth
 {
@@ -16,10 +15,12 @@ namespace EastFive.Azure.Auth
             Func<IProvideLogin, TResult> onLoaded,
             Func<string, TResult> onNotAvailable)
         {
-            return AppSettings.Auth.Apple.ClientId.ConfigurationString(
+            return EastFive.Configuration.Configured.Member<AppleConfiguration, string, Task<TResult>>(config => config.ClientId,
+                AppSettings.Auth.Apple.ClientId,
                 applicationId =>
                 {
-                    return AppSettings.Auth.Apple.ValidAudiences.ConfigurationString(
+                    return EastFive.Configuration.Configured.Member<AppleConfiguration, string, Task<TResult>>(config => config.ValidAudiences,
+                        AppSettings.Auth.Apple.ValidAudiences,
                         (validAudiencesStr) =>
                         {
                             var validAudiences = validAudiencesStr.Split(','.AsArray());

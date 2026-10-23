@@ -133,9 +133,7 @@ namespace EastFive.Azure.Configuration
                     moreInfo = member.Metadata.MoreInfo,
                     scope = member.Metadata.Scope.ToString(),
                     fieldKind = member.Metadata.FieldKind.ToString(),
-                    value = member.Kind == ConfigurationMemberKind.Secret || member.Key == null
-                        ? null
-                        : ConfigurationLoader.ReadAmbient(member.Key),
+                    value = ConfigurationCatalog.CurrentValue(member),
                 }))
                 .ToArray();
             return onFound(configs);

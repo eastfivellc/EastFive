@@ -19,6 +19,12 @@ namespace EastFive.Api
             Label = "Session claim type", Description = "The claim whose value is the session id; unset means sessions are not read from claims.")]
         public string? SessionIdClaimType { get; set; }
 
+        /// <summary>The account claim type, in the raw reader's continuation shape.</summary>
+        public static TResult WithActorIdClaimType<TResult>(Func<string, TResult> onFound,
+            Func<string, TResult>? onUnspecified = null, Func<TResult>? onNotSpecified = null)
+            => Configured.Member<ClaimTypesConfiguration, string, TResult>(config => config.ActorIdClaimType,
+                AppSettings.ActorIdClaimType, onFound, onUnspecified, onNotSpecified);
+
         /// <summary>The account claim type, or the default when configuration cannot be read.</summary>
         public static string ActorIdClaimTypeOrDefault()
             => Configured.Get<ClaimTypesConfiguration, string>(config => config.ActorIdClaimType, _ => Auth.ClaimValues.DefaultAccountClaim);
@@ -49,6 +55,18 @@ namespace EastFive.Api
 
         public static TResult Current<TResult>(Func<SuperAdminConfiguration, TResult> onConfigured, Func<TResult> onUnavailable)
             => Configured.Get<SuperAdminConfiguration, TResult>(onConfigured, _ => onUnavailable());
+
+        /// <summary>The super-admin account id, in the raw reader's continuation shape.</summary>
+        public static TResult WithActorId<TResult>(Func<Guid, TResult> onFound,
+            Func<string, TResult>? onUnspecified = null, Func<TResult>? onNotSpecified = null)
+            => Configured.MemberValue<SuperAdminConfiguration, Guid, TResult>(config => config.ActorId,
+                AppSettings.ActorIdSuperAdmin, onFound, onUnspecified, onNotSpecified);
+
+        /// <summary>The super-admin authorization id, in the raw reader's continuation shape.</summary>
+        public static TResult WithAuthorizationId<TResult>(Func<Guid, TResult> onFound,
+            Func<string, TResult>? onUnspecified = null, Func<TResult>? onNotSpecified = null)
+            => Configured.MemberValue<SuperAdminConfiguration, Guid, TResult>(config => config.AuthorizationId,
+                AppSettings.AuthorizationIdSuperAdmin, onFound, onUnspecified, onNotSpecified);
     }
 
     /// <summary>The CORS correction handler.</summary>

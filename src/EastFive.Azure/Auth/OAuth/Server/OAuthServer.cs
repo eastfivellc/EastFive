@@ -51,22 +51,16 @@ namespace EastFive.Azure.OAuth.Server
         public const string ClientIdClaimType = "client_id";
 
         public static TimeSpan AccessTokenDuration() =>
-            AppSettings.AccessTokenExpirationInMinutes.ConfigurationDouble(
-                minutes => TimeSpan.FromMinutes(minutes),
-                onNotSpecified: () => TimeSpan.FromMinutes(60));
+            TimeSpan.FromMinutes(OAuthServerConfiguration.Current()?.AccessTokenExpirationInMinutes ?? 60);
 
         public static TimeSpan RefreshTokenDuration() =>
-            AppSettings.RefreshTokenExpirationInDays.ConfigurationDouble(
-                days => TimeSpan.FromDays(days),
-                onNotSpecified: () => TimeSpan.FromDays(30));
+            TimeSpan.FromDays(OAuthServerConfiguration.Current()?.RefreshTokenExpirationInDays ?? 30);
 
         /// <summary>The default scope MCP endpoints are gated on.</summary>
         public const string McpScope = "mcp";
 
         public static string[] ScopesSupported() =>
-            AppSettings.ScopesSupported.ConfigurationString(
-                scopes => scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries),
-                (why) => new[] { McpScope });
+            (OAuthServerConfiguration.Current()?.ScopesSupported ?? McpScope).Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
         /// <summary>The RFC 9728 protected-resource-metadata URL for this host —
         /// advertised in WWW-Authenticate challenges so clients can begin discovery.</summary>

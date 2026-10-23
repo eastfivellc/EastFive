@@ -25,6 +25,66 @@ namespace EastFive.Configuration
                 (issue, _) => onUnavailable(issue), onUnavailable, onUnavailable);
 
         /// <summary>
+        /// One member of a typed configuration, in the continuation shape the raw readers had, so a
+        /// raw read becomes a typed one without reshaping its callers: <paramref name="onFound"/> with
+        /// the value; when it is unset or the configuration is unavailable, <paramref name="onNotSpecified"/>
+        /// if given, else <paramref name="onUnspecified"/> with the reason, else a
+        /// <see cref="EastFive.Web.ConfigurationException"/> naming <paramref name="key"/> — exactly
+        /// what the raw reader did with no handler.
+        /// </summary>
+        public static TResult Member<TConfig, TValue, TResult>(Func<TConfig, TValue?> select, string key,
+            Func<TValue, TResult> onFound,
+            Func<string, TResult>? onUnspecified = null,
+            Func<TResult>? onNotSpecified = null)
+            where TConfig : IProvideConfiguration, new()
+            where TValue : class
+        {
+            return Get<TConfig, TResult>(
+                config => select(config) is { } value ? onFound(value) : Unspecified($"[{key}] is not specified."),
+                issue => Unspecified(issue.ToString()));
+
+            TResult Unspecified(string why)
+                => onNotSpecified != null ? onNotSpecified()
+                    : onUnspecified != null ? onUnspecified(why)
+                    : throw new EastFive.Web.ConfigurationException(key, typeof(TValue), why);
+        }
+
+        /// <summary><see cref="Member{TConfig, TValue, TResult}"/> for a value-typed member.</summary>
+        public static TResult MemberValue<TConfig, TValue, TResult>(Func<TConfig, TValue?> select, string key,
+            Func<TValue, TResult> onFound,
+            Func<string, TResult>? onUnspecified = null,
+            Func<TResult>? onNotSpecified = null)
+            where TConfig : IProvideConfiguration, new()
+            where TValue : struct
+        {
+            return Get<TConfig, TResult>(
+                config => select(config) is { } value ? onFound(value) : Unspecified($"[{key}] is not specified."),
+                issue => Unspecified(issue.ToString()));
+
+            TResult Unspecified(string why)
+                => onNotSpecified != null ? onNotSpecified()
+                    : onUnspecified != null ? onUnspecified(why)
+                    : throw new EastFive.Web.ConfigurationException(key, typeof(TValue), why);
+        }
+
+        /// <summary>
+        /// A string member read as a URI that may be RELATIVE — which a <see cref="Uri"/> member cannot
+        /// hold, since typed members accept absolute URIs only. Unparseable text is unspecified, as the
+        /// raw URI reader treated it.
+        /// </summary>
+        public static TResult MemberUri<TConfig, TResult>(Func<TConfig, string?> select, string key,
+            Func<Uri, TResult> onFound,
+            Func<string, TResult>? onUnspecified = null,
+            Func<TResult>? onNotSpecified = null)
+            where TConfig : IProvideConfiguration, new()
+            => Member<TConfig, string, TResult>(select, key,
+                text => Uri.TryCreate(text, UriKind.RelativeOrAbsolute, out var uri)
+                    ? onFound(uri)
+                    : onUnspecified != null ? onUnspecified($"[{key}] is not a URI.")
+                    : throw new EastFive.Web.ConfigurationException(key, typeof(Uri), $"[{key}] is not a URI."),
+                onUnspecified, onNotSpecified);
+
+        /// <summary>
         /// The value of a key that some typed configuration member DECLARES — for the few public APIs
         /// that take a key name. An undeclared key is <paramref name="onUnspecified"/>, never read, so
         /// such an API cannot be used to reach configuration nothing describes.

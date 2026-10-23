@@ -27,7 +27,8 @@ namespace EastFive.Apple
             TextResponse onResponse,
             ConfigurationFailureResponse onConfigurationFailure)
         {
-            return EastFive.Azure.AppSettings.Apple.DeveloperSiteAssociation.ConfigurationString(
+            return EastFive.Configuration.Configured.Member<EastFive.Azure.Auth.AppleConfiguration, string, IHttpResponse>(
+                config => config.DeveloperSiteAssociation, EastFive.Azure.AppSettings.Apple.DeveloperSiteAssociation,
                 (content) =>
                 {
                     return onResponse(content);

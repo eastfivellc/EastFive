@@ -415,10 +415,8 @@ namespace EastFive.Azure.Auth.CredentialProviders.Voucher
 
                     voucherToken.claims = voucherToken.claims
                         .NullToEmpty()
-                        .Append(Api.AppSettings.ActorIdClaimType.ConfigurationString(
-                            (accountIdClaimType) => accountIdClaimType.PairWithValue(authorizationId.ToString("N"))))
-                        .If(Api.AppSettings.ActorIdClaimType.ConfigurationString(
-                            (accountIdClaimType) => accountIdClaimType != ClaimValues.DefaultAccountClaim),
+                        .Append(EastFive.Api.ClaimTypesConfiguration.ActorIdClaimTypeOrDefault().PairWithValue(authorizationId.ToString("N")))
+                        .If(EastFive.Api.ClaimTypesConfiguration.ActorIdClaimTypeOrDefault() != ClaimValues.DefaultAccountClaim,
                             (kvps) => kvps.Append(ClaimValues.DefaultAccountClaim.PairWithValue(authorizationId.ToString("N"))))
                         .Concat(extraClaims.NullToEmpty())
                         .Distinct(kvp => kvp.Key)

@@ -1,4 +1,5 @@
 ﻿using System;
+using EastFive.Configuration;
 using System.Linq;
 using System.Collections.Generic;
 using System.Security.Claims;
@@ -35,48 +36,30 @@ namespace EastFive.Azure.Auth.CredentialProviders
 
         static AzureADB2CProvider()
         {
-            clientId = EastFive.Azure.AppSettings.AzureADB2C.ApplicationId.ConfigurationString(
-                (value) => value,
-                (why) => throw new Exception(why));
+            clientId = AzureADB2CGraphConfiguration.Required(AzureADB2CGraphConfiguration.Loaded().ApplicationId,
+                EastFive.Azure.AppSettings.AzureADB2C.ApplicationId);
 
             endpointsAsync = new Lazy<Task<Endpoints>>(
                 () =>
                 {
-                    return EastFive.Azure.AppSettings.AzureADB2C.Tenant.ConfigurationString(
-                        (tenant) =>
+                    var b2c = AzureADB2CGraphConfiguration.Loaded();
+                    return EastFive.AzureADB2C.Libary.InitializeAsync(
+                            AzureADB2CGraphConfiguration.Required(b2c.Tenant, EastFive.Azure.AppSettings.AzureADB2C.Tenant),
+                            AzureADB2CGraphConfiguration.Required(b2c.SignupFlow, EastFive.Azure.AppSettings.AzureADB2C.SignupFlow),
+                            AzureADB2CGraphConfiguration.Required(b2c.SigninFlow, EastFive.Azure.AppSettings.AzureADB2C.SigninFlow),
+                            AzureADB2CGraphConfiguration.Required(b2c.Audience, EastFive.Azure.AppSettings.AzureADB2C.Audience),
+                        (signupEndpoint, signinEndpoint, logoutEndpoint, validationParams) =>
                         {
-                            return EastFive.Azure.AppSettings.AzureADB2C.SigninFlow.ConfigurationString(
-                                (signInFlow) =>
+                            return EastFive.AzureADB2C.B2CGraphClient.LoadFromConfig(
+                                client =>
                                 {
-                                    return EastFive.Azure.AppSettings.AzureADB2C.SignupFlow.ConfigurationString(
-                                        (signUpFlow) =>
-                                        {
-                                            return EastFive.Azure.AppSettings.AzureADB2C.Audience.ConfigurationString(
-                                                (audience) =>
-                                                {
-                                                    return EastFive.AzureADB2C.Libary.InitializeAsync(tenant,
-                                                            signUpFlow, signInFlow,
-                                                            audience,
-                                                        (signupEndpoint, signinEndpoint, logoutEndpoint, validationParams) =>
-                                                        {
-                                                            return EastFive.AzureADB2C.B2CGraphClient.LoadFromConfig(
-                                                                client =>
-                                                                {
-                                                                    return new Endpoints
-                                                                    {
-                                                                        signupEndpoint = signupEndpoint,
-                                                                        loginEndpoint = signinEndpoint,
-                                                                        logoutEndpoint = logoutEndpoint,
-                                                                        validationParameters = validationParams,
-                                                                    };
-                                                                },
-                                                                (why) => throw new Exception(why));
-                                                        },
-                                                        (why) => throw new Exception(why));
-                                                },
-                                                (why) => throw new Exception(why));
-                                        },
-                                        (why) => throw new Exception(why));
+                                    return new Endpoints
+                                    {
+                                        signupEndpoint = signupEndpoint,
+                                        loginEndpoint = signinEndpoint,
+                                        logoutEndpoint = logoutEndpoint,
+                                        validationParameters = validationParams,
+                                    };
                                 },
                                 (why) => throw new Exception(why));
                         },
@@ -129,7 +112,7 @@ namespace EastFive.Azure.Auth.CredentialProviders
             Func<string, TResult> onFailure)
         {
             var stateId = GetState();
-            return Web.Configuration.Settings.GetString(
+            return Configured.Member<AzureADB2CGraphConfiguration, string, TResult>(config => config.LoginIdClaimType,
                     AppSettings.AzureADB2C.LoginIdClaimType,
                 (claimType) =>
                 {
@@ -174,7 +157,7 @@ namespace EastFive.Azure.Auth.CredentialProviders
             return await this.ValidateToken(token,
                 (claims) =>
                 {
-                    return Web.Configuration.Settings.GetString(
+                    return Configured.Member<AzureADB2CGraphConfiguration, string, TResult>(config => config.LoginIdClaimType,
                             AppSettings.AzureADB2C.LoginIdClaimType,
                         (claimType) =>
                         {

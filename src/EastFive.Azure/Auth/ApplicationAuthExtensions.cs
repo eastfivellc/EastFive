@@ -140,8 +140,7 @@ namespace EastFive.Azure.Auth
         /// </summary>
         public static Task<bool> IsAdminAsync(this IApplication application, SessionToken security)
         {
-            return EastFive.Web.Configuration.Settings.GetGuid(
-                EastFive.Api.AppSettings.ActorIdSuperAdmin,
+            return EastFive.Api.SuperAdminConfiguration.WithActorId(
                 (actorIdSuperAdmin) =>
                 {
                     if (security.accountIdMaybe.HasValue)

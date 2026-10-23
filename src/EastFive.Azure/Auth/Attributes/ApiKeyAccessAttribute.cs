@@ -42,7 +42,7 @@ namespace EastFive.Azure.Auth
                                         .CreateResponse(System.Net.HttpStatusCode.Unauthorized)
                                         .AddReason("Token has expired.");
 
-                                return await EastFive.Security.AppSettings.TokenScope.ConfigurationUri(
+                                return await EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(
                                     scope =>
                                     {
                                         var tokenExpiration = TimeSpan.FromMinutes(1.0);

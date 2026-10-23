@@ -10,9 +10,11 @@ namespace EastFive.Azure.Auth.Voucher
     {
         public static Uri GetTrustedProviderId()
         {
-            var trustedVoucherProviderString = ConfigurationManager.AppSettings[EastFive.Security.AppSettings.CredentialProviderVoucherProviderId];
-            var trustedVoucherProviderId = new Uri(trustedVoucherProviderString);
-            return trustedVoucherProviderId;
+            // Was System.Configuration's AppSettings, always empty on .NET Core (so this threw).
+            return EastFive.Configuration.StartupConfiguration.Get<EastFive.Security.VoucherConfiguration, Uri>(
+                configuration => configuration.ProviderId
+                    ?? throw new EastFive.Web.ConfigurationException(EastFive.Security.AppSettings.CredentialProviderVoucherProviderId, typeof(Uri), "The voucher provider is not configured."),
+                issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(Uri), issue.ToString()));
         }
 
         public static string GenerateToken(Guid authId, DateTime validUntilUtc)

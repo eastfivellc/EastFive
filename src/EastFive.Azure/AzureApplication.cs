@@ -147,8 +147,7 @@ namespace EastFive.Api.Azure
 
         public virtual Task<bool> IsAdminAsync(SessionToken security)
         {
-            return EastFive.Web.Configuration.Settings.GetGuid(
-                EastFive.Api.AppSettings.ActorIdSuperAdmin,
+            return EastFive.Api.SuperAdminConfiguration.WithActorId(
                 (actorIdSuperAdmin) =>
                 {
                     if (security.accountIdMaybe.HasValue)
@@ -490,8 +489,7 @@ namespace EastFive.Api.Azure
                 }
                 else
                 {
-                    var redirectUrl = EastFive.Web.Configuration.Settings.GetUri(
-                        EastFive.Azure.AppSettings.Auth.LandingPage,
+                    var redirectUrl = EastFive.Azure.Auth.SessionServerConfiguration.WithLandingPage(
                         (landingPage) => new Uri(landingPage, authorization.LocationAuthenticationReturn),
                         (why) => default(Uri));
                     if (default != redirectUrl)
@@ -512,8 +510,7 @@ namespace EastFive.Api.Azure
                 return onSuccess(redirectUrl);
             }
 
-            return await EastFive.Web.Configuration.Settings.GetUri(
-                EastFive.Azure.AppSettings.Auth.LandingPage,
+            return await EastFive.Azure.Auth.SessionServerConfiguration.WithLandingPage(
                 (redirectUriLandingPage) =>
                 {
                     var redirectUrl = SetRedirectParameters(authorization, redirectUriLandingPage);

@@ -60,6 +60,18 @@ namespace EastFive.Security.Tokens
             Label = "Refused-token message", Description = "The reason given for a token refused by the force-refresh time.")]
         public string? ForceRefreshMessage { get; set; }
 
+        /// <summary>The token scope, in the raw reader's continuation shape.</summary>
+        public static TResult WithScope<TResult>(Func<Uri, TResult> onFound,
+            Func<string, TResult>? onUnspecified = null, Func<TResult>? onNotSpecified = null)
+            => Configured.Member<TokenSigningConfiguration, Uri, TResult>(config => config.Scope,
+                EastFive.Security.AppSettings.TokenScope, onFound, onUnspecified, onNotSpecified);
+
+        /// <summary>The token issuer, in the raw reader's continuation shape.</summary>
+        public static TResult WithIssuer<TResult>(Func<string, TResult> onFound,
+            Func<string, TResult>? onUnspecified = null, Func<TResult>? onNotSpecified = null)
+            => Configured.Member<TokenSigningConfiguration, string, TResult>(config => config.Issuer,
+                EastFive.Security.AppSettings.TokenIssuer, onFound, onUnspecified, onNotSpecified);
+
         /// <summary>The scope, or a <see cref="EastFive.Web.ConfigurationException"/> naming its key.</summary>
         public static TResult CurrentScope<TResult>(Func<Uri, TResult> onScope, Func<string, TResult> onUnavailable)
             => StartupConfiguration.Get<TokenSigningConfiguration, TResult>(

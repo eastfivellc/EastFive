@@ -60,6 +60,35 @@ namespace EastFive.Azure.Auth
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Graph client secret")]
         public Secret ClientSecret { get; set; } = default!;
+
+        [ConfigurationMember(EastFive.Azure.AppSettings.AzureADB2C.ApplicationId, Kind = ConfigurationMemberKind.Optional,
+            Label = "Application ID", Description = "The B2C application users sign in to.")]
+        public string? ApplicationId { get; set; }
+
+        [ConfigurationMember(EastFive.Azure.AppSettings.AzureADB2C.Audience, Kind = ConfigurationMemberKind.Optional,
+            Label = "Audience", Description = "Audience of the B2C tokens this application accepts.")]
+        public string? Audience { get; set; }
+
+        [ConfigurationMember(EastFive.Azure.AppSettings.AzureADB2C.SigninFlow, Kind = ConfigurationMemberKind.Optional,
+            Label = "Sign-in flow", Description = "B2C user flow (policy) for signing in.")]
+        public string? SigninFlow { get; set; }
+
+        [ConfigurationMember(EastFive.Azure.AppSettings.AzureADB2C.SignupFlow, Kind = ConfigurationMemberKind.Optional,
+            Label = "Sign-up flow", Description = "B2C user flow (policy) for signing up.")]
+        public string? SignupFlow { get; set; }
+
+        [ConfigurationMember(EastFive.Azure.AppSettings.AzureADB2C.LoginIdClaimType, Kind = ConfigurationMemberKind.Optional,
+            Label = "Login id claim", Description = "The B2C claim whose value identifies the user.")]
+        public string? LoginIdClaimType { get; set; }
+
+        /// <summary>The B2C configuration loaded at startup, or a <see cref="EastFive.Web.ConfigurationException"/>.</summary>
+        public static AzureADB2CGraphConfiguration Loaded()
+            => StartupConfiguration.Get<AzureADB2CGraphConfiguration, AzureADB2CGraphConfiguration>(config => config,
+                issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(AzureADB2CGraphConfiguration), issue.ToString()));
+
+        /// <summary>A required B2C value, or a <see cref="EastFive.Web.ConfigurationException"/> naming its key.</summary>
+        public static string Required(string? value, string key)
+            => value ?? throw new EastFive.Web.ConfigurationException(key, typeof(string), $"[{key}] is not specified.");
     }
 
     /// <summary>The Ping/Athena REST API key: <c>PingAthena-RestApiKey</c>.</summary>

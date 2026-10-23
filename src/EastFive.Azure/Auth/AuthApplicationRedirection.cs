@@ -116,8 +116,7 @@ namespace EastFive.Azure.Auth
                 }
                 else
                 {
-                    var redirectUrl = EastFive.Web.Configuration.Settings.GetUri(
-                        EastFive.Azure.AppSettings.Auth.LandingPage,
+                    var redirectUrl = EastFive.Azure.Auth.SessionServerConfiguration.WithLandingPage(
                         (landingPage) => new Uri(landingPage, authorization.LocationAuthenticationReturn),
                         (why) => default(Uri));
                     if (default != redirectUrl)
@@ -138,8 +137,7 @@ namespace EastFive.Azure.Auth
                 return onSuccess(redirectUrl);
             }
 
-            return await EastFive.Web.Configuration.Settings.GetUri(
-                EastFive.Azure.AppSettings.Auth.LandingPage,
+            return await EastFive.Azure.Auth.SessionServerConfiguration.WithLandingPage(
                 (redirectUriLandingPage) =>
                 {
                     var redirectUrl = SetRedirectParameters(authorization, redirectUriLandingPage);

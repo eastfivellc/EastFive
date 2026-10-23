@@ -103,15 +103,19 @@ namespace EastFive.Azure.Auth
 
         public static TimeSpan CreateExpirationDuration() =>
             // prefer an absolute time of day setting over a maximum duration setting
-            AppSettings.Auth.TokenExpirationTimeOfDay.ConfigurationString(
-                (timeAndOffset) =>
+            EastFive.Configuration.Configured.Get<SessionServerConfiguration, TimeSpan>(
+                config =>
                 {
-                    if (DateTimeExtensions.GetDisappearingOffset(timeAndOffset, out TimeSpan duration))
-                        return duration;
-                    throw new Exception($"The settings key `{AppSettings.Auth.TokenExpirationTimeOfDay}` could not be parsed");
+                    if (config.TokenExpirationTimeOfDay is { } timeAndOffset)
+                        return DateTimeExtensions.GetDisappearingOffset(timeAndOffset, out TimeSpan duration)
+                            ? duration
+                            : throw new Exception($"The settings key `{AppSettings.Auth.TokenExpirationTimeOfDay}` could not be parsed");
+                    return config.TokenExpirationInMinutes is { } minutes
+                        ? TimeSpan.FromMinutes(minutes)
+                        : throw new EastFive.Web.ConfigurationException(AppSettings.Auth.TokenExpirationInMinutes, typeof(double),
+                            $"Neither [{AppSettings.Auth.TokenExpirationTimeOfDay}] nor [{AppSettings.Auth.TokenExpirationInMinutes}] is specified.");
                 },
-                (unspecifiedMsg) => AppSettings.Auth.TokenExpirationInMinutes.ConfigurationDouble(
-                    (minutes) => TimeSpan.FromMinutes(minutes)));
+                issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(TimeSpan), issue.ToString()));
 
         /// <summary>
         /// Optional authorization parameter (an ISO-8601 / "o"-format UTC timestamp). When a login
@@ -160,7 +164,7 @@ namespace EastFive.Azure.Auth
                 return onClaims(new Dictionary<string, string>(), default(Guid?), false, default(DateTime?));
             var authorizationRef = authorizationRefMaybe.Ref;
 
-            return await Api.AppSettings.ActorIdClaimType.ConfigurationString(
+            return await EastFive.Api.ClaimTypesConfiguration.WithActorIdClaimType(
                 (accountIdClaimType) =>
                 {
                     return GetSessionAcountAsync(authorizationRef, application,
@@ -211,8 +215,7 @@ namespace EastFive.Azure.Auth
             return await await sessionRef.StorageGetAsync(
                 (session) =>
                 {
-                    return Web.Configuration.Settings.GetUri(
-                            EastFive.Security.AppSettings.TokenScope,
+                    return EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(
                         scope =>
                         {
                             return GetClaimsAsync(application, session.authorization,
@@ -300,7 +303,7 @@ namespace EastFive.Azure.Auth
         {
             session.refreshToken = Security.SecureGuid.Generate().ToString("N");
 
-            return await Security.AppSettings.TokenScope.ConfigurationUri(
+            return await EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(
                 async (scope) =>
                 {
                     return await await GetClaimsAsync(application, authorizationRefMaybe,
@@ -362,7 +365,7 @@ namespace EastFive.Azure.Auth
             return await sessionRef.StorageUpdateAsync(
                 (sessionStorage, saveSessionAsync) =>
                 {
-                    return Security.AppSettings.TokenScope.ConfigurationUri(
+                    return EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(
                         async (scope) =>
                         {
                             return await await GetClaimsAsync(application, authorizationRefMaybe,
@@ -428,7 +431,7 @@ namespace EastFive.Azure.Auth
                 authorization = authorizationRefMaybe,
             };
 
-            return await Security.AppSettings.TokenScope.ConfigurationUri(
+            return await EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(
                 async (scope) =>
                 {
                     return await await GetClaimsAsync(application, authorizationRefMaybe,
@@ -585,7 +588,7 @@ namespace EastFive.Azure.Auth
             Func<Guid, bool, TResult> onSuccess,
             Func<string, bool, TResult> onFailure)
         {
-            var isSuperAdminAuth = Api.AppSettings.AuthorizationIdSuperAdmin.ConfigurationGuid(
+            var isSuperAdminAuth = EastFive.Api.SuperAdminConfiguration.WithAuthorizationId(
                 (authorizationIdSuperAdmin) =>
                 {
                     if (authorizationIdSuperAdmin == authorizationRef.id)
@@ -597,7 +600,7 @@ namespace EastFive.Azure.Auth
             if (!isSuperAdminAuth)
                 return onFailure(failureMessage, authorized);
 
-            return Api.AppSettings.ActorIdSuperAdmin.ConfigurationGuid(
+            return EastFive.Api.SuperAdminConfiguration.WithActorId(
                 (authorizationIdSuperAdmin) => onSuccess(authorizationIdSuperAdmin, authorized),
                 (dontCare) => onFailure(failureMessage, authorized));
         }

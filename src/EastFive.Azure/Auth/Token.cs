@@ -63,13 +63,11 @@ namespace EastFive.Azure.Auth
         {
             var token = new Token()
             {
-                issuer = Security.AppSettings.TokenIssuer
-                    .ConfigurationString(
+                issuer = EastFive.Security.Tokens.TokenSigningConfiguration.WithIssuer(
                         i => i,
                         (why) => string.Empty),
-                scope = Security.AppSettings.TokenScope
-                    .ConfigurationString(
-                        i => i,
+                scope = EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(
+                        i => i.OriginalString,
                         (why) => string.Empty),
                 expiration = DateTime.UtcNow + Session.CreateExpirationDuration(),
             };
