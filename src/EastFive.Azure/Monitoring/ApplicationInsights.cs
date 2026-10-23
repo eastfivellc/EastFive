@@ -24,12 +24,11 @@ namespace EastFive.Azure.Monitoring
                 EastFive.Api.Security security,
                 ContentTypeResponse<EventsExceptionResult[]> onResults)
         {
-            return AppSettings.ApplicationInsights.ApplicationId.ConfigurationString(
-                applicationId =>
-                {
-                    return AppSettings.ApplicationInsights.ClientSecret.ConfigurationString(
-                        async token =>
+            return EastFive.Configuration.ConfigurationLoader.LoadAsync<ApplicationInsightsQueryConfiguration, Task<IHttpResponse>>(
+                        async configuration =>
                         {
+                            var applicationId = configuration.ApplicationId;
+                            var token = configuration.ApiKey.Reveal();
                             // Authenticate with client secret (app key)
                             var clientCred = new ApiKeyClientCredentials(token);
 
@@ -45,8 +44,10 @@ namespace EastFive.Azure.Monitoring
                                 timespan: TimeSpan.FromMinutes(30.0));
 
                             return onResults(exceptionEvents.Value.ToArray());
-                        });
-                });
+                        },
+                        issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(ApplicationInsightsQueryConfiguration), issue.ToString()),
+                        issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(ApplicationInsightsQueryConfiguration), issue.ToString()),
+                        issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(ApplicationInsightsQueryConfiguration), issue.ToString())).Unwrap();
             
         }
 
@@ -56,12 +57,11 @@ namespace EastFive.Azure.Monitoring
 EastFive.Api.Security security,
                 ContentTypeResponse<EventsExceptionResult[]> onResults)
         {
-            return AppSettings.ApplicationInsights.ApplicationId.ConfigurationString(
-                applicationId =>
-                {
-                    return AppSettings.ApplicationInsights.ClientSecret.ConfigurationString(
-                        async token =>
+            return EastFive.Configuration.ConfigurationLoader.LoadAsync<ApplicationInsightsQueryConfiguration, Task<IHttpResponse>>(
+                        async configuration =>
                         {
+                            var applicationId = configuration.ApplicationId;
+                            var token = configuration.ApiKey.Reveal();
                             // Authenticate with client secret (app key)
                             var clientCred = new ApiKeyClientCredentials(token);
 
@@ -77,8 +77,10 @@ EastFive.Api.Security security,
                                 timespan: TimeSpan.FromMinutes(30.0));
 
                             return onResults(exceptionEvents.Value.ToArray());
-                        });
-                });
+                        },
+                        issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(ApplicationInsightsQueryConfiguration), issue.ToString()),
+                        issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(ApplicationInsightsQueryConfiguration), issue.ToString()),
+                        issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(ApplicationInsightsQueryConfiguration), issue.ToString())).Unwrap();
 
         }
 

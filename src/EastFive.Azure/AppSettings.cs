@@ -27,10 +27,7 @@ namespace EastFive.Azure
                 /// the secret AzureStorage-{account}-ConnectionString. See <see cref="EastFive.Azure.Persistence.StorageTablesConfiguration"/>.</summary>
                 public const string Account = "EastFive.Azure.StorageTables.Account";
 
-                public const string TableInformationToken = "EastFive.Azure.StorageTables.TableInformationToken";
 
-                public const string EncryptionString = "EastFive.Azure.StorageTables.EncryptionString";
-                public const string EncryptionSalt = "EastFive.Azure.StorageTables.EncryptionSalt";
             }
 
             [Config]
@@ -53,8 +50,6 @@ namespace EastFive.Azure
             }
         }
 
-        /// <summary>Connection string that is used for the service bus.</summary>
-        public const string ServiceBusConnectionString = "EastFive.Api.Workers.ServiceBusConnectionString";
 
         [Config]
         public static class SPA
@@ -88,14 +83,11 @@ namespace EastFive.Azure
             /// <summary>Username for API access to Application Insights.</summary>
             public const string ApplicationId = "EastFive.Azure.ApplicationInsights.ApplicationId";
 
-            /// <summary>Password for API access to Application Insights.</summary>
-            public const string ClientSecret = "EastFive.Azure.ApplicationInsights.ClientSecret";
 
             public const string ApiBase = "EastFive.Azure.ApplicationInsights.ApiBase";
 
             public const string Path = "EastFive.Azure.ApplicationInsights.Path";
 
-            public const string TeamsHook = "EastFive.Azure.ApplicationInsights.TeamsHook";
 
             public const string TeamsAppIdentification = "EastFive.Azure.ApplicationInsights.TeamsAppIdentification";
 
@@ -108,8 +100,6 @@ namespace EastFive.Azure
             /// <summary>Identifies the search endpoint to use.</summary>
             public const string EndPoint = "EastFive.Azure.Search.SearchServiceEndPoint";
 
-            /// <summary>Key for API access.</summary>
-            public const string AdminApiKey = "EastFive.Azure.Search.SearchServiceAdminApiKey";
         }
 
         public const string ClientMinimumVersion = "EastFive.Azure.Modules.ClientMinimumVersion";
@@ -126,15 +116,11 @@ namespace EastFive.Azure
             /// <summary>Endpoint used by computer vision to analyze image Content.</summary>
             public const string ComputerVisionEndpoint = "EastFive.Azure.CognitiveServices.ComputerVisionEndpoint";
 
-            /// <summary>Subscription key that provides access to the computer vision API.</summary>
-            public const string ComputerVisionSubscriptionKey = "EastFive.Azure.CognitiveServices.ComputerVisionSubscriptionKey";
         }
 
         [Config]
         public static class SAML
         {
-            /// <summary>The SP certificate in base64 format. Used for signing SP metadata and requests.</summary>
-            public const string SAMLCertificate = "EastFive.Security.CredentialProvider.SAML.Certificate";
 
             /// <summary>The IdP certificate in base64 format (public key only). </summary>
             public static string GetMetadataLocation(string tag) => $"EastFive.Security.CredentialProvider.SAML.{tag}.MetadataLocation";
@@ -264,14 +250,8 @@ namespace EastFive.Azure
         [Config]
         public static class Communications
         {
-            public readonly struct DefaultConfiguration : IProvideCommunicationsSettings
-            {
-                /// <summary>Connection string for all comms services.</summary>
-                public string CommunicationsConnectionString => "EastFive.Azure.Communications.ConnectionString";
-            }
-
-            // Static instance for convenience
-            public static DefaultConfiguration Default => default;
+            /// <summary>The startup-loaded <see cref="AzureCommunicationsConfiguration"/>.</summary>
+            public static IProvideCommunicationsSettings Default => AzureCommunicationsConfiguration.Startup;
 
             public const string MuteEmailToAddress = "EastFive.SendGrid.MuteToAddress";
             public const string BccAllAddresses = "EastFive.SendGrid.BlindCopyAllAddresses";
@@ -298,20 +278,8 @@ namespace EastFive.Azure
         [Config]
         public static class AzureClientApplications
         {
-            public readonly struct DefaultConfiguration : IProvideArmClientSettings
-            {
-                /// <summary>Azure Tenant ID.</summary>
-                public string TenantId => "EastFive.Azure.TenantId";
-
-                /// <summary>Azure Client ID.</summary>
-                public string ClientId => "EastFive.Azure.ClientId";
-                
-                /// <summary>Foundry client secret.</summary>
-                public string ClientSecret => "EastFive.Azure.AIFoundry.ClientSecret";
-            }
-
-            // Static instance for convenience
-            public static DefaultConfiguration Default => default;
+            /// <summary>The startup-loaded <see cref="AzureClientApplicationConfiguration"/>.</summary>
+            public static IProvideArmClientSettings Default => AzureClientApplicationConfiguration.Startup;
         }
 
         /// <summary>Azure Tenant ID.</summary>
@@ -319,12 +287,5 @@ namespace EastFive.Azure
 
         /// <summary>Azure Client ID.</summary>
         public const string ClientId = "EastFive.Azure.ClientId";
-
-        [Config]
-        public static class AIFoundry
-        {
-            /// <summary>Foundry client secret.</summary>
-            public const string FoundryClientSecret = "EastFive.Azure.AIFoundry.ClientSecret";
-        }
     }
 }

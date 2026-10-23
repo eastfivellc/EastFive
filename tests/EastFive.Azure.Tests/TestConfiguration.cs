@@ -58,6 +58,7 @@ public static class TestConfiguration
                 {
                     typeof(EastFive.Azure.Persistence.StorageTablesConfiguration),
                     typeof(EastFive.Security.Tokens.TokenSigningConfiguration),
+                    typeof(SearchConfiguration),
                 })
                 .GetAwaiter().GetResult();
             if (issues.Any())
@@ -83,7 +84,7 @@ public static class TestConfiguration
             AccessTokenExpirationInMinutes.ToString());
 
         Set(AppSettings.Search.EndPoint, SearchEndPoint);
-        Set(AppSettings.Search.AdminApiKey, SearchAdminApiKey);
+        Set("Secrets__AzureSearch-AdminApiKey", SearchAdminApiKey);
 
         static void Set(string key, string value) =>
             Environment.SetEnvironmentVariable(key, value);

@@ -20,20 +20,13 @@ namespace EastFive.Azure.Monitoring
 {
     public class TeamsNotificationExceptionHandlerAttribute : Attribute, IHandleExceptions, IHandleRoutes
     {
-        readonly bool deactivated;
-        Uri teamsHookUrl;
-
-        public TeamsNotificationExceptionHandlerAttribute() : base()
-        {
-            deactivated = AppSettings.ApplicationInsights.TeamsHook.ConfigurationUri(
-                teamsHookUrl =>
-                {
-                    this.teamsHookUrl = teamsHookUrl;
-                    return false;
-                },
-                (why) => true,
-                () => true);
-        }
+        /// <summary>The webhook from the host's startup-loaded <see cref="TeamsNotificationConfiguration"/>,
+        /// read at use (attributes can be constructed before the host loads configuration);
+        /// absent = notifications are deactivated.</summary>
+        private static Uri TeamsHookUrl
+            => EastFive.Configuration.StartupConfiguration.Get<TeamsNotificationConfiguration, Uri>(
+                configuration => configuration.Webhook,
+                _ => default);
 
         public static string GetCardTitle(Uri requestUri) => 
             requestUri.Segments
@@ -62,7 +55,8 @@ namespace EastFive.Azure.Monitoring
             IApplication httpApp, IHttpRequest request,
             HandleExceptionDelegate continueExecution)
         {
-            if (deactivated)
+            var teamsHookUrl = TeamsHookUrl;
+            if (teamsHookUrl is null)
                 return await continueExecution(ex, method, queryParameters,
                         httpApp, request);
 
@@ -90,7 +84,8 @@ namespace EastFive.Azure.Monitoring
             RouteHandlingDelegate continueExecution)
         {
             var response = await continueExecution(controllerType, httpApp, request);
-            if (deactivated)
+            var teamsHookUrl = TeamsHookUrl;
+            if (teamsHookUrl is null)
                 return response;
 
             string teamsNotifyParam = default;

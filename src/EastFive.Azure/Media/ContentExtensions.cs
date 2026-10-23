@@ -189,11 +189,8 @@ namespace EastFive.Azure.Media
             if (!OperatingSystem.IsWindowsVersionAtLeast(6, 1))
                 throw new NotSupportedException("OS not supported");
 
-            return AppSettings.CognitiveServices.ComputerVisionSubscriptionKey.ConfigurationString(
-                subscriptionKey =>
-                {
-                    return AppSettings.CognitiveServices.ComputerVisionEndpoint.ConfigurationUri(
-                        async endpointUri =>
+            return WithComputerVision(
+                        async (subscriptionKey, endpointUri) =>
                         {
                             using (var computerVision = new ComputerVisionClient(
                                 new ApiKeyServiceClientCredentials(subscriptionKey),
@@ -264,7 +261,6 @@ namespace EastFive.Azure.Media
                                     });
                             }
                         });
-                });
         }
 
         public static Task<TResult> AnalyzeAsync<TResult>(this IBlobRef contentRef,
@@ -274,11 +270,8 @@ namespace EastFive.Azure.Media
             if (!OperatingSystem.IsWindows())
                 throw new NotSupportedException("OS not supported");
 
-            return AppSettings.CognitiveServices.ComputerVisionSubscriptionKey.ConfigurationString(
-                subscriptionKey =>
-                {
-                    return AppSettings.CognitiveServices.ComputerVisionEndpoint.ConfigurationUri(
-                        async endpointUri =>
+            return WithComputerVision(
+                        async (subscriptionKey, endpointUri) =>
                         {
                             using (var computerVision = new ComputerVisionClient(
                                 new ApiKeyServiceClientCredentials(subscriptionKey),
@@ -333,7 +326,15 @@ namespace EastFive.Azure.Media
                                     });
                             }
                         });
-                });
         }
+    
+        /// <summary>The Computer Vision key and endpoint, from <see cref="ComputerVisionConfiguration"/>.</summary>
+        private static Task<TResult> WithComputerVision<TResult>(Func<string, Uri, Task<TResult>> onConfigured)
+            => EastFive.Configuration.ConfigurationLoader.LoadAsync<ComputerVisionConfiguration, Task<TResult>>(
+                (EastFive.Azure.ComputerVisionConfiguration configuration) => onConfigured(configuration.SubscriptionKey.Reveal(), configuration.Endpoint),
+                issue => Unavailable<TResult>(issue), issue => Unavailable<TResult>(issue), issue => Unavailable<TResult>(issue)).Unwrap();
+
+        private static Task<TResult> Unavailable<TResult>(EastFive.Configuration.ConfigIssue issue)
+            => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(ComputerVisionConfiguration), issue.ToString());
     }
 }

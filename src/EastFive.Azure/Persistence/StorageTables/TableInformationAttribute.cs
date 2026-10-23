@@ -36,10 +36,10 @@ namespace EastFive.Api.Azure.Modules
         {
             if (!request.Headers.ContainsKey(HeaderKey))
                 return continueExecution(controllerType, httpApp, request);
-            return EastFive.Azure.AppSettings.Persistence.StorageTables.TableInformationToken.ConfigurationString(
-                async headerToken =>
+            return EastFive.Configuration.StartupConfiguration.Get<EastFive.Azure.TableInformationConfiguration, Task<IHttpResponse>>(
+                async configuration =>
                 {
-                    if (request.Headers[HeaderKey].First() != headerToken)
+                    if (!string.Equals(request.Headers[HeaderKey].First(), configuration.TableInformationToken.Reveal(), StringComparison.Ordinal))
                         return request.CreateResponse(System.Net.HttpStatusCode.Unauthorized);
 
                     if(request.Headers.ContainsKey("X-StorageTableInformation-List"))
@@ -79,7 +79,7 @@ namespace EastFive.Api.Azure.Modules
                     var tableInformation = await controllerType.StorageTableInformationAsync();
                     return request.CreateResponse(System.Net.HttpStatusCode.OK, tableInformation);
                 },
-                why => continueExecution(controllerType, httpApp, request));
+                issue => continueExecution(controllerType, httpApp, request));
         }
 
     }

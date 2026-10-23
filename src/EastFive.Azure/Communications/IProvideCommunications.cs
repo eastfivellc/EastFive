@@ -4,14 +4,39 @@ using Azure.Communication.CallAutomation;
 using Azure.Communication.PhoneNumbers;
 using Azure.ResourceManager;
 using EastFive.Azure.ResourceManagement;
-using EastFive.Web.Configuration;
+using EastFive.Configuration;
 
 
 namespace EastFive.Azure.Communications;
 
+/// <summary>An Azure Communication Services connection string, RESOLVED from the secret store.</summary>
 public interface IProvideCommunicationsSettings
 {
-    string CommunicationsConnectionString { get; }
+    TResult WithConnectionString<TResult>(Func<string, TResult> onConnectionString, Func<string, TResult> onUnavailable);
+}
+
+/// <summary>Azure Communication Services: the connection string is the secret
+/// <c>AzureCommunications-ConnectionString</c>. Loaded at startup.</summary>
+[ConfigurationType("AzureCommunications", Label = "Azure Communication Services")]
+public sealed class AzureCommunicationsConfiguration : IProvideConfiguration, IProvideCommunicationsSettings
+{
+    [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Connection string",
+        Location = "Azure portal | Communication Service | Keys")]
+    public Secret ConnectionString { get; set; } = default!;
+
+    public TResult WithConnectionString<TResult>(Func<string, TResult> onConnectionString, Func<string, TResult> onUnavailable)
+        => onConnectionString(ConnectionString.Reveal());
+
+    /// <summary>The host's service, as loaded at startup; never loads.</summary>
+    public static IProvideCommunicationsSettings Startup { get; } = new StartupLoaded();
+
+    private sealed class StartupLoaded : IProvideCommunicationsSettings
+    {
+        public TResult WithConnectionString<TResult>(Func<string, TResult> onConnectionString, Func<string, TResult> onUnavailable)
+            => StartupConfiguration.Get<AzureCommunicationsConfiguration, TResult>(
+                configuration => onConnectionString(configuration.ConnectionString.Reveal()),
+                issue => onUnavailable(issue.ToString()));
+    }
 }
 
 public static class CommunicationsSettingsExtensions
@@ -21,7 +46,7 @@ public static class CommunicationsSettingsExtensions
         Func<PhoneNumbersClient, TResult> onClient,
         Func<string, TResult> onFailure)
     {
-        return settings.CommunicationsConnectionString.ConfigurationString(
+        return settings.WithConnectionString(
             connectionString =>
             {
                 var client = new PhoneNumbersClient(connectionString);
@@ -35,7 +60,7 @@ public static class CommunicationsSettingsExtensions
         Func<CallAutomationClient, TResult> onClient,
         Func<string, TResult> onFailure)
     {
-        return settings.CommunicationsConnectionString.ConfigurationString(
+        return settings.WithConnectionString(
             connectionString =>
             {
                 var client = new CallAutomationClient(connectionString);
@@ -54,7 +79,7 @@ public static class CommunicationsSettingsExtensions
         Func<string, TResult> onExtracted,
         Func<string, TResult> onFailure)
     {
-        return settings.CommunicationsConnectionString.ConfigurationString(
+        return settings.WithConnectionString(
             connectionString =>
             {
                 var endpointMatch = Regex.Match(connectionString, @"endpoint=https://([^.]+)\.", RegexOptions.IgnoreCase);
