@@ -22,19 +22,5 @@ namespace EastFive.Configuration
             };
         }
     }
-
-    public class ConnectionString : IProvideConfigurationKey
-    {
-        public ConnectionString(string value)
-        {
-            this.Key = value;
-        }
-
-        public string Key
-        {
-            get;
-            set;
-        }
-    }
 }
 

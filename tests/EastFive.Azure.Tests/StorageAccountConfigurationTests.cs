@@ -248,6 +248,31 @@ public class StorageAccountConfigurationTests
     }
 
     [Fact]
+    public void StorageAccount_handles_route_every_reader_through_the_typed_store()
+    {
+        TestConfiguration.Ensure();
+        Assert.Contains("AccountName=devstoreaccount1;", StorageAccount.Tables.ConnectionStringOrThrow());
+        Assert.Equal("devstoreaccount1", StorageAccount.Tables.AccountName);
+        Assert.Equal(StorageAccount.Tables, StorageAccount.Of<StorageTablesConfiguration>());
+
+        // An abfs uri belongs to the data lake only when its account is the lake's.
+        var uri = new EastFive.Azure.Persistence.StorageTables.AzureBlobFileSystemUri("container", "a/b.parquet", "lakeacct");
+        StartupConfiguration.Forget<DataLakeStorageConfiguration>();
+        Assert.Equal(StorageAccount.Tables, uri.StorageAccount);
+        StartupConfiguration.Set(new DataLakeStorageConfiguration { Account = "lakeacct", ConnectionString = new Secret(DevString) });
+        try
+        {
+            Assert.Equal(StorageAccount.DataLake, uri.StorageAccount);
+            Assert.Equal("lakeacct", EastFive.Azure.Persistence.StorageTables.AzureBlobFileSystemUri
+                .FromStorageAccount(StorageAccount.DataLake, "c", "p").storageName);
+        }
+        finally
+        {
+            StartupConfiguration.Forget<DataLakeStorageConfiguration>();
+        }
+    }
+
+    [Fact]
     public void FromSettings_for_a_store_the_host_never_loaded_names_it_rather_than_loading()
     {
         StartupConfiguration.Forget<SpaStorageConfiguration>();

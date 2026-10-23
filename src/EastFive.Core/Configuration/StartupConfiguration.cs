@@ -84,8 +84,21 @@ namespace EastFive.Configuration
         /// reaches <paramref name="onUnavailable"/> with a <see cref="ConfigIssueCategory.NotLoaded"/> issue.</summary>
         public static TResult Get<TConfig, TResult>(Func<TConfig, TResult> onLoaded, Func<ConfigIssue, TResult> onUnavailable)
             where TConfig : IProvideConfiguration
-            => loaded.TryGetValue(typeof(TConfig), out var outcome)
-                ? outcome.Configuration is TConfig config ? onLoaded(config) : onUnavailable(outcome.Issue!)
-                : onUnavailable(new ConfigIssue(typeof(TConfig), typeof(TConfig).Name, ConfigurationMemberKind.Required, ConfigIssueCategory.NotLoaded));
+            => Get(typeof(TConfig), config => onLoaded((TConfig)config), onUnavailable);
+
+        public static TResult Get<TResult>(Type configurationType, Func<IProvideConfiguration, TResult> onLoaded, Func<ConfigIssue, TResult> onUnavailable)
+            => loaded.TryGetValue(configurationType, out var outcome)
+                ? outcome.Configuration is { } config ? onLoaded(config) : onUnavailable(outcome.Issue!)
+                : onUnavailable(new ConfigIssue(configurationType, configurationType.Name, ConfigurationMemberKind.Required, ConfigIssueCategory.NotLoaded));
+
+        /// <summary>
+        /// Loads every concrete configuration type with a parameterless constructor in
+        /// <paramref name="assemblies"/> (the host's and the framework's). Unconfigured types are
+        /// recorded as issues, not errors: the feature that needs one reports it when used.
+        /// </summary>
+        public static Task<ConfigIssue[]> LoadAsync(IEnumerable<System.Reflection.Assembly> assemblies)
+            => LoadAsync(ConfigurationCatalog.For(assemblies)
+                .Select(description => description.Type)
+                .Where(type => type.GetConstructor(Type.EmptyTypes) != null));
     }
 }

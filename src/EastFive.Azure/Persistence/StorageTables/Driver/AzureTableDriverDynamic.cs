@@ -188,25 +188,13 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
             }
         }
 
-        /// <summary>The default store resolves through <see cref="StorageTablesConfiguration"/>
-        /// (account name first, legacy connection string as the fallback); any OTHER key is
-        /// read as a raw connection string as before.</summary>
-        public static AzureTableDriverDynamic FromSettings(string settingKey = default)
-        {
-            if (settingKey.IsDefaultOrNull()
-                    || string.Equals(settingKey, EastFive.Azure.AppSettings.Persistence.StorageTables.ConnectionStringKey, StringComparison.Ordinal))
-                return FromSettings<StorageTablesConfiguration>();
-            return EastFive.Web.Configuration.Settings.GetString(settingKey,
-                (connectionString) => FromStorageString(connectionString),
-                (why) => throw new Exception(why));
-        }
+        /// <summary>The default table store (<see cref="StorageTablesConfiguration"/>), as the host
+        /// loaded it at startup. There is no key-named overload: every store is a configuration type.</summary>
+        public static AzureTableDriverDynamic FromSettings()
+            => FromSettings<StorageTablesConfiguration>();
 
-        public static AzureTableDriverDynamic FromSettings(ConnectionString settingKey)
-        {
-            if (settingKey.IsDefaultOrNull())
-                throw new ArgumentException("Configuration Key is null");
-            return FromSettings(settingKey.Key);
-        }
+        public static AzureTableDriverDynamic FromSettings(EastFive.Azure.Persistence.StorageAccount storageAccount)
+            => (storageAccount ?? EastFive.Azure.Persistence.StorageAccount.Tables).Driver();
 
         /// <summary>A store described by its own <see cref="StorageAccountConfiguration"/> type, as
         /// the host loaded it at startup (<see cref="EastFive.Configuration.StartupConfiguration"/>).

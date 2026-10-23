@@ -23,12 +23,8 @@ namespace EastFive.Azure
                 /// <summary>Size of the connection pool will not go below this point.</summary>
                 public const string MinimumParallelConnections = "EastFive.Azure.Persistence.StorageTables.MinimumParallelConnections";
 
-                /// <summary>Connection string used by default for AzureStorageTables.</summary>
-                public static readonly ConnectionString ConnectionString = new ConnectionString(ConnectionStringKey);
-
-                public const string ConnectionStringKey = "EastFive.Azure.StorageTables.ConnectionString";
-
-                /// <summary>Storage ACCOUNT NAME of the default table store; its credential is the vault secret Azure-Storage-Account-{name}. Not a secret. When set, wins over ConnectionString.</summary>
+                /// <summary>Storage ACCOUNT NAME of the default table store (not a secret); its credential is
+                /// the secret AzureStorage-{account}-ConnectionString. See <see cref="EastFive.Azure.Persistence.StorageTablesConfiguration"/>.</summary>
                 public const string Account = "EastFive.Azure.StorageTables.Account";
 
                 public const string TableInformationToken = "EastFive.Azure.StorageTables.TableInformationToken";
@@ -40,12 +36,8 @@ namespace EastFive.Azure
             [Config]
             public static class DataLake
             {
-                /// <summary>Connection string used by default for AzureDataLake.</summary>
-                public static readonly ConnectionString ConnectionString = new ConnectionString(ConnectionStringKey);
-
-                public const string ConnectionStringKey = "EastFive.Azure.DataLake.ConnectionString";
-
-                /// <summary>Storage ACCOUNT NAME of the data lake; credential is the vault secret Azure-Storage-Account-{name}. Not a secret.</summary>
+                /// <summary>Storage ACCOUNT NAME of the data lake (not a secret); its credential is the
+                /// secret AzureStorage-{account}-ConnectionString.</summary>
                 public const string Account = "EastFive.Azure.DataLake.Account";
             }
 
@@ -53,9 +45,6 @@ namespace EastFive.Azure
             [Config]
             public static class Storage
             {
-                /// <summary>Config-key prefix the whole-vault provider serves <c>Azure-Storage-Account-{name}</c> under.</summary>
-                public const string AccountSecretPrefix = "Azure.Storage.Account.";
-
                 /// <summary>Blob port of the local storage emulator (queue and table follow at +1 and +2). Only consulted when a store names the emulator account devstoreaccount1.</summary>
                 public const string EmulatorPort = "Azure.Storage.Emulator.Port";
 
@@ -79,9 +68,6 @@ namespace EastFive.Azure
 
             /// <summary>Enable dynamic serving of the SPA.</summary>
             public const string ServeEnabled = "EastFive.Azure.SpaServeEnabled";
-
-            /// <summary>Default azure spa connection string</summary>
-            public const string SpaStorage = "EastFive.Azure.Spa.ConnectionString";
 
             /// <summary>Storage ACCOUNT NAME of the SPA store; credential is the vault secret Azure-Storage-Account-{name}. Not a secret.</summary>
             public const string SpaStorageAccount = "EastFive.Azure.Spa.Account";
