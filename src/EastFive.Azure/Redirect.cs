@@ -53,8 +53,11 @@ namespace EastFive.Azure
             RedirectResponse onRedirect,
             ConfigurationFailureResponse onConfigurationFailure)
         {
-            return AppSettings.SPA.SiteLocation.ConfigurationUri(
-                siteUrl =>
+            return SpaConfiguration.Current()?.SiteLocation is not { } siteUrl
+                ? onConfigurationFailure($"[{AppSettings.SPA.SiteLocation}] is not configured.", "")
+                : Redirect(siteUrl);
+
+            IHttpResponse Redirect(Uri siteUrl)
                 {
                     var resourceName = application.GetResourceMime(resourceType);
                     var redirectUrl = siteUrl
@@ -62,8 +65,7 @@ namespace EastFive.Azure
                         .AddQueryParameter("type", resourceName)
                         .AddQueryParameter("id", resourceId.ToString());
                     return onRedirect(redirectUrl);
-                },
-                (why) => onConfigurationFailure(why, ""));
+                }
         }
 
         #endregion

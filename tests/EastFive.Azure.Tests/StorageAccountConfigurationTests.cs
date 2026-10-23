@@ -76,7 +76,7 @@ public class StorageAccountConfigurationTests
     {
         Assert.Equal(AccountKey, StorageAccountConfiguration.AccountKey<StorageTablesConfiguration>());
         Assert.Equal(new[] { AccountKey }, ConfigurationMembers.Keys<StorageTablesConfiguration>());
-        Assert.Equal(new[] { "EastFive.Azure.Spa.Account" }, ConfigurationMembers.Keys<SpaStorageConfiguration>());
+        Assert.Equal(new[] { "EastFive.Azure.Spa.Account", "EastFive.Azure.Spa.ContainerName" }, ConfigurationMembers.Keys<SpaStorageConfiguration>());
         Assert.Equal(new[] { "EastFive.Azure.DataLake.Account" }, ConfigurationMembers.Keys<DataLakeStorageConfiguration>());
         Assert.Equal(DevName, StorageAccountConfiguration.SecretName("rosemarydev"));
         Assert.Equal(DevName, new StorageTablesConfiguration { Account = "rosemarydev" }.ConnectionStringName);

@@ -24,6 +24,10 @@ namespace EastFive.Azure.Persistence
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
         public override Secret ConnectionString { get; set; } = default!;
+
+        [ConfigurationMember(EastFive.Azure.Persistence.AppSettings.SpaContainer, Kind = ConfigurationMemberKind.Optional,
+            Label = "Container", Description = "Blob container holding the SPA packages.")]
+        public string? ContainerName { get; set; }
     }
 
     /// <summary>The data lake, named by <c>EastFive.Azure.DataLake.Account</c>.</summary>

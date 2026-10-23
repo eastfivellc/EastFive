@@ -132,19 +132,8 @@ namespace EastFive.Api.Azure
         {
             get
             {
-                return Web.Configuration.Settings.GetUri(
-                    EastFive.Azure.AppSettings.CDNEndpointHostname,
-                    endpointHostname =>
-                    {
-                        return Web.Configuration.Settings.GetString(
-                            EastFive.Azure.AppSettings.CDNApiRoutePrefix,
-                            apiRoutePrefix =>
-                            {
-                                return new InvokeApplicationRemote(endpointHostname, apiRoutePrefix);
-                            },
-                            (why) => new InvokeApplicationRemote(endpointHostname, "api"));
-                    },
-                    (why) => new InvokeApplicationRemote(new Uri("http://example.com"), "api"));
+                var (endpointHostname, apiRoutePrefix) = EastFive.Azure.CdnConfiguration.Current();
+                return new InvokeApplicationRemote(endpointHostname, apiRoutePrefix);
             }
         }
 

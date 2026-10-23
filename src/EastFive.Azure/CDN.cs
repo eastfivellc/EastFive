@@ -26,12 +26,8 @@ namespace EastFive.Azure
         private InvokeApplicationRemote _;
         public CDN()
         {
-            var endpointHostname = AppSettings.CDNEndpointHostname.ConfigurationUri(
-                eph => eph,
-                (why) => new Uri("http://example.com"));
-            var apiRoutePrefix = AppSettings.CDNEndpointHostname.ConfigurationString(
-                apiRoutePrefix => apiRoutePrefix,
-                (why) => "api");
+            // The prefix was read from the ENDPOINT key by mistake; it is the prefix key now.
+            var (endpointHostname, apiRoutePrefix) = CdnConfiguration.Current();
             _ = new InvokeApplicationRemote(endpointHostname, apiRoutePrefix);
         }
 
