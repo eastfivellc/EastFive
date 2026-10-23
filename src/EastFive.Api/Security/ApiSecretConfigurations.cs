@@ -52,5 +52,9 @@ namespace EastFive.Api
     {
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "API key", Location = "Postman | Settings | API keys")]
         public Secret ApiKey { get; set; } = default!;
+
+        [ConfigurationMember(AppSettings.Postman.MonitoringCollectionId, Kind = ConfigurationMemberKind.Optional,
+            Label = "Monitoring collection", Description = "Id of the Postman collection that receives monitored requests.")]
+        public string? MonitoringCollectionId { get; set; }
     }
 }

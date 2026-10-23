@@ -52,8 +52,8 @@ namespace EastFive.Api.Modules
                         (claimsEnumerable) =>
                         {
                             var claims = claimsEnumerable.ToArray();
-                            var accountIdClaimTypeConfigurationSetting = EastFive.Api.AppSettings.ActorIdClaimType;
-                            var accountIdClaimType = System.Configuration.ConfigurationManager.AppSettings[accountIdClaimTypeConfigurationSetting];
+                            // Was System.Configuration's AppSettings, always empty on .NET Core.
+                            var accountIdClaimType = ClaimTypesConfiguration.ActorIdClaimTypeOrDefault();
                             var result = claims.GetAccountIdAsync(
                                 request, accountIdClaimType,
                                 (authenticationId) => StoreMonitoringInfoAndFireRequestAsync(httpApplication, request, cancellationToken, authenticationId, continuation));

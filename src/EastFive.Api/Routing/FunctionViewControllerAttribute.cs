@@ -83,10 +83,7 @@ namespace EastFive.Api
             var routeDirectory = this.Namespace.HasBlackSpace() ?
                 this.Namespace
                 :
-                Web.Configuration.Settings.GetString(
-                        AppSettings.DefaultNamespace,
-                    (ns) => ns,
-                    (whyUnspecifiedOrInvalid) => "api");
+                RoutingConfiguration.DefaultNamespaceOrApi();
 
             var route = this.Route.HasBlackSpace() ?
                 this.Route

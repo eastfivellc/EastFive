@@ -22,7 +22,8 @@ namespace EastFive.Api
             Func<Task<IHttpResponse>> skip = 
                 () => continueExecution(controllerType, httpApp, request);
             
-            if(!AppSettings.CorsCorrection.ConfigurationBoolean(s =>s, onNotSpecified:() => false))
+            var cors = EastFive.Configuration.Configured.Get<CorsConfiguration, CorsConfiguration?>(config => config, _ => null);
+            if (cors is not { Enabled: true })
                 return skip();
 
             // Configs to set:
@@ -51,9 +52,7 @@ namespace EastFive.Api
                             return reqOriginUri.GetLeftPart(UriPartial.Authority).IndexOf("localhost", StringComparison.OrdinalIgnoreCase) != -1;
                         });
                 var requestAuthority = request.RequestUri.GetLeftPart(UriPartial.Authority);
-                var corsAuthorities = "cors:Origins".ConfigurationString(
-                    (v) => v.Split(','.AsArray(), StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).ToArray(),
-                    (why) => new string[] { });
+                var corsAuthorities = cors.AllowedOrigins;
                 var allowableOriginValues = localhostAuthorities
                     .Append(requestAuthority)
                     .Concat(corsAuthorities)
@@ -97,12 +96,7 @@ namespace EastFive.Api
 
             string GetMaxAgeSeconds()
             {
-                return "cors:MaxAgeSeconds"
-                    .ConfigurationLong(
-                        (v) => v,
-                        (why) => 5,
-                        () => 5) 
-                    .ToString();
+                return cors.MaxAgeSeconds.ToString();
             }
 
             Task<IHttpResponse> GetResponse()

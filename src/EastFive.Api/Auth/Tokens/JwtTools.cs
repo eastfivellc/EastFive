@@ -47,9 +47,9 @@ namespace EastFive.Security.Tokens
 
                                 var handler = new JwtSecurityTokenHandler();
 
-                                var dontValidateToken = EastFive.Security.AppSettings.TokensAllValid.ConfigurationBoolean(
-                                    v => v,
-                                    onNotSpecified: () => false);
+                                var policy = EastFive.Configuration.StartupConfiguration.Get<TokenSigningConfiguration, TokenSigningConfiguration?>(
+                                    config => config, _ => null);
+                                var dontValidateToken = policy?.AllValid ?? false;
 
                                 try
                                 {
@@ -70,18 +70,9 @@ namespace EastFive.Security.Tokens
                                         out SecurityToken validatedToken);
 
                                     var claims = principal.Claims.ToArray();
-                                    return EastFive.Web.Configuration.Settings.GetDateTime(
-                                            EastFive.Web.AppSettings.TokenForceRefreshTime,
-                                        (notValidBeforeTime) =>
-                                        {
-                                            if (validatedToken.ValidFrom < notValidBeforeTime)
-                                                return EastFive.Web.Configuration.Settings.GetString(
-                                                        EastFive.Web.AppSettings.TokenForceRefreshMessage,
-                                                    (message) => invalidToken(message),
-                                                    (why) => invalidToken(why));
-                                            return success(claims);
-                                        },
-                                        (why) => success(claims));
+                                    if (policy?.ForceRefreshBefore is { } notValidBeforeTime && validatedToken.ValidFrom < notValidBeforeTime)
+                                        return invalidToken(policy.ForceRefreshMessage ?? $"[{EastFive.Web.AppSettings.TokenForceRefreshMessage}] is not specified.");
+                                    return success(claims);
                                 }
                                 catch (ArgumentException ex)
                                 {

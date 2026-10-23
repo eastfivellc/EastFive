@@ -23,7 +23,7 @@ public class ConfigurationReadRatchetTests
     public void Core_RawConfigurationReads_OnlyFall() => ConfigurationReadRatchet.AssertPinned("Core", 0);
 
     [Fact]
-    public void Api_RawConfigurationReads_OnlyFall() => ConfigurationReadRatchet.AssertPinned("Api", 22);
+    public void Api_RawConfigurationReads_OnlyFall() => ConfigurationReadRatchet.AssertPinned("Api", 0);
 
     [Fact]
     public void TheScannerCountsEveryRawForm()
