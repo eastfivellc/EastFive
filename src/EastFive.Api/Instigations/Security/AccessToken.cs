@@ -132,9 +132,10 @@ namespace EastFive.Api
             Func<TResult> onNotConfigured = default,
                 IDictionary<string, string> claims = default)
         {
-            return AppSettings.AccessTokenSecret.ConfigurationGuid(
-                (apiSecret) =>
+            return EastFive.Configuration.StartupConfiguration.Get<AccessTokenSecretConfiguration, TResult>(
+                (configuration) =>
                 {
+                    var apiSecret = configuration.SigningGuid;
                     var originalUrlStr = originalUrl.AbsoluteUri;
                     var urlHash = originalUrlStr.SHAHash();
                     if (claims == null)
@@ -159,10 +160,10 @@ namespace EastFive.Api
                         .ToArray();
                     return onAccessTokenAndEnvelope(accessToken, envelopeSignature);
                 },
-                (why) =>
+                (issue) =>
                 {
                     if (onNotConfigured.IsDefaultOrNull())
-                        throw new ConfigurationException(AppSettings.AccessTokenSecret, typeof(Guid), why);
+                        throw new ConfigurationException(issue.Key, typeof(AccessTokenSecretConfiguration), issue.ToString());
 
                     return onNotConfigured();
                 });

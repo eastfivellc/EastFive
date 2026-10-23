@@ -92,7 +92,8 @@ namespace EastFive.Azure.Auth.CredentialProviders
             RedirectResponse onRedirect,
             GeneralFailureResponse onFailure)
         {
-            return EastFive.Security.RSA.RSAFromConfig(EastFive.Azure.AppSettings.AdminLoginRsaKey,
+            return EastFive.Configuration.StartupConfiguration.Get<AdminLoginConfiguration, IHttpResponse>(
+                configuration => EastFive.Security.RSA.RSAFromSecret(configuration.SigningKey,
                 rsa =>
                 {
                     using (rsa)
@@ -106,8 +107,8 @@ namespace EastFive.Azure.Auth.CredentialProviders
                         return onRedirect(redirectUrl);
                     }
                 },
-                () => onFailure("missing config setting"),
-                (why) => onFailure(why));
+                (why) => onFailure(why)),
+                issue => onFailure(issue.ToString()));
         }
 
         public class AdminLoginRedirection : Redirection

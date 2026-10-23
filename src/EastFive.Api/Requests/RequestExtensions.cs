@@ -317,21 +317,19 @@ namespace EastFive.Api
             Func<IEnumerable<Claim>, TResult> success,
             Func<TResult> authorizationNotSet,
             Func<string, TResult> failure,
-            string issuerConfigSetting = EastFive.Security.AppSettings.TokenIssuer,
-            string validationKeyConfigSetting = EastFive.Security.AppSettings.TokenKey)
+            EastFive.Security.Tokens.TokenSigning validateAgainst = default)
         {
             if (default(AuthenticationHeaderValue) == header)
                 return authorizationNotSet();
             var jwtString = header.ToString();
-            return jwtString.GetClaimsFromJwtToken(success, authorizationNotSet, failure, issuerConfigSetting, validationKeyConfigSetting);
+            return jwtString.GetClaimsFromJwtToken(success, authorizationNotSet, failure, validateAgainst);
         }
 
         public static TResult GetClaimsFromJwtToken<TResult>(this string jwtString,
             Func<IEnumerable<Claim>, TResult> success,
             Func<TResult> authorizationNotSet,
             Func<string, TResult> failure,
-            string issuerConfigSetting = EastFive.Security.AppSettings.TokenIssuer,
-            string validationKeyConfigSetting = EastFive.Security.AppSettings.TokenKey)
+            EastFive.Security.Tokens.TokenSigning validateAgainst = default)
         {
             if (String.IsNullOrWhiteSpace(jwtString))
                 return authorizationNotSet();
@@ -341,13 +339,10 @@ namespace EastFive.Api
                 {
                     //var siteAdminAuthorization = CloudConfigurationManager.GetSetting(
                     //    EastFive.Api.AppSettings.SiteAdminAuthorization);
-                    return EastFive.Api.AppSettings.SiteAdminAuthorization.ConfigurationString(
-                        siteAdminAuthorization =>
+                    return EastFive.Configuration.StartupConfiguration.Get<SiteAdminAuthorizationConfiguration, TResult>(
+                        siteAdmin =>
                         {
-                            if (string.IsNullOrEmpty(siteAdminAuthorization))
-                                return failure(why); //TODO - log if this is not set?
-
-                            if (String.Compare(siteAdminAuthorization, jwtString, false) != 0)
+                            if (!siteAdmin.Accepts(jwtString))
                                 return failure(why);
 
                             return EastFive.Web.Configuration.Settings.GetString(
@@ -365,10 +360,9 @@ namespace EastFive.Api
                                 },
                                 failure);
                         },
-                        onUnspecified: (_) => failure(why));
+                        _ => failure(why));
                 },
-                issuerConfigSetting,
-                validationKeyConfigSetting);
+                validateAgainst);
         }
 
         public static TResult GetClaims<TResult>(this IHttpRequest request,

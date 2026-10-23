@@ -41,15 +41,12 @@ namespace EastFive.Security
         /// <summary>Identifies issuer of token (essentially scopes token use).</summary>
         public const string TokenIssuer = "EastFive.Security.Token.Issuer";
 
-        /// <summary>Identifies issuer of token (essentially scopes token use).</summary>
-        public const string TokenKey = "EastFive.Security.Token.Key";
         public const string TokenAlgorithm = "EastFive.Security.Token.Algorithm";
 
         /// <summary>Skip validation of tokens.</summary>
         public const string TokensAllValid = "EastFive.Security.Token.AllValid";
 
         // Voucher tools
-        public const string CredentialProviderVoucherKey = "EastFive.Security.CredentialProvider.Voucher.Key";
         public const string CredentialProviderVoucherProviderId = "EastFive.Security.CredentialProvider.Voucher.Provider";
     }
 }

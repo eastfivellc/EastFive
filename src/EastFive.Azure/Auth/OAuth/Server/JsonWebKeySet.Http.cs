@@ -24,7 +24,8 @@ namespace EastFive.Azure.OAuth.Server
             ContentTypeResponse<JwksDocument> onFound,
             ConfigurationFailureResponse onConfigurationFailure)
         {
-            return EastFive.Security.AppSettings.TokenKey.RSAFromConfig(
+            return EastFive.Security.Tokens.TokenSigning.Current(
+                signing => signing.WithRsa(
                 rsaProvider =>
                 {
                     using (rsaProvider)
@@ -35,10 +36,8 @@ namespace EastFive.Azure.OAuth.Server
                         return onFound(document, "application/json");
                     }
                 },
-                () => onConfigurationFailure(
-                    EastFive.Security.AppSettings.TokenKey, "Token signing key is not configured."),
-                (why) => onConfigurationFailure(
-                    EastFive.Security.AppSettings.TokenKey, why));
+                (why) => onConfigurationFailure(nameof(EastFive.Security.Tokens.TokenSigningConfiguration), why)),
+                issue => onConfigurationFailure(issue.Key, issue.ToString()));
         }
     }
 

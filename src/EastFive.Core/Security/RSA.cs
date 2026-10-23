@@ -12,20 +12,12 @@ namespace EastFive.Security
 {
     public static class RSA
     {
-        public static TResult RSAFromConfig<TResult>(this string configSettingName,
+        /// <summary>An RSA key held as a secret: base64 of the RSA key XML. Configuration types read
+        /// it from the secret store; there is no overload that takes a configuration key.</summary>
+        public static TResult RSAFromSecret<TResult>(this EastFive.Configuration.Secret secret,
             Func<RSACryptoServiceProvider, TResult> success,
-            Func<TResult> missingConfigurationSetting,
-            Func<string, TResult> invalidConfigurationSetting)
-        {
-            return configSettingName.ConfigurationBase64Bytes(
-                bytes =>
-                {
-                    var xml = Encoding.ASCII.GetString(bytes);
-                    return xml.RSAFromXml(success, (why) => invalidConfigurationSetting(why));
-                },
-                onFailure: (why) => invalidConfigurationSetting(why),
-                onNotSpecified: () => missingConfigurationSetting());
-        }
+            Func<string, TResult> invalidKey)
+            => secret.Reveal().RSAFromBase64(success, invalidKey);
 
         public static TResult RSAFromBase64<TResult>(this string secretAsRSAXmlBase64,
             Func<RSACryptoServiceProvider, TResult> success,
@@ -59,32 +51,6 @@ namespace EastFive.Security
             }
         }
         
-        public static TResult FromConfig<TResult>(string configSettingName,
-            Func<RSACryptoServiceProvider, TResult> success,
-            Func<string, TResult> missingConfigurationSetting,
-            Func<string, string, TResult> invalidConfigurationSetting)
-        {
-            return configSettingName.ConfigurationBase64Bytes(
-                secretAsRSAXmlBytes =>
-                {
-                    var xml = Encoding.ASCII.GetString(secretAsRSAXmlBytes);
-                    var rsaProvider = new RSACryptoServiceProvider();
-                    try
-                    {
-                        rsaProvider.FromXmlString(xml);
-                        return success(rsaProvider);
-                    }
-                    catch (CryptographicException ex)
-                    {
-                        return invalidConfigurationSetting(
-                            configSettingName, ex.Message);
-                    }
-                },
-                onFailure: why => invalidConfigurationSetting(
-                    configSettingName, why),
-                () => missingConfigurationSetting(configSettingName));
-        }
-
         public static TResult FromBase64String<TResult>(string secretAsRSAXmlBase64,
             Func<RSACryptoServiceProvider, TResult> success,
             Func<string, TResult> invalidToken)

@@ -208,43 +208,50 @@ public class ClientCredentialsHandlerTests
         Assert.All(script.ResourceRequests, r => Assert.Equal("tok-1", r.AuthParameter));
     }
 
-    [Fact]
-    public void FromConfiguration_ReadsEndpointClientIdSecretAndOptionalScope()
+    [EastFive.Configuration.ConfigurationType("TestService")]
+    private sealed class ServiceClient : EastFive.Configuration.IProvideConfiguration, IProvideClientCredentials
     {
-        // ConfigurationString reads process-global configuration; swap it in and restore the
-        // harness's own sources (appsettings.json + environment) afterwards.
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Test.Rosemary.TokenEndpoint"] = tokenEndpoint.ToString(),
-                ["Test.Rosemary.ClientId"] = clientId,
-                ["Test.Rosemary.ClientSecret"] = clientSecret,
-            })
-            .Build();
-        EastFive.Web.Configuration.ConfigurationExtensions.Initialize(configuration);
-        try
-        {
-            using var handler = ClientCredentialsHandler.FromConfiguration(
-                "Test.Rosemary.TokenEndpoint", "Test.Rosemary.ClientId", "Test.Rosemary.ClientSecret",
-                scopeKey: "Test.Rosemary.Scope");
+        [EastFive.Configuration.ConfigurationMember("Test.Rosemary.TokenEndpoint")]
+        public Uri TokenEndpoint { get; set; } = default!;
 
-            Assert.Equal(tokenEndpoint, handler.TokenEndpoint);
-            Assert.Equal(clientId, handler.ClientId);
-            Assert.Null(handler.Scope);
+        [EastFive.Configuration.ConfigurationMember("Test.Rosemary.ClientId", Account = true)]
+        public string ClientId { get; set; } = default!;
 
-            Assert.Throws<EastFive.Web.ConfigurationException>(() =>
-                ClientCredentialsHandler.FromConfiguration(
-                    "Test.Rosemary.TokenEndpoint", "Test.Rosemary.ClientId", "Test.Rosemary.MissingSecret"));
-        }
-        finally
+        [EastFive.Configuration.ConfigurationMember(Kind = EastFive.Configuration.ConfigurationMemberKind.Secret)]
+        public EastFive.Configuration.Secret ClientSecret { get; set; } = default!;
+
+        [EastFive.Configuration.ConfigurationMember("Test.Rosemary.Scope", Kind = EastFive.Configuration.ConfigurationMemberKind.Optional)]
+        public string? Scope { get; set; }
+    }
+
+    [Fact]
+    public async Task From_TypedConfiguration_ReadsTheSecretFromTheSecretStoreByGeneratedName()
+    {
+        var values = new Dictionary<string, string>
         {
-            var restored = new ConfigurationBuilder()
-                .SetBasePath(AppContext.BaseDirectory)
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
-                .AddEnvironmentVariables()
-                .Build();
-            EastFive.Web.Configuration.ConfigurationExtensions.Initialize(restored);
-        }
+            ["Test.Rosemary.TokenEndpoint"] = tokenEndpoint.ToString(),
+            ["Test.Rosemary.ClientId"] = clientId,
+            // The legacy shape: a secret under a values key is never read.
+            ["Test.Rosemary.ClientSecret"] = "not-the-secret",
+        };
+        var secrets = new EastFive.Configuration.InMemorySecretStore(new Dictionary<string, string>
+        {
+            [$"TestService-{clientId}-ClientSecret"] = clientSecret,
+        });
+        using var handler = await EastFive.Configuration.ConfigurationLoader.LoadAsync<ServiceClient, ClientCredentialsHandler>(
+            key => values.GetValueOrDefault(key), secrets,
+            config => ClientCredentialsHandler.From(config),
+            issue => throw new InvalidOperationException(issue.ToString()),
+            issue => throw new InvalidOperationException(issue.ToString()),
+            issue => throw new InvalidOperationException(issue.ToString()));
+
+        Assert.Equal(tokenEndpoint, handler.TokenEndpoint);
+        Assert.Equal(clientId, handler.ClientId);
+        Assert.Null(handler.Scope);
+
+        var missing = await EastFive.Configuration.ConfigurationLoader.MissingAsync<ServiceClient>(
+            key => values.GetValueOrDefault(key), new EastFive.Configuration.InMemorySecretStore(new Dictionary<string, string>()));
+        Assert.Equal(new[] { $"TestService-{clientId}-ClientSecret" }, missing);
     }
 
     #region Scripting
