@@ -30,6 +30,10 @@ namespace EastFive.Configuration
     {
         public bool IsSecret => Kind == ConfigurationMemberKind.Secret;
 
+        /// <summary>The account member's translation to a secret-name segment, if it declares one.</summary>
+        public IProvideSecretAccountSegment? AccountSegment
+            => Property.GetCustomAttributes(inherit: true).OfType<IProvideSecretAccountSegment>().FirstOrDefault();
+
         /// <summary>The member's lookup hook, when an attribute on the property provides one.</summary>
         public IProvideConfigurationLookup? Lookup
             => Property.GetCustomAttributes(inherit: true).OfType<IProvideConfigurationLookup>().FirstOrDefault();
@@ -95,10 +99,17 @@ namespace EastFive.Configuration
                 ?? throw new InvalidOperationException(
                     $"{ConfigurationType.Name} declares no secret member with purpose '{purpose}'.");
 
-        /// <summary>The account id an instance scopes its secret names by: the trimmed value of the
-        /// account member, or <c>null</c> when the type declares none.</summary>
+        /// <summary>The account segment an instance scopes its secret names by: the trimmed value of the
+        /// account member, translated by its <see cref="IProvideSecretAccountSegment"/> when it declares
+        /// one; <c>null</c> when the type declares no account member.</summary>
         public string? AccountOf(object configuration)
-            => AccountMember == null ? null : (AccountMember.Property.GetValue(configuration) as string)?.Trim();
+            => AccountMember == null ? null : AccountSegmentOf((AccountMember.Property.GetValue(configuration) as string)?.Trim());
+
+        /// <summary>An account VALUE as the secret-name segment this type would use (unvalidated).</summary>
+        public string? AccountSegmentOf(string? account)
+            => account == null || AccountMember?.AccountSegment is not { } translation
+                ? account
+                : translation.SecretAccountSegment(account);
 
         /// <summary>The account member's value cannot be one segment of a secret name.</summary>
         public bool HasInvalidAccount(object configuration)
@@ -147,6 +158,16 @@ namespace EastFive.Configuration
                 .GroupBy(member => member.Purpose, StringComparer.Ordinal).FirstOrDefault(group => group.Count() > 1);
             if (duplicatePurpose != null)
                 throw new InvalidOperationException($"{configurationType.Name} declares secret purpose '{duplicatePurpose.Key}' more than once.");
+
+            var misplaced = members.FirstOrDefault(member => !member.IsAccount
+                && member.Property.GetCustomAttributes(inherit: true).OfType<IProvideSecretAccountSegment>().Any());
+            if (misplaced != null)
+                throw new InvalidOperationException(
+                    $"{configurationType.Name}.{misplaced.Property.Name} declares a secret account segment but is not the account member.");
+            var doubled = members.FirstOrDefault(member => member.Property.GetCustomAttributes(inherit: true).OfType<IProvideSecretAccountSegment>().Count() > 1);
+            if (doubled != null)
+                throw new InvalidOperationException(
+                    $"{configurationType.Name}.{doubled.Property.Name} declares more than one secret account segment.");
 
             var accounts = members.Where(member => member.IsAccount).ToArray();
             if (accounts.Length > 1)
