@@ -24,6 +24,30 @@ namespace EastFive.Configuration
         Secret,
     }
 
+    /// <summary>Whether a member's value differs per environment or is shared by all of them.</summary>
+    public enum ConfigurationScope
+    {
+        /// <summary>Set per environment (a deployed environment must set its own).</summary>
+        Environment,
+
+        /// <summary>One value works everywhere; environments override only to tune.</summary>
+        Shared,
+    }
+
+    /// <summary>How an editor renders a member. <see cref="Auto"/> derives it from the property type.</summary>
+    public enum ConfigurationFieldKind
+    {
+        Auto,
+        Text,
+        Url,
+        Number,
+        Boolean,
+        Duration,
+        Enum,
+        Secret,
+        Account,
+    }
+
     /// <summary>
     /// Declares one property of an <see cref="IProvideConfiguration"/> type as a configuration
     /// member: the values key it is read from, its <see cref="Kind"/>, the string-form
@@ -62,6 +86,24 @@ namespace EastFive.Configuration
         /// <summary>String form of the default (all config values originate as strings). Only
         /// meaningful with <see cref="ConfigurationMemberKind.Defaulted"/>.</summary>
         public string? Default { get; init; }
+
+        /// <summary>Short human label for an editor (defaults to the property name).</summary>
+        public string? Label { get; init; }
+
+        /// <summary>What is provided by this value.</summary>
+        public string? Description { get; init; }
+
+        /// <summary>Where to find this value (portal blade, console page, launch argument).</summary>
+        public string? Location { get; init; }
+
+        /// <summary>More information: a link or a longer note.</summary>
+        public string? MoreInfo { get; init; }
+
+        /// <summary>Per-environment or shared; replaces the old deployment-override levels.</summary>
+        public ConfigurationScope Scope { get; init; } = ConfigurationScope.Environment;
+
+        /// <summary>How an editor renders the member; <see cref="ConfigurationFieldKind.Auto"/> derives it.</summary>
+        public ConfigurationFieldKind FieldKind { get; init; } = ConfigurationFieldKind.Auto;
 
         /// <summary>What the secret is for, passed to <see cref="IProvideConfiguration.SecretReference"/>;
         /// defaults to the property name. Only meaningful with <see cref="ConfigurationMemberKind.Secret"/>.</summary>

@@ -8,6 +8,16 @@ using System.Text.RegularExpressions;
 
 namespace EastFive.Configuration
 {
+    /// <summary>Editor metadata for one member (no behaviour; see <see cref="IProvideConfigurationLookup"/>
+    /// and <see cref="ITestConfiguration"/> for the hooks).</summary>
+    public sealed record ConfigurationMemberMetadata(
+        string Label,
+        string? Description,
+        string? Location,
+        string? MoreInfo,
+        ConfigurationScope Scope,
+        ConfigurationFieldKind FieldKind);
+
     /// <summary>One declared member of a configuration type, resolved from its attribute.</summary>
     public sealed record ConfigurationMember(
         PropertyInfo Property,
@@ -15,9 +25,14 @@ namespace EastFive.Configuration
         ConfigurationMemberKind Kind,
         string? Default,
         string? Purpose,
-        bool IsAccount = false)
+        bool IsAccount = false,
+        ConfigurationMemberMetadata? Metadata = null)
     {
         public bool IsSecret => Kind == ConfigurationMemberKind.Secret;
+
+        /// <summary>The member's lookup hook, when an attribute on the property provides one.</summary>
+        public IProvideConfigurationLookup? Lookup
+            => Property.GetCustomAttributes(inherit: true).OfType<IProvideConfigurationLookup>().FirstOrDefault();
     }
 
     /// <summary>
@@ -192,7 +207,27 @@ namespace EastFive.Configuration
                 throw new InvalidOperationException($"{where} is Optional and must be nullable so absence is explicit.");
 
             var purpose = attribute.Kind == ConfigurationMemberKind.Secret ? attribute.Purpose ?? property.Name : null;
-            return new ConfigurationMember(property, attribute.Key, attribute.Kind, attribute.Default, purpose, attribute.Account);
+            var metadata = new ConfigurationMemberMetadata(
+                attribute.Label ?? property.Name,
+                attribute.Description,
+                attribute.Location,
+                attribute.MoreInfo,
+                attribute.Scope,
+                attribute.FieldKind != ConfigurationFieldKind.Auto ? attribute.FieldKind : FieldKindOf(property.PropertyType, attribute));
+            return new ConfigurationMember(property, attribute.Key, attribute.Kind, attribute.Default, purpose, attribute.Account, metadata);
+        }
+
+        private static ConfigurationFieldKind FieldKindOf(Type propertyType, ConfigurationMemberAttribute attribute)
+        {
+            var type = Nullable.GetUnderlyingType(propertyType) ?? propertyType;
+            return attribute.Kind == ConfigurationMemberKind.Secret ? ConfigurationFieldKind.Secret
+                : attribute.Account ? ConfigurationFieldKind.Account
+                : type == typeof(Uri) ? ConfigurationFieldKind.Url
+                : type == typeof(bool) ? ConfigurationFieldKind.Boolean
+                : type == typeof(TimeSpan) ? ConfigurationFieldKind.Duration
+                : type.IsEnum ? ConfigurationFieldKind.Enum
+                : type == typeof(int) || type == typeof(long) || type == typeof(double) || type == typeof(decimal) ? ConfigurationFieldKind.Number
+                : ConfigurationFieldKind.Text;
         }
     }
 }

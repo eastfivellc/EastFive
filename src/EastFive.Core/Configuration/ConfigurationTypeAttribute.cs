@@ -25,5 +25,11 @@ namespace EastFive.Configuration
 
         /// <summary>The <c>Type</c> segment of generated secret names (e.g. <c>AzureStorage</c>).</summary>
         public string Name { get; }
+
+        /// <summary>Human label for an editor (defaults to <see cref="Name"/>).</summary>
+        public string? Label { get; init; }
+
+        /// <summary>What this configuration configures.</summary>
+        public string? Description { get; init; }
     }
 }

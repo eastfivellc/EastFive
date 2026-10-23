@@ -14,37 +14,21 @@ namespace EastFive.Azure
             [Config]
             public static class StorageTables
             {
-                [ConfigKey("When the total of HTTP connections reaches this point the connection poolb will _begin_ being reduced.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Total connections allowed on a given machine.",
-                    DeploymentSecurityConcern = false)]
+                /// <summary>When the total of HTTP connections reaches this point the connection poolb will _begin_ being reduced.</summary>
                 public const string ConnectionCountReductionPoint = "EastFive.Azure.Persistence.StorageTables.ConnectionCountReductionPoint";
 
-                [ConfigKey("When the total of HTTP connections reaches this point the connection pool will stop growing.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Total connections allowed on a given machine.",
-                    DeploymentSecurityConcern = false)]
+                /// <summary>When the total of HTTP connections reaches this point the connection pool will stop growing.</summary>
                 public const string ConnectionCountGrowthStoppingPoint = "EastFive.Azure.Persistence.StorageTables.ConnectionCountGrowthStoppingPoint";
 
-                [ConfigKey("Size of the connection pool will not go below this point.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Resolved by performance testing.",
-                    DeploymentSecurityConcern = false)]
+                /// <summary>Size of the connection pool will not go below this point.</summary>
                 public const string MinimumParallelConnections = "EastFive.Azure.Persistence.StorageTables.MinimumParallelConnections";
 
-                [ConfigKey("Connection string used by default for AzureStorageTables.",
-                    DeploymentOverrides.Suggested,
-                    DeploymentSecurityConcern = false,
-                    Location = "Azure Portal | Storage | Connection Strings",
-                    PrivateRepositoryOnly = true)]
+                /// <summary>Connection string used by default for AzureStorageTables.</summary>
                 public static readonly ConnectionString ConnectionString = new ConnectionString(ConnectionStringKey);
 
                 public const string ConnectionStringKey = "EastFive.Azure.StorageTables.ConnectionString";
 
-                [ConfigKey("Storage ACCOUNT NAME of the default table store; its credential is the vault secret Azure-Storage-Account-{name}. Not a secret. When set, wins over ConnectionString.",
-                    DeploymentOverrides.Suggested,
-                    DeploymentSecurityConcern = false,
-                    Location = "Azure Portal | Storage account | Overview")]
+                /// <summary>Storage ACCOUNT NAME of the default table store; its credential is the vault secret Azure-Storage-Account-{name}. Not a secret. When set, wins over ConnectionString.</summary>
                 public const string Account = "EastFive.Azure.StorageTables.Account";
 
                 public const string TableInformationToken = "EastFive.Azure.StorageTables.TableInformationToken";
@@ -56,19 +40,12 @@ namespace EastFive.Azure
             [Config]
             public static class DataLake
             {
-                [ConfigKey("Connection string used by default for AzureDataLake.",
-                    DeploymentOverrides.Suggested,
-                    DeploymentSecurityConcern = false,
-                    Location = "Azure Portal | Storage | Connection Strings",
-                    PrivateRepositoryOnly = true)]
+                /// <summary>Connection string used by default for AzureDataLake.</summary>
                 public static readonly ConnectionString ConnectionString = new ConnectionString(ConnectionStringKey);
 
                 public const string ConnectionStringKey = "EastFive.Azure.DataLake.ConnectionString";
 
-                [ConfigKey("Storage ACCOUNT NAME of the data lake; credential is the vault secret Azure-Storage-Account-{name}. Not a secret.",
-                    DeploymentOverrides.Suggested,
-                    DeploymentSecurityConcern = false,
-                    Location = "Azure Portal | Storage account | Overview")]
+                /// <summary>Storage ACCOUNT NAME of the data lake; credential is the vault secret Azure-Storage-Account-{name}. Not a secret.</summary>
                 public const string Account = "EastFive.Azure.DataLake.Account";
             }
 
@@ -79,25 +56,15 @@ namespace EastFive.Azure
                 /// <summary>Config-key prefix the whole-vault provider serves <c>Azure-Storage-Account-{name}</c> under.</summary>
                 public const string AccountSecretPrefix = "Azure.Storage.Account.";
 
-                [ConfigKey("Blob port of the local storage emulator (queue and table follow at +1 and +2). Only consulted when a store names the emulator account devstoreaccount1.",
-                    DeploymentOverrides.Optional,
-                    DeploymentSecurityConcern = false,
-                    Location = "Azurite launch arguments")]
+                /// <summary>Blob port of the local storage emulator (queue and table follow at +1 and +2). Only consulted when a store names the emulator account devstoreaccount1.</summary>
                 public const string EmulatorPort = "Azure.Storage.Emulator.Port";
 
-                [ConfigKey("Reserved: an explicit emulator connection string. Absent, one is fabricated from Azure.Storage.Emulator.Port. Never read from a vault.",
-                    DeploymentOverrides.Optional,
-                    DeploymentSecurityConcern = false,
-                    Location = "Machine-local appsettings only")]
+                /// <summary>Reserved: an explicit emulator connection string. Absent, one is fabricated from Azure.Storage.Emulator.Port. Never read from a vault.</summary>
                 public const string EmulatorConnectionString = "Azure.Storage.Emulator.ConnectionString";
             }
         }
 
-        [ConfigKey("Connection string that is used for the service bus.",
-            DeploymentOverrides.Suggested,
-            DeploymentSecurityConcern = true,
-            PrivateRepositoryOnly = true,
-            Location = "The URL that the webUI is deployed")]
+        /// <summary>Connection string that is used for the service bus.</summary>
         public const string ServiceBusConnectionString = "EastFive.Api.Workers.ServiceBusConnectionString";
 
         [Config]
@@ -107,64 +74,35 @@ namespace EastFive.Azure
             public const string IndexHtmlPath = "EastFive.Azure.SPA.IndexHtmlPath";
             public const string SiteLocation = "EastFive.Azure.SpaSiteLocation";
 
-            [ConfigKey("Expiration in days for immutable spa files.",
-                DeploymentOverrides.Optional,
-                DeploymentSecurityConcern = false,
-                Location = "Discressionary")]
+            /// <summary>Expiration in days for immutable spa files.</summary>
             public const string FilesExpirationInDays = "EastFive.Azure.SpaFilesExpirationInDays";
 
-            [ConfigKey("Enable dynamic serving of the SPA.",
-                DeploymentOverrides.Optional,
-                DeploymentSecurityConcern = false,
-                Location = "Discressionary")]
+            /// <summary>Enable dynamic serving of the SPA.</summary>
             public const string ServeEnabled = "EastFive.Azure.SpaServeEnabled";
 
-            [ConfigKey("Default azure spa connection string",
-                DeploymentOverrides.Suggested,
-                DeploymentSecurityConcern = true,
-                PrivateRepositoryOnly = true)]
+            /// <summary>Default azure spa connection string</summary>
             public const string SpaStorage = "EastFive.Azure.Spa.ConnectionString";
 
-            [ConfigKey("Storage ACCOUNT NAME of the SPA store; credential is the vault secret Azure-Storage-Account-{name}. Not a secret.",
-                DeploymentOverrides.Suggested,
-                DeploymentSecurityConcern = false,
-                Location = "Azure Portal | Storage account | Overview")]
+            /// <summary>Storage ACCOUNT NAME of the SPA store; credential is the vault secret Azure-Storage-Account-{name}. Not a secret.</summary>
             public const string SpaStorageAccount = "EastFive.Azure.Spa.Account";
 
-            [ConfigKey("Comma-separated list of additional SPA package zip blob names (e.g. admin.zip) " +
-                "loaded from the same container as the primary spa.zip. Each zip must contain its own build config.",
-                DeploymentOverrides.Optional,
-                DeploymentSecurityConcern = false,
-                Location = "Discressionary")]
+            /// <summary>Comma-separated list of additional SPA package zip blob names (e.g. admin.zip) </summary>
             public const string AdditionalPackages = "EastFive.Azure.Spa.AdditionalPackages";
         }
 
         [Config]
         public static class ApplicationInsights
         {
-            [ConfigKey("Identifies the application insights endpoint to which data is posted.",
-                DeploymentOverrides.Suggested,
-                DeploymentSecurityConcern = false,
-                Location = "Home > Application Insights > {Resource Name} > Dashboard / Connection String")]
+            /// <summary>Identifies the application insights endpoint to which data is posted.</summary>
             public const string ConnectionString = "APPLICATIONINSIGHTS_CONNECTION_STRING";
 
-            [ConfigKey("Identifies the application insights endpoint to which data is posted.",
-                DeploymentOverrides.Suggested,
-                DeploymentSecurityConcern = false,
-                Location = "Home > Application Insights > {Resource Name} > Dashboard / Instrumentation Key")]
+            /// <summary>Identifies the application insights endpoint to which data is posted.</summary>
             public const string InstrumentationKey = "EastFive.Azure.ApplicationInsights.InstrumentationKey";
 
-            [ConfigKey("Username for API access to Application Insights.",
-                DeploymentOverrides.Suggested,
-                DeploymentSecurityConcern = true,
-                Location = "Home > Application Insights > {Resource Name} > API Access / Application ID")]
+            /// <summary>Username for API access to Application Insights.</summary>
             public const string ApplicationId = "EastFive.Azure.ApplicationInsights.ApplicationId";
 
-            [ConfigKey("Password for API access to Application Insights.",
-                DeploymentOverrides.Suggested,
-                DeploymentSecurityConcern = true,
-                Location = "Home > Application Insights > {Resource Name} > API Access / + " +
-                "Create API Key")]
+            /// <summary>Password for API access to Application Insights.</summary>
             public const string ClientSecret = "EastFive.Azure.ApplicationInsights.ClientSecret";
 
             public const string ApiBase = "EastFive.Azure.ApplicationInsights.ApiBase";
@@ -181,17 +119,10 @@ namespace EastFive.Azure
         [Config]
         public static class Search
         {
-            [ConfigKey("Identifies the search endpoint to use.",
-                DeploymentOverrides.Suggested,
-                DeploymentSecurityConcern = false,
-                PrivateRepositoryOnly = true,
-                Location = "Home > Search > {Index Name} > Dashboard / Instrumentation Key")]
+            /// <summary>Identifies the search endpoint to use.</summary>
             public const string EndPoint = "EastFive.Azure.Search.SearchServiceEndPoint";
 
-            [ConfigKey("Key for API access.",
-                DeploymentOverrides.Suggested,
-                DeploymentSecurityConcern = true,
-                Location = "Home > Search > {Index Name} > API Access / AdminKey")]
+            /// <summary>Key for API access.</summary>
             public const string AdminApiKey = "EastFive.Azure.Search.SearchServiceAdminApiKey";
         }
 
@@ -207,65 +138,39 @@ namespace EastFive.Azure
         [Config]
         public static class CognitiveServices
         {
-            [ConfigKey("Endpoint used by computer vision to analyze image Content.",
-                DeploymentOverrides.Suggested,
-                Location = "Azure portal image classification quick start",
-                DeploymentSecurityConcern = false)]
+            /// <summary>Endpoint used by computer vision to analyze image Content.</summary>
             public const string ComputerVisionEndpoint = "EastFive.Azure.CognitiveServices.ComputerVisionEndpoint";
 
-            [ConfigKey("Subscription key that provides access to the computer vision API.",
-                DeploymentOverrides.Suggested,
-                Location = "Azure portal image classification quick start",
-                DeploymentSecurityConcern = false)]
+            /// <summary>Subscription key that provides access to the computer vision API.</summary>
             public const string ComputerVisionSubscriptionKey = "EastFive.Azure.CognitiveServices.ComputerVisionSubscriptionKey";
         }
 
         [Config]
         public static class SAML
         {
-            [ConfigKey("The SP certificate in base64 format. Used for signing SP metadata and requests.",
-                DeploymentOverrides.Suggested,
-                DeploymentSecurityConcern = false)]
+            /// <summary>The SP certificate in base64 format. Used for signing SP metadata and requests.</summary>
             public const string SAMLCertificate = "EastFive.Security.CredentialProvider.SAML.Certificate";
 
-            [ConfigKey("The IdP certificate in base64 format (public key only). " +
-                "Used to verify the signature on SAML responses from the Identity Provider.",
-                DeploymentOverrides.Suggested,
-                DeploymentSecurityConcern = false)]
+            /// <summary>The IdP certificate in base64 format (public key only). </summary>
             public static string GetMetadataLocation(string tag) => $"EastFive.Security.CredentialProvider.SAML.{tag}.MetadataLocation";
 
-            [ConfigKey("Internal page (relative URI) to send the browser to when the tag's " +
-                "launch URL is opened directly (a GET without a SAMLResponse — e.g. an " +
-                "athenaNet embedded-app launch ping). When unset, such a GET fails as a " +
-                "bad callback.",
-                DeploymentOverrides.Optional,
-                DeploymentSecurityConcern = false)]
+            /// <summary>Internal page (relative URI) to send the browser to when the tag's </summary>
             public static string GetLaunchPage(string tag) => $"EastFive.Security.CredentialProvider.SAML.{tag}.LaunchPage";
 
-            [ConfigKey("The name of the attribute in the SAML assertion whoms value contains a unique key identifying the user. " +
-                "This value is used to lookup the user in the local system.",
-                DeploymentOverrides.Optional,
-                DeploymentSecurityConcern = false)]
+            /// <summary>The name of the attribute in the SAML assertion whoms value contains a unique key identifying the user. </summary>
             public const string SAMLLoginIdAttributeName = "EastFive.Security.CredentialProvider.SAML.LoginIdAttributeName";
 
-            [ConfigKey("NameID format for SAML metadata.",
-                DeploymentOverrides.Optional,
-                DeploymentSecurityConcern = false)]
+            /// <summary>NameID format for SAML metadata.</summary>
             public const string NameIdFormat = "EastFive.Security.CredentialProvider.SAML.NameIdFormat";
 
-            [ConfigKey("Service provider signing certificate in base64 format (public cert only).",
-                DeploymentOverrides.Optional,
-                DeploymentSecurityConcern = false)]
+            /// <summary>Service provider signing certificate in base64 format (public cert only).</summary>
             public const string ServiceProviderCertificate = "EastFive.Security.CredentialProvider.SAML.ServiceProviderCertificate";
         }
 
         [Config]
         public static class Apple
         {
-            [ConfigKey("Used to prove ownership of this domain to Apple.",
-                DeploymentOverrides.Optional,
-                Location = "Apple developer portal -> Login with apple",
-                DeploymentSecurityConcern = false)]
+            /// <summary>Used to prove ownership of this domain to Apple.</summary>
             public const string DeveloperSiteAssociation = "EastFive.Azure.Apple.DeveloperSiteAssociation";
 
             public const string AppleAppSiteAssociationId = "EastFive.Azure.Apple.AppleAppSiteAssociation.AppId";
@@ -274,51 +179,28 @@ namespace EastFive.Azure
         [Config]
         public static class AzureADB2C
         {
-            [ConfigKey("Identifies this Tenant to AADB2C",
-                DeploymentOverrides.Mandatory,
-                DeploymentSecurityConcern = false,
-                Location = "Azure Portal | Azure Active Directory B2C | [*].onmicrosoft.com",
-                PrivateRepositoryOnly = false)]
+            /// <summary>Identifies this Tenant to AADB2C</summary>
             public const string Tenant = "EastFive.Azure.AzureADB2C.Tenant";
 
-            [ConfigKey("Identifies this application (multiple applications per tenant) to an AADB2C application",
-                DeploymentOverrides.Suggested,
-                DeploymentSecurityConcern = false,
-                Location = "Azure Portal | Azure Active Directory | App Registrations | Application ID",
-                PrivateRepositoryOnly = false)]
+            /// <summary>Identifies this application (multiple applications per tenant) to an AADB2C application</summary>
             public const string ApplicationId = "EastFive.Azure.AzureADB2C.ApplicationId";
 
-            [ConfigKey("The audience used for token validation.",
-                DeploymentOverrides.Suggested,
-                DeploymentSecurityConcern = false,
-                Location = "Capture a valid response JWT and check",
-                PrivateRepositoryOnly = false)]
+            /// <summary>The audience used for token validation.</summary>
             public const string Audience = "EastFive.Azure.AzureADB2C.Audience";
 
-            [ConfigKey("The name of the flow for user sign in.",
-                DeploymentOverrides.Optional,
-                DeploymentSecurityConcern = false,
-                PrivateRepositoryOnly = false,
-                Location = "Azure Portal | Azure Active Directory B2C | UserFlows")]
+            /// <summary>The name of the flow for user sign in.</summary>
             public const string SigninFlow = "EastFive.Azure.AzureADB2C.SigninFlow";
 
-            [ConfigKey("The name of the flow for user sign up.",
-                DeploymentOverrides.Optional,
-                DeploymentSecurityConcern = false,
-                PrivateRepositoryOnly = false,
-                Location = "Azure Portal | Azure Active Directory B2C | UserFlows")]
+            /// <summary>The name of the flow for user sign up.</summary>
             public const string SignupFlow = "EastFive.Azure.AzureADB2C.SignupFlow";
 
-            [ConfigKey("ID of the client", DeploymentOverrides.Mandatory)]
+            /// <summary>ID of the client</summary>
             public const string ClientId = "EastFive.Azure.AzureADB2C.ClientId";
 
-            [ConfigKey("ID of the client", DeploymentOverrides.Mandatory,
-                Location = "AD UI -> App Registrations -> [APP] -> All Settings -> Keys -> [New Key]",
-                MoreInfo = "This can only be accessed when the Key is created")]
+            /// <summary>ID of the client</summary>
             public const string ClientSecret = "EastFive.Azure.AzureADB2C.ClientSecret";
 
-            [ConfigKey("The claim identifier used to determine the login subject key.",
-                DeploymentOverrides.Optional)]
+            /// <summary>The claim identifier used to determine the login subject key.</summary>
             public const string LoginIdClaimType = "EastFive.Azure.Auth.AzureADB2C.LoginIdClaimType";
         }
 
@@ -332,61 +214,33 @@ namespace EastFive.Azure
             [Config]
             public static class Apple
             {
-                [ConfigKey("ID used to identify the application to apple.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Apple developer portal",
-                    DeploymentSecurityConcern = false,
-                    PrivateRepositoryOnly = true)]
+                /// <summary>ID used to identify the application to apple.</summary>
                 public const string ClientId = "EastFive.Apple.ClientId";
 
-                [ConfigKey("Key used to redeem a token code to Apple.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Apple developer portal",
-                    DeploymentSecurityConcern = true,
-                    PrivateRepositoryOnly = true)]
+                /// <summary>Key used to redeem a token code to Apple.</summary>
                 public const string AppSecret = "EastFive.Apple.ClientSecret";
 
-                [ConfigKey("This is the list of audiences that are valid for the Apple JWT. This should include the ClientID.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Apple developer portal",
-                    DeploymentSecurityConcern = false,
-                    PrivateRepositoryOnly = true)]
+                /// <summary>This is the list of audiences that are valid for the Apple JWT. This should include the ClientID.</summary>
                 public const string ValidAudiences = "EastFive.Apple.ValidAudiences";
             }
 
             [Config]
             public static class Google
             {
-                [ConfigKey("ID used to identify the application to Google.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Google API Console: https://console.cloud.google.com/apis/credentials?authuser=2&project=east-five-framework&supportedpurview=project",
-                    DeploymentSecurityConcern = false,
-                    PrivateRepositoryOnly = true)]
+                /// <summary>ID used to identify the application to Google.</summary>
                 public const string ClientId = "EastFive.Google.ClientID";
 
-                [ConfigKey("Key used to redeem a token code to Google.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Google API Console: https://console.cloud.google.com/apis/credentials?authuser=2&project=east-five-framework&supportedpurview=project",
-                    DeploymentSecurityConcern = true,
-                    PrivateRepositoryOnly = true)]
+                /// <summary>Key used to redeem a token code to Google.</summary>
                 public const string ClientSecret = "EastFive.Google.ClientSecret";
             }
 
             [Config]
             public static class Microsoft
             {
-                [ConfigKey("ID used to identify the application to MS.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Azure Portal > Home > App Registrations > {YOUR APP}",
-                    DeploymentSecurityConcern = false,
-                    PrivateRepositoryOnly = true)]
+                /// <summary>ID used to identify the application to MS.</summary>
                 public const string ClientId = "EastFive.Microsoft.ClientID";
 
-                [ConfigKey("Key used to redeem a token code to MS.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Azure Portal > Home > App Registrations > {YOUR APP}",
-                    DeploymentSecurityConcern = true,
-                    PrivateRepositoryOnly = true)]
+                /// <summary>Key used to redeem a token code to MS.</summary>
                 public const string ClientSecret = "EastFive.Microsoft.ClientSecret";
             }
 
@@ -400,25 +254,13 @@ namespace EastFive.Azure
             [Config]
             public static class Salesforce
             {
-                [ConfigKey("URL used to identify the application to Salesforce.",
-                    DeploymentOverrides.Suggested,
-                    Location = "https://login.salesforce.com/.well-known/openid-configuration | https://test.salesforce.com/.well-known/openid-configuration",
-                    DeploymentSecurityConcern = false,
-                    PrivateRepositoryOnly = false)]
+                /// <summary>URL used to identify the application to Salesforce.</summary>
                 public const string DocumentDiscoveryUrl = "EastFive.Salesforce.DocumentDiscoveryUrl";
 
-                [ConfigKey("ID used to identify the application to Salesforce.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Manage Connected Apps",
-                    DeploymentSecurityConcern = false,
-                    PrivateRepositoryOnly = true)]
+                /// <summary>ID used to identify the application to Salesforce.</summary>
                 public const string ConsumerKey = "EastFive.Salesforce.ConsumerKey";
 
-                [ConfigKey("Key used to redeem a token code.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Manage Connected Apps",
-                    DeploymentSecurityConcern = true,
-                    PrivateRepositoryOnly = true)]
+                /// <summary>Key used to redeem a token code.</summary>
                 public const string ConsumerSecret = "EastFive.Salesforce.ConsumerSecret";
             }
 
@@ -436,10 +278,7 @@ namespace EastFive.Azure
                 public const string Subject = "EastFive.Azure.Auth.TokenCredential.Email.Subject";
             }
 
-            [ConfigKey("Link that is sent (emailed) to the user to login to the application",
-                DeploymentOverrides.Desireable,
-                DeploymentSecurityConcern = false,
-                Location = "The URL that the webUI is deployed")]
+            /// <summary>Link that is sent (emailed) to the user to login to the application</summary>
             public const string LandingPage = "EastFive.Security.SessionServer.RouteDefinitions.LandingPage";
 
             public const string OpenApiCollectionName = "EastFive.Azure.Auth";
@@ -455,11 +294,7 @@ namespace EastFive.Azure
         {
             public readonly struct DefaultConfiguration : IProvideCommunicationsSettings
             {
-                [ConfigKey("Connection string for all comms services.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Azure Portal > Communcation Services > Your Service > Settings | Keys",
-                    DeploymentSecurityConcern = false,
-                    PrivateRepositoryOnly = true)]
+                /// <summary>Connection string for all comms services.</summary>
                 public string CommunicationsConnectionString => "EastFive.Azure.Communications.ConnectionString";
             }
 
@@ -475,29 +310,15 @@ namespace EastFive.Azure
         // {
         //     // public static class SendGrid
         //     // {
-        //     //     [ConfigKey("API Key to access SendGrid", DeploymentOverrides.Suggested,
-        //     //         DeploymentSecurityConcern = false,
-        //     //         Location = "SendGrid admin portal",
-        //     //         PrivateRepositoryOnly = true)]
-        //     //     public const string ApiKey = "EastFive.SendGrid.ApiKey";
+        //     //             //     //     public const string ApiKey = "EastFive.SendGrid.ApiKey";
         //     // }
 
-        //     [ConfigKey("Connection string for all comms services.",
-        //             DeploymentOverrides.Suggested,
-        //             Location = "Azure Portal > Communcation Services > Your Service > Settings | Keys",
-        //             DeploymentSecurityConcern = false,
-        //             PrivateRepositoryOnly = true)]
-        //     public const string ConnectionString = "EastFive.Azure.Communications.ConnectionString";
+        //             //     public const string ConnectionString = "EastFive.Azure.Communications.ConnectionString";
 
         //     // [Config]
         //     // public static class Email
         //     // {
-        //     //     [ConfigKey("Domain from which email is sent.",
-        //     //         DeploymentOverrides.Suggested,
-        //     //         Location = "Azure Portal > Email Communication Services > %Your Service% > Settings | Provision domains > %Your Domain% > Properties > Properties|From Sender domain",
-        //     //         DeploymentSecurityConcern = false,
-        //     //         PrivateRepositoryOnly = false)]
-        //     //     public const string SenderDomain = "EastFive.Azure.Communications.Email.SenderDomain";
+        //     //             //     //     public const string SenderDomain = "EastFive.Azure.Communications.Email.SenderDomain";
         //     // }
 
         // }
@@ -507,25 +328,13 @@ namespace EastFive.Azure
         {
             public readonly struct DefaultConfiguration : IProvideArmClientSettings
             {
-                [ConfigKey("Azure Tenant ID.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Azure Portal > ",
-                    DeploymentSecurityConcern = false,
-                    PrivateRepositoryOnly = true)]
+                /// <summary>Azure Tenant ID.</summary>
                 public string TenantId => "EastFive.Azure.TenantId";
 
-                [ConfigKey("Azure Client ID.",
-                            DeploymentOverrides.Suggested,
-                            Location = "Azure Portal > ",
-                            DeploymentSecurityConcern = false,
-                            PrivateRepositoryOnly = true)]
+                /// <summary>Azure Client ID.</summary>
                 public string ClientId => "EastFive.Azure.ClientId";
                 
-                [ConfigKey("Foundry client secret.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Azure Portal > ",
-                    DeploymentSecurityConcern = false,
-                    PrivateRepositoryOnly = true)]
+                /// <summary>Foundry client secret.</summary>
                 public string ClientSecret => "EastFive.Azure.AIFoundry.ClientSecret";
             }
 
@@ -533,28 +342,16 @@ namespace EastFive.Azure
             public static DefaultConfiguration Default => default;
         }
 
-        [ConfigKey("Azure Tenant ID.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Azure Portal > ",
-                    DeploymentSecurityConcern = false,
-                    PrivateRepositoryOnly = true)]
+        /// <summary>Azure Tenant ID.</summary>
         public const string TenantId = "EastFive.Azure.TenantId";
 
-        [ConfigKey("Azure Client ID.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Azure Portal > ",
-                    DeploymentSecurityConcern = false,
-                    PrivateRepositoryOnly = true)]
+        /// <summary>Azure Client ID.</summary>
         public const string ClientId = "EastFive.Azure.ClientId";
 
         [Config]
         public static class AIFoundry
         {
-            [ConfigKey("Foundry client secret.",
-                    DeploymentOverrides.Suggested,
-                    Location = "Azure Portal > ",
-                    DeploymentSecurityConcern = false,
-                    PrivateRepositoryOnly = true)]
+            /// <summary>Foundry client secret.</summary>
             public const string FoundryClientSecret = "EastFive.Azure.AIFoundry.ClientSecret";
         }
     }

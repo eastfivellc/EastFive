@@ -229,6 +229,16 @@ public class StorageAccountConfigurationTests
     }
 
     [Fact]
+    public void Catalog_lists_every_framework_store_with_its_shared_generated_name()
+    {
+        var catalog = ConfigurationCatalog.For(new[] { typeof(StorageAccountConfiguration).Assembly });
+        var stores = catalog.Where(type => typeof(StorageAccountConfiguration).IsAssignableFrom(type.Type)).ToArray();
+        Assert.Equal(new[] { nameof(DataLakeStorageConfiguration), nameof(SpaStorageConfiguration), nameof(StorageTablesConfiguration) },
+            stores.Select(type => type.Type.Name).OrderBy(name => name));
+        Assert.All(stores, store => Assert.Equal(new[] { "AzureStorage-{account}-ConnectionString" }, store.SecretNames()));
+    }
+
+    [Fact]
     public void FromSettings_serves_the_store_the_host_loaded_at_startup()
     {
         TestConfiguration.Ensure();
