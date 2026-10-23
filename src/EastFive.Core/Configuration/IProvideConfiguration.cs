@@ -7,7 +7,7 @@ namespace EastFive.Configuration
     /// One driver's typed configuration: a class whose properties are declared with
     /// <see cref="ConfigurationMemberAttribute"/> and populated by <see cref="ConfigurationLoader"/>.
     /// The implementing type owns which members exist, their kind (<see cref="ConfigurationMemberKind"/>),
-    /// account identity (constructor inputs, never config members), secret-reference derivation
+    /// account identity (the account member, see <see cref="ConfigurationMemberAttribute.Account"/>), secret-name derivation
     /// (<see cref="SecretReference(string)"/>), semantic validation (<see cref="Validate"/>), defaults
     /// and partial modes. By CONVENTION a concrete type also exposes <c>LoadDriver()</c>, which
     /// constructs the driver it configures so callers never learn the driver's constructor
@@ -21,13 +21,13 @@ namespace EastFive.Configuration
     public interface IProvideConfiguration
     {
         /// <summary>
-        /// Which secret serves the member declared with this <c>Purpose</c>. Today a config key
-        /// that the whole-vault <c>IConfiguration</c> provider already serves; later a vault
-        /// alias + name + version selected by account identity. The default answers with the
-        /// member's declared key, which is the environment-global one.
+        /// Which secret serves the member declared with this <c>Purpose</c>: by default the
+        /// GENERATED name <c>{Type}-{Account}-{Property}</c> (<c>{Type}-{Property}</c> without an
+        /// account member), see <see cref="SecretNames"/>. Members populated earlier in
+        /// declaration order (the account member) are already set when the loader asks.
         /// </summary>
         SecretReference SecretReference(string purpose)
-            => ConfigurationMembers.For(GetType()).DeclaredSecretReference(purpose);
+            => ConfigurationMembers.For(GetType()).GeneratedSecretReference(this, purpose);
 
         /// <summary>
         /// Semantic validation once every member has been converted (cross-member rules, shapes

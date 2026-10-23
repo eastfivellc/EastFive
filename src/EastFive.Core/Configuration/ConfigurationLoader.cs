@@ -87,10 +87,18 @@ namespace EastFive.Configuration
             where TConfig : IProvideConfiguration, new()
         {
             var config = new TConfig();
+            var declared = ConfigurationMembers.For<TConfig>();
             var missing = new System.Collections.Generic.List<string>();
-            foreach (var member in ConfigurationMembers.For<TConfig>().Members)
+            foreach (var member in declared.Members)
             {
-                var key = member.IsSecret ? config.SecretReference(member.Purpose!).Key : member.Key;
+                if (member.IsSecret && declared.HasInvalidAccount(config))
+                {
+                    // The secret cannot be named until the account can; list the account once.
+                    if (!missing.Contains(declared.AccountMember!.Key!))
+                        missing.Add(declared.AccountMember.Key!);
+                    continue;
+                }
+                var key = member.IsSecret ? config.SecretReference(member.Purpose!).Name : member.Key!;
                 var text = readSetting(key);
                 if (string.IsNullOrWhiteSpace(text))
                 {
@@ -120,7 +128,12 @@ namespace EastFive.Configuration
 
             foreach (var member in declared.Members)
             {
-                var key = member.IsSecret ? config.SecretReference(member.Purpose!).Key : member.Key;
+                // A secret's name embeds the account; an account that cannot be a name segment
+                // is the ACCOUNT member's problem, reported before any secret read.
+                if (member.IsSecret && declared.HasInvalidAccount(config))
+                    return onInvalid(new ConfigIssue(configurationType, declared.AccountMember!.Key!,
+                        declared.AccountMember.Kind, ConfigIssueCategory.Invalid));
+                var key = member.IsSecret ? config.SecretReference(member.Purpose!).Name : member.Key!;
                 ConfigIssue Issue(ConfigIssueCategory category) => new(configurationType, key, member.Kind, category);
 
                 string? text;

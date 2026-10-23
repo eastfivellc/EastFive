@@ -60,7 +60,7 @@ namespace EastFive.Azure.Persistence
         /// <summary>The <c>&lt;Store&gt;.Account</c> key the concrete type declares.</summary>
         public static string AccountKey<TConfig>() where TConfig : StorageAccountConfiguration
             => ConfigurationMembers.For<TConfig>().Members
-                .First(member => string.Equals(member.Property.Name, nameof(Account), StringComparison.Ordinal)).Key;
+                .First(member => string.Equals(member.Property.Name, nameof(Account), StringComparison.Ordinal)).Key!;
 
         public static bool IsEmulator(string? account)
             => string.Equals(account?.Trim(), EmulatorAccount, StringComparison.OrdinalIgnoreCase);

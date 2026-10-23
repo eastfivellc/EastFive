@@ -17,6 +17,7 @@ namespace EastFive.Api.Tests;
 /// </summary>
 public class ConfigurationLoaderTests
 {
+    [ConfigurationType("Probe")]
     private sealed class Probe : IProvideConfiguration
     {
         [ConfigurationMember("Probe.Name")]
@@ -31,7 +32,7 @@ public class ConfigurationLoaderTests
         [ConfigurationMember("Probe.Retries", Kind = ConfigurationMemberKind.Defaulted, Default = "3")]
         public int Retries { get; init; }
 
-        [ConfigurationMember("Probe.Token", Kind = ConfigurationMemberKind.Secret, Purpose = "api")]
+        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Purpose = "api")]
         public Secret Token { get; init; } = default!;
 
         public string? Validate() => Retries is < 0 or > 10 ? "Probe.Retries" : null;
@@ -65,7 +66,7 @@ public class ConfigurationLoaderTests
         ["Probe.Endpoint"] = "https://probe.example/api",
         ["Probe.Label"] = "friendly",
         ["Probe.Retries"] = "5",
-        ["Probe.Token"] = "tok-very-secret",
+        ["Probe-Token"] = "tok-very-secret",
     };
 
     private static Func<string, string?> Source(IReadOnlyDictionary<string, string> values, List<string>? reads = null)
@@ -96,7 +97,7 @@ public class ConfigurationLoaderTests
             Assert.Equal("tok-very-secret", probe.Token.Reveal());
         });
         Assert.Equal("configured", outcome);
-        Assert.Equal(ConfigurationMembers.Keys<Probe>(), reads);
+        Assert.Equal(ConfigurationMembers.Keys<Probe>().Append("Probe-Token"), reads);
     }
 
     [Fact]
@@ -190,7 +191,7 @@ public class ConfigurationLoaderTests
     {
         var values = Complete();
         values.Remove("Probe.Endpoint");
-        values.Remove("Probe.Token");
+        values.Remove("Probe-Token");
         var asked = new List<string>();
         var outcome = ConfigurationLoader.Load<Probe, string>(Source(values),
             onConfigured: probe => $"configured:{probe.Endpoint}:{probe.Token.Reveal()}",
@@ -201,7 +202,7 @@ public class ConfigurationLoaderTests
             },
             onInvalid: issue => $"invalid:{issue.Key}",
             onSourceFailure: issue => $"source:{issue.Key}");
-        Assert.Equal(new[] { "Probe.Endpoint", "Probe.Token" }, asked);
+        Assert.Equal(new[] { "Probe.Endpoint", "Probe-Token" }, asked);
         Assert.Equal("configured:https://supplied.example/:supplied-token", outcome);
     }
 
@@ -209,15 +210,15 @@ public class ConfigurationLoaderTests
     public void SecretMissing_IsMissingWithSecretKind_AndReadsTheReferenceKey()
     {
         var values = Complete();
-        values.Remove("Probe.Token");
+        values.Remove("Probe-Token");
         var reads = new List<string>();
         var outcome = ConfigurationLoader.Load<Probe, string>(Source(values, reads),
             onConfigured: _ => "configured",
             onMissing: (issue, _) => $"missing:{issue.Key}:{issue.Kind}",
             onInvalid: issue => $"invalid:{issue.Key}",
             onSourceFailure: issue => $"source:{issue.Key}");
-        Assert.Equal("missing:Probe.Token:Secret", outcome);
-        Assert.Contains(((IProvideConfiguration)new Probe()).SecretReference("api").Key, reads);
+        Assert.Equal("missing:Probe-Token:Secret", outcome);
+        Assert.Contains(((IProvideConfiguration)new Probe()).SecretReference("api").Name, reads);
     }
 
     [Fact]
@@ -272,13 +273,13 @@ public class ConfigurationLoaderTests
     [Fact]
     public void Missing_ListsEveryRequiredOrSecretGap_InDeclarationOrder()
     {
-        Assert.Equal(new[] { "Probe.Name", "Probe.Endpoint", "Probe.Token" },
+        Assert.Equal(new[] { "Probe.Name", "Probe.Endpoint", "Probe-Token" },
             ConfigurationLoader.Missing<Probe>(Source(new Dictionary<string, string>())));
         var values = Complete();
         values.Remove("Probe.Label");   // Optional: never listed
         values.Remove("Probe.Retries"); // Defaulted: never listed
-        values["Probe.Token"] = "  ";
-        Assert.Equal(new[] { "Probe.Token" }, ConfigurationLoader.Missing<Probe>(Source(values)));
+        values["Probe-Token"] = "  ";
+        Assert.Equal(new[] { "Probe-Token" }, ConfigurationLoader.Missing<Probe>(Source(values)));
         Assert.Empty(ConfigurationLoader.Missing<Probe>(Source(Complete())));
     }
 
@@ -304,10 +305,10 @@ public class ConfigurationLoaderTests
     [Fact]
     public void KeysDeriveFromTheDeclaration()
     {
-        Assert.Equal(new[] { "Probe.Name", "Probe.Endpoint", "Probe.Label", "Probe.Retries", "Probe.Token" }, ConfigurationMembers.Keys<Probe>());
+        Assert.Equal(new[] { "Probe.Name", "Probe.Endpoint", "Probe.Label", "Probe.Retries" }, ConfigurationMembers.Keys<Probe>());
         Assert.Equal(new[] { "Probe.Name", "Probe.Endpoint", "Probe.Label", "Probe.Retries" }, ConfigurationMembers.PublicKeys<Probe>());
-        Assert.Equal(new[] { "Probe.Token" }, ConfigurationMembers.SecretKeys<Probe>());
-        Assert.Equal(new SecretReference("Probe.Token", "api"), ((IProvideConfiguration)new Probe()).SecretReference("api"));
+        Assert.Empty(ConfigurationMembers.SecretKeys<Probe>()); // a secret has a name, never a values key
+        Assert.Equal(new SecretReference("Probe-Token", "api"), ((IProvideConfiguration)new Probe()).SecretReference("api"));
         Assert.Throws<InvalidOperationException>(() => ((IProvideConfiguration)new Probe()).SecretReference("nope"));
     }
 
