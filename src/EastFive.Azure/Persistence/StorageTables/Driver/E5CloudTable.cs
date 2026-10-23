@@ -51,18 +51,12 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
 
         public static void LoadConfigurations()
         {
-            ConnectionCountReductionPoint = EastFive.Azure.AppSettings.Persistence.StorageTables.ConnectionCountReductionPoint
-                .ConfigurationLong(
-                    (connectionCountReductionPoint) => (int)connectionCountReductionPoint,
-                    (why) => ConnectionCountReductionPoint);
-            ConnectionCountGrowthStoppingPoint = EastFive.Azure.AppSettings.Persistence.StorageTables.ConnectionCountGrowthStoppingPoint
-                .ConfigurationLong(
-                    (connectionCountGrowthStoppingPoint) => (int)connectionCountGrowthStoppingPoint,
-                    (why) => ConnectionCountGrowthStoppingPoint);
-            MinimumParallelConnections = EastFive.Azure.AppSettings.Persistence.StorageTables.MinimumParallelConnections
-                .ConfigurationLong(
-                    (minimumParallelConnections) => (int)minimumParallelConnections,
-                    (why) => MinimumParallelConnections);
+            // Unset or unreadable keeps the current value.
+            var tuning = EastFive.Configuration.Configured.Get<EastFive.Azure.Persistence.StorageTablesTuningConfiguration,
+                    EastFive.Azure.Persistence.StorageTablesTuningConfiguration>(config => config, _ => null);
+            ConnectionCountReductionPoint = (int?)tuning?.ConnectionCountReductionPoint ?? ConnectionCountReductionPoint;
+            ConnectionCountGrowthStoppingPoint = (int?)tuning?.ConnectionCountGrowthStoppingPoint ?? ConnectionCountGrowthStoppingPoint;
+            MinimumParallelConnections = (int?)tuning?.MinimumParallelConnections ?? MinimumParallelConnections;
         }
 
         public E5CloudTable(CloudTable cloudTable)

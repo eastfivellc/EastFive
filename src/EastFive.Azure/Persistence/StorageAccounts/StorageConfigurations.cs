@@ -39,4 +39,26 @@ namespace EastFive.Azure.Persistence
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
         public override Secret ConnectionString { get; set; } = default!;
     }
+
+    /// <summary>The table driver's HTTP connection pool. Values only; each unset member keeps the
+    /// driver's built-in default.</summary>
+    [ConfigurationType("StorageTablesTuning", Label = "Table storage connection pool",
+        Description = "When the table driver's HTTP connection pool grows, stops growing, and shrinks.")]
+    public sealed class StorageTablesTuningConfiguration : IProvideConfiguration
+    {
+        [ConfigurationMember(EastFive.Azure.AppSettings.Persistence.StorageTables.ConnectionCountReductionPoint,
+            Kind = ConfigurationMemberKind.Optional, Scope = ConfigurationScope.Shared,
+            Label = "Reduction point", Description = "Machine-wide HTTP connection count at which the pool begins to shrink (default 200).")]
+        public long? ConnectionCountReductionPoint { get; set; }
+
+        [ConfigurationMember(EastFive.Azure.AppSettings.Persistence.StorageTables.ConnectionCountGrowthStoppingPoint,
+            Kind = ConfigurationMemberKind.Optional, Scope = ConfigurationScope.Shared,
+            Label = "Growth stopping point", Description = "Connection count at which the pool stops growing; below the reduction point (default 150).")]
+        public long? ConnectionCountGrowthStoppingPoint { get; set; }
+
+        [ConfigurationMember(EastFive.Azure.AppSettings.Persistence.StorageTables.MinimumParallelConnections,
+            Kind = ConfigurationMemberKind.Optional, Scope = ConfigurationScope.Shared,
+            Label = "Minimum parallel connections", Description = "The pool never shrinks below this size (default 20).")]
+        public long? MinimumParallelConnections { get; set; }
+    }
 }
