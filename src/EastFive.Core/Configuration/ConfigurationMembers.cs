@@ -26,8 +26,21 @@ namespace EastFive.Configuration
         string? Default,
         string? Purpose,
         bool IsAccount = false,
-        ConfigurationMemberMetadata? Metadata = null)
+        ConfigurationMemberMetadata? Metadata = null,
+        string? FallbackKey = null)
     {
+        /// <summary>This member's key for one instance of a keyed type (the declared key otherwise).</summary>
+        public string? KeyFor(object configuration)
+            => Key == null || configuration is not IProvideConfigurationInstanceKey keyed
+                ? Key
+                : Key.Replace(IProvideConfigurationInstanceKey.Placeholder, keyed.InstanceKey, StringComparison.Ordinal);
+
+        /// <summary>The fallback key for one instance of a keyed type.</summary>
+        public string? FallbackKeyFor(object configuration)
+            => FallbackKey == null || configuration is not IProvideConfigurationInstanceKey keyed
+                ? FallbackKey
+                : FallbackKey.Replace(IProvideConfigurationInstanceKey.Placeholder, keyed.InstanceKey, StringComparison.Ordinal);
+
         public bool IsSecret => Kind == ConfigurationMemberKind.Secret;
 
         /// <summary>The account member's translation to a secret-name segment, if it declares one.</summary>
@@ -174,6 +187,14 @@ namespace EastFive.Configuration
             if (duplicatePurpose != null)
                 throw new InvalidOperationException($"{configurationType.Name} declares secret purpose '{duplicatePurpose.Key}' more than once.");
 
+            var keyed = typeof(IProvideConfigurationInstanceKey).IsAssignableFrom(configurationType);
+            var placeholder = members.FirstOrDefault(member =>
+                (member.Key ?? string.Empty).Contains(IProvideConfigurationInstanceKey.Placeholder, StringComparison.Ordinal)
+                || (member.FallbackKey ?? string.Empty).Contains(IProvideConfigurationInstanceKey.Placeholder, StringComparison.Ordinal));
+            if (placeholder != null && !keyed)
+                throw new InvalidOperationException(
+                    $"{configurationType.Name}.{placeholder.Property.Name} uses {IProvideConfigurationInstanceKey.Placeholder} but the type does not implement {nameof(IProvideConfigurationInstanceKey)}.");
+
             var misplaced = members.FirstOrDefault(member => !member.IsAccount
                 && member.Property.GetCustomAttributes(inherit: true).OfType<IProvideSecretAccountSegment>().Any());
             if (misplaced != null)
@@ -257,7 +278,9 @@ namespace EastFive.Configuration
                 attribute.MoreInfo,
                 attribute.Scope,
                 attribute.FieldKind != ConfigurationFieldKind.Auto ? attribute.FieldKind : FieldKindOf(property.PropertyType, attribute));
-            return new ConfigurationMember(property, attribute.Key, attribute.Kind, attribute.Default, purpose, attribute.Account, metadata);
+            if (attribute.FallbackKey != null && attribute.Kind == ConfigurationMemberKind.Secret)
+                throw new InvalidOperationException($"{where} is Secret and cannot carry a FallbackKey; secrets are read by name.");
+            return new ConfigurationMember(property, attribute.Key, attribute.Kind, attribute.Default, purpose, attribute.Account, metadata, attribute.FallbackKey);
         }
 
         private static ConfigurationFieldKind FieldKindOf(Type propertyType, ConfigurationMemberAttribute attribute)

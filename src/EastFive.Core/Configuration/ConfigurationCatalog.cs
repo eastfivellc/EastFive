@@ -30,6 +30,11 @@ namespace EastFive.Configuration
         bool HasTest,
         IReadOnlyList<ConfigurationMemberDescription> Members)
     {
+        /// <summary>One instance per name (<see cref="IProvideConfigurationInstanceKey"/>); member keys
+        /// carry the placeholder and <see cref="ConfigurationCatalog.InstanceKeys(Type, IEnumerable{string})"/>
+        /// lists the instances.</summary>
+        public bool IsKeyed => typeof(IProvideConfigurationInstanceKey).IsAssignableFrom(Type);
+
         /// <summary>The secret names this type reads for an account (or globally, when it has no
         /// account member). Only meaningful when <see cref="GeneratesSecretNames"/>.</summary>
         public IEnumerable<string> SecretNames(string? account = null)
@@ -102,6 +107,73 @@ namespace EastFive.Configuration
                 configurationType.GetCustomAttributes(inherit: true).OfType<ITestConfiguration>().Any(),
                 members);
         }
+
+        /// <summary>
+        /// The instances of a keyed type that <paramref name="configuredKeys"/> name: every value of the
+        /// placeholder that completes one of its members' keys (or fallback keys), distinct and sorted.
+        /// </summary>
+        public static string[] InstanceKeys(Type keyedType, IEnumerable<string> configuredKeys)
+        {
+            var templates = ConfigurationMembers.For(keyedType).Members
+                .SelectMany(member => new[] { member.Key, member.FallbackKey })
+                .OfType<string>()
+                .Where(key => key.Contains(IProvideConfigurationInstanceKey.Placeholder, StringComparison.Ordinal))
+                .Select(key => new System.Text.RegularExpressions.Regex(
+                    "^" + System.Text.RegularExpressions.Regex.Escape(key).Replace(
+                        System.Text.RegularExpressions.Regex.Escape(IProvideConfigurationInstanceKey.Placeholder), "(?<key>[^.:]+)") + "$",
+                    System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                .ToArray();
+            return configuredKeys
+                .SelectMany(key => templates.Select(template => template.Match(key)).Where(match => match.Success))
+                .Select(match => match.Groups["key"].Value)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        /// <summary>The instances of a keyed type the ambient configuration names.</summary>
+        public static string[] InstanceKeys(Type keyedType)
+            => InstanceKeys(keyedType, EastFive.Web.Configuration.ConfigurationExtensions.ConfiguredKeys());
+
+        private static readonly Lazy<HashSet<string>> declaredValueKeys = new(() =>
+            new HashSet<string>(
+                AppDomain.CurrentDomain.GetAssemblies()
+                    .Where(assembly => !assembly.IsDynamic)
+                    .SelectMany(LoadableTypes)
+                    .Where(type => type is { IsClass: true, IsAbstract: false, ContainsGenericParameters: false }
+                        && typeof(IProvideConfiguration).IsAssignableFrom(type))
+                    .SelectMany(DeclaredMembersOrNone)
+                    .Where(member => !member.IsSecret)
+                    .SelectMany(member => new[] { member.Key, member.FallbackKey })
+                    .OfType<string>()
+                    .Where(key => !key.Contains(IProvideConfigurationInstanceKey.Placeholder, StringComparison.Ordinal)),
+                StringComparer.OrdinalIgnoreCase),
+            System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
+
+        /// <summary>A malformed declaration throws when its type is loaded; it declares nothing here.</summary>
+        private static IEnumerable<ConfigurationMember> DeclaredMembersOrNone(Type type)
+        {
+            try
+            {
+                return ConfigurationMembers.For(type).Members;
+            }
+            catch (InvalidOperationException)
+            {
+                return Enumerable.Empty<ConfigurationMember>();
+            }
+        }
+
+        /// <summary>Whether a non-secret member of any loaded configuration type declares <paramref name="key"/>.
+        /// Assemblies loaded after the first call are not seen; framework and host assemblies load first.</summary>
+        public static bool IsDeclaredValueKey(string key) => declaredValueKeys.Value.Contains(key);
+
+        /// <summary>The current value of a VALUE member, read by its declared key — what a catalog
+        /// renderer shows. Null for secrets (never read here) and keyed templates.</summary>
+        public static string? CurrentValue(ConfigurationMemberDescription member)
+            => member.Kind == ConfigurationMemberKind.Secret || member.Key == null
+                    || member.Key.Contains(IProvideConfigurationInstanceKey.Placeholder, StringComparison.Ordinal)
+                ? null
+                : ConfigurationLoader.ReadAmbient(member.Key);
 
         /// <summary>A type that names its own secrets instead of using the generated scheme.</summary>
         public static bool OverridesSecretReference(Type configurationType)

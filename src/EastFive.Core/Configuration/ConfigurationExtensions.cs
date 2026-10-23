@@ -18,6 +18,16 @@ namespace EastFive.Web.Configuration
             ConfigurationExtensions.configuration = configuration;
         }
 
+        /// <summary>Every key the ambient configuration holds (empty before <see cref="Initialize"/>) —
+        /// how the catalog enumerates the instances of keyed configuration types.</summary>
+        public static IEnumerable<string> ConfiguredKeys()
+            => configuration == null
+                ? Enumerable.Empty<string>()
+                : Microsoft.Extensions.Configuration.ConfigurationExtensions.AsEnumerable(configuration)
+                    .Where(pair => pair.Value != null)
+                    .Select(pair => pair.Key)
+                    .ToArray();
+
         public static TResult ConfigurationString<TResult>(this string key,
             Func<string, TResult> onFound,
             Func<string, TResult> onUnspecified = default)

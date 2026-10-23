@@ -87,6 +87,10 @@ namespace EastFive.Configuration
         /// meaningful with <see cref="ConfigurationMemberKind.Defaulted"/>.</summary>
         public string? Default { get; init; }
 
+        /// <summary>A second key read only when <see cref="Key"/> is absent — a former spelling kept
+        /// while deployments migrate. Never written by an editor; may carry the keyed placeholder.</summary>
+        public string? FallbackKey { get; init; }
+
         /// <summary>Short human label for an editor (defaults to the property name).</summary>
         public string? Label { get; init; }
 

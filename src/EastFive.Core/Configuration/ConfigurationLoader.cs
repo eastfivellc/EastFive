@@ -331,7 +331,7 @@ namespace EastFive.Configuration
 
         /// <summary>The key a values member is read by; the secret NAME a secret member is read by.</summary>
         private static string NameOf(IProvideConfiguration config, ConfigurationMember member)
-            => member.IsSecret ? config.SecretReference(member.Purpose!).Name : member.Key!;
+            => member.IsSecret ? config.SecretReference(member.Purpose!).Name : member.KeyFor(config)!;
 
         private readonly record struct Read(string? Text, string? Source, ConfigIssue? Issue)
         {
@@ -360,7 +360,13 @@ namespace EastFive.Configuration
                 // initialized, a provider failing); that is a SourceFailure, not a missing member.
                 try
                 {
-                    return Read.Answered(readValue(name), "values");
+                    var text = readValue(name);
+                    if (string.IsNullOrWhiteSpace(text) && member.FallbackKeyFor(config) is { } fallback)
+                    {
+                        text = readValue(fallback);
+                        return Read.Answered(text, string.IsNullOrWhiteSpace(text) ? "values" : $"values ({fallback})");
+                    }
+                    return Read.Answered(text, "values");
                 }
                 catch (Exception)
                 {
