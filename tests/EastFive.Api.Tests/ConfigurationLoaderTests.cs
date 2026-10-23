@@ -53,11 +53,11 @@ public class ConfigurationLoaderTests
         [ConfigurationMember("Keyed.Account", Kind = ConfigurationMemberKind.Optional)]
         public string? Account { get; set; }
 
-        [ConfigurationMember("Keyed.Key", Kind = ConfigurationMemberKind.Secret, Purpose = "api")]
+        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Purpose = "api")]
         public Secret Key { get; set; } = default!;
 
         public SecretReference SecretReference(string purpose)
-            => new(string.IsNullOrWhiteSpace(Account) ? "Keyed.Key" : $"Keyed.{Account}.Key", purpose);
+            => new(string.IsNullOrWhiteSpace(Account) ? "Keyed-Key" : $"Keyed-{Account}-Key", purpose);
     }
 
     private static Dictionary<string, string> Complete() => new(StringComparer.Ordinal)
@@ -78,7 +78,7 @@ public class ConfigurationLoaderTests
 
     private static string Load<TConfig>(Func<string, string?> readSetting, Action<TConfig>? inspect = null)
         where TConfig : IProvideConfiguration, new()
-        => ConfigurationLoader.Load<TConfig, string>(readSetting,
+        => ConfigurationLoader.LoadDraft<TConfig, string>(readSetting, readSetting,
             onConfigured: config => { inspect?.Invoke(config); return "configured"; },
             onMissing: (issue, _) => $"missing:{issue.Key}",
             onInvalid: issue => $"invalid:{issue.Key}",
@@ -137,7 +137,7 @@ public class ConfigurationLoaderTests
         var values = Complete();
         values.Remove("Probe.Name");
         var configured = false;
-        var outcome = ConfigurationLoader.Load<Probe, string>(Source(values),
+        var outcome = ConfigurationLoader.LoadDraft<Probe, string>(Source(values), Source(values),
             onConfigured: _ => { configured = true; return "configured"; },
             onMissing: (issue, _) =>
             {
@@ -157,7 +157,7 @@ public class ConfigurationLoaderTests
     {
         var values = Complete();
         values.Remove("Probe.Name");
-        var outcome = ConfigurationLoader.Load<Probe, string>(Source(values),
+        var outcome = ConfigurationLoader.LoadDraft<Probe, string>(Source(values), Source(values),
             onConfigured: probe => $"configured:{probe.Name}",
             onMissing: (issue, supply) => supply(" supplied-name "),
             onInvalid: issue => $"invalid:{issue.Key}",
@@ -170,7 +170,7 @@ public class ConfigurationLoaderTests
     {
         var values = Complete();
         values.Remove("Probe.Endpoint");
-        var outcome = ConfigurationLoader.Load<Probe, string>(Source(values),
+        var outcome = ConfigurationLoader.LoadDraft<Probe, string>(Source(values), Source(values),
             onConfigured: _ => "configured",
             onMissing: (issue, supply) => supply("still not a url"),
             onInvalid: issue => $"invalid:{issue.Key}:{issue.Category}",
@@ -178,7 +178,7 @@ public class ConfigurationLoaderTests
         Assert.Equal("invalid:Probe.Endpoint:Invalid", outcome);
 
         values.Remove("Probe.Name");
-        var blank = ConfigurationLoader.Load<Probe, string>(Source(values),
+        var blank = ConfigurationLoader.LoadDraft<Probe, string>(Source(values), Source(values),
             onConfigured: _ => "configured",
             onMissing: (issue, supply) => supply("   "),
             onInvalid: issue => $"invalid:{issue.Key}",
@@ -193,7 +193,7 @@ public class ConfigurationLoaderTests
         values.Remove("Probe.Endpoint");
         values.Remove("Probe-Token");
         var asked = new List<string>();
-        var outcome = ConfigurationLoader.Load<Probe, string>(Source(values),
+        var outcome = ConfigurationLoader.LoadDraft<Probe, string>(Source(values), Source(values),
             onConfigured: probe => $"configured:{probe.Endpoint}:{probe.Token.Reveal()}",
             onMissing: (issue, supply) =>
             {
@@ -212,7 +212,7 @@ public class ConfigurationLoaderTests
         var values = Complete();
         values.Remove("Probe-Token");
         var reads = new List<string>();
-        var outcome = ConfigurationLoader.Load<Probe, string>(Source(values, reads),
+        var outcome = ConfigurationLoader.LoadDraft<Probe, string>(Source(values, reads), Source(values, reads),
             onConfigured: _ => "configured",
             onMissing: (issue, _) => $"missing:{issue.Key}:{issue.Kind}",
             onInvalid: issue => $"invalid:{issue.Key}",
@@ -246,7 +246,7 @@ public class ConfigurationLoaderTests
         var values = Complete();
         values["Probe.Endpoint"] = "not a url tok-very-secret";
         ConfigIssue? captured = null;
-        ConfigurationLoader.Load<Probe, string>(Source(values),
+        ConfigurationLoader.LoadDraft<Probe, string>(Source(values), Source(values),
             onConfigured: _ => "configured",
             onMissing: (issue, _) => "missing",
             onInvalid: issue => { captured = issue; return "invalid"; },
@@ -274,13 +274,13 @@ public class ConfigurationLoaderTests
     public void Missing_ListsEveryRequiredOrSecretGap_InDeclarationOrder()
     {
         Assert.Equal(new[] { "Probe.Name", "Probe.Endpoint", "Probe-Token" },
-            ConfigurationLoader.Missing<Probe>(Source(new Dictionary<string, string>())));
+            ConfigurationLoader.MissingDraft<Probe>(Source(new Dictionary<string, string>()), Source(new Dictionary<string, string>())));
         var values = Complete();
         values.Remove("Probe.Label");   // Optional: never listed
         values.Remove("Probe.Retries"); // Defaulted: never listed
         values["Probe-Token"] = "  ";
-        Assert.Equal(new[] { "Probe-Token" }, ConfigurationLoader.Missing<Probe>(Source(values)));
-        Assert.Empty(ConfigurationLoader.Missing<Probe>(Source(Complete())));
+        Assert.Equal(new[] { "Probe-Token" }, ConfigurationLoader.MissingDraft<Probe>(Source(values), Source(values)));
+        Assert.Empty(ConfigurationLoader.MissingDraft<Probe>(Source(Complete()), Source(Complete())));
     }
 
     [Fact]
@@ -295,11 +295,13 @@ public class ConfigurationLoaderTests
     [Fact]
     public void SecretReferenceDerivedFromAnEarlierMember_IsHonoredByLoadAndByTheChecklist()
     {
-        var values = new Dictionary<string, string> { ["Keyed.Account"] = "acme", ["Keyed.acme.Key"] = "k-acme", ["Keyed.Key"] = "k-global" };
+        var values = new Dictionary<string, string> { ["Keyed.Account"] = "acme", ["Keyed-acme-Key"] = "k-acme", ["Keyed-Key"] = "k-global" };
         Assert.Equal("configured", Load<AccountKeyed>(Source(values), keyed => Assert.Equal("k-acme", keyed.Key.Reveal())));
-        Assert.Equal("configured", Load<AccountKeyed>(Source(new Dictionary<string, string> { ["Keyed.Key"] = "k-global" }), keyed => Assert.Equal("k-global", keyed.Key.Reveal())));
-        Assert.Equal(new[] { "Keyed.acme.Key" }, ConfigurationLoader.Missing<AccountKeyed>(Source(new Dictionary<string, string> { ["Keyed.Account"] = "acme", ["Keyed.Key"] = "k-global" })));
-        Assert.Equal(new[] { "Keyed.Key" }, ConfigurationLoader.Missing<AccountKeyed>(Source(new Dictionary<string, string>())));
+        Assert.Equal("configured", Load<AccountKeyed>(Source(new Dictionary<string, string> { ["Keyed-Key"] = "k-global" }), keyed => Assert.Equal("k-global", keyed.Key.Reveal())));
+        var acme = Source(new Dictionary<string, string> { ["Keyed.Account"] = "acme", ["Keyed-Key"] = "k-global" });
+        Assert.Equal(new[] { "Keyed-acme-Key" }, ConfigurationLoader.MissingDraft<AccountKeyed>(acme, acme));
+        var empty = Source(new Dictionary<string, string>());
+        Assert.Equal(new[] { "Keyed-Key" }, ConfigurationLoader.MissingDraft<AccountKeyed>(empty, empty));
     }
 
     [Fact]
@@ -307,7 +309,7 @@ public class ConfigurationLoaderTests
     {
         Assert.Equal(new[] { "Probe.Name", "Probe.Endpoint", "Probe.Label", "Probe.Retries" }, ConfigurationMembers.Keys<Probe>());
         Assert.Equal(new[] { "Probe.Name", "Probe.Endpoint", "Probe.Label", "Probe.Retries" }, ConfigurationMembers.PublicKeys<Probe>());
-        Assert.Empty(ConfigurationMembers.SecretKeys<Probe>()); // a secret has a name, never a values key
+        Assert.Equal(new[] { "Probe-Token" }, ConfigurationMembers.For<Probe>().SecretNamesOf(new Probe()));
         Assert.Equal(new SecretReference("Probe-Token", "api"), ((IProvideConfiguration)new Probe()).SecretReference("api"));
         Assert.Throws<InvalidOperationException>(() => ((IProvideConfiguration)new Probe()).SecretReference("nope"));
     }
@@ -316,14 +318,14 @@ public class ConfigurationLoaderTests
     public void ConstructorInputs_SelectTheSecret()
     {
         var reads = new List<string>();
-        var outcome = ConfigurationLoader.Load(() => new Tenanted("acme"),
-            Source(new Dictionary<string, string> { ["Tenanted.acme.Token"] = "acme-token" }, reads),
+        var source = Source(new Dictionary<string, string> { ["Tenanted-acme-Token"] = "acme-token" }, reads);
+        var outcome = ConfigurationLoader.LoadDraft(() => new Tenanted("acme"), source, source,
             onConfigured: config => config.Token.Reveal(),
             onMissing: (issue, _) => $"missing:{issue.Key}",
             onInvalid: issue => $"invalid:{issue.Key}",
             onSourceFailure: issue => $"source:{issue.Key}");
         Assert.Equal("acme-token", outcome);
-        Assert.Equal(new[] { "Tenanted.acme.Token" }, reads);
+        Assert.Equal(new[] { "Tenanted-acme-Token" }, reads);
     }
 
     private sealed class Tenanted : IProvideConfiguration
@@ -331,21 +333,27 @@ public class ConfigurationLoaderTests
         private readonly string tenant;
         public Tenanted(string tenant) => this.tenant = tenant;
 
-        [ConfigurationMember("Tenanted.Token", Kind = ConfigurationMemberKind.Secret, Purpose = "api")]
+        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Purpose = "api")]
         public Secret Token { get; init; } = default!;
 
-        public SecretReference SecretReference(string purpose) => new($"Tenanted.{tenant}.Token", purpose);
+        public SecretReference SecretReference(string purpose) => new($"Tenanted-{tenant}-Token", purpose);
     }
 
     private sealed class SecretTypedAsString : IProvideConfiguration
     {
-        [ConfigurationMember("Bad.Token", Kind = ConfigurationMemberKind.Secret, Purpose = "api")]
+        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Purpose = "api")]
         public string Token { get; init; } = default!;
     }
 
     private sealed class DefaultedSecret : IProvideConfiguration
     {
-        [ConfigurationMember("Bad.Token", Kind = ConfigurationMemberKind.Secret, Purpose = "api", Default = "x")]
+        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Purpose = "api", Default = "x")]
+        public Secret Token { get; init; } = default!;
+    }
+
+    private sealed class KeyedSecret : IProvideConfiguration
+    {
+        [ConfigurationMember("Bad.Token", Kind = ConfigurationMemberKind.Secret)]
         public Secret Token { get; init; } = default!;
     }
 
@@ -361,5 +369,6 @@ public class ConfigurationLoaderTests
         Assert.Throws<InvalidOperationException>(() => ConfigurationMembers.For<SecretTypedAsString>());
         Assert.Throws<InvalidOperationException>(() => ConfigurationMembers.For<DefaultedSecret>());
         Assert.Throws<InvalidOperationException>(() => ConfigurationMembers.For<OptionalNonNullable>());
+        Assert.Throws<InvalidOperationException>(() => ConfigurationMembers.For<KeyedSecret>()); // a secret is never a values key
     }
 }

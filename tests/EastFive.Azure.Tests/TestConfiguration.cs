@@ -48,6 +48,13 @@ public static class TestConfiguration
                 .Build();
 
             EastFive.Web.Configuration.ConfigurationExtensions.Initialize(configuration);
+
+            // The storage driver factory is synchronous and never loads: a host loads its stores
+            // once at startup. Test code may block here; framework code never does.
+            var storage = EastFive.Configuration.StartupConfiguration
+                .LoadAsync<EastFive.Azure.Persistence.StorageTablesConfiguration>().GetAwaiter().GetResult();
+            if (storage != null)
+                throw new InvalidOperationException($"Test storage did not load: {storage}");
             Volatile.Write(ref initialized, true);
         }
     }

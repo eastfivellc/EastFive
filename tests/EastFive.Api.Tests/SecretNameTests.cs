@@ -95,7 +95,7 @@ public class SecretNameTests
         Assert.Throws<InvalidOperationException>(() => Reference(new TelnyxAccount { Account = account }, "ApiKey"));
 
         var values = new Dictionary<string, string> { ["Telnyx.Account"] = account };
-        var outcome = ConfigurationLoader.Load<TelnyxAccount, string>(key => values.GetValueOrDefault(key),
+        var outcome = ConfigurationLoader.LoadDraft<TelnyxAccount, string>(key => values.GetValueOrDefault(key), _ => "k",
             onConfigured: _ => "configured",
             onMissing: (issue, _) => $"missing:{issue.Key}",
             onInvalid: issue => $"invalid:{issue.Key}",

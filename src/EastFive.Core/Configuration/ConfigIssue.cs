@@ -15,6 +15,10 @@ namespace EastFive.Configuration
         /// <summary>The source could not answer (denied, throttled, timed out, not initialized).
         /// Distinct from <see cref="Missing"/> so a vault outage is never treated as "unset".</summary>
         SourceFailure,
+
+        /// <summary>A synchronous reader asked for a configuration the host never loaded at
+        /// startup (<see cref="StartupConfiguration"/>): a host wiring bug, not a setting.</summary>
+        NotLoaded,
     }
 
     /// <summary>

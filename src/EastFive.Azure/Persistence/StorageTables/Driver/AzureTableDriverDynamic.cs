@@ -208,15 +208,14 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
             return FromSettings(settingKey.Key);
         }
 
-        /// <summary>A store described by its own <see cref="StorageAccountConfiguration"/> type,
-        /// read from the ambient configuration.</summary>
+        /// <summary>A store described by its own <see cref="StorageAccountConfiguration"/> type, as
+        /// the host loaded it at startup (<see cref="EastFive.Configuration.StartupConfiguration"/>).
+        /// Never loads and never blocks: a store the host did not load is an exception naming it.</summary>
         public static AzureTableDriverDynamic FromSettings<TConfig>()
             where TConfig : StorageAccountConfiguration, new()
-            => StorageAccountConfiguration.Load<TConfig, AzureTableDriverDynamic>(
+            => EastFive.Configuration.StartupConfiguration.Get<TConfig, AzureTableDriverDynamic>(
                 config => FromStorageString(config.ConnectionString.Reveal()),
-                (issue, _) => throw new Exception(issue.ToString()),
-                issue => throw new Exception(issue.ToString()),
-                issue => throw new Exception(issue.ToString()));
+                issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(TConfig), issue.ToString()));
 
         public static AzureTableDriverDynamic FromStorageString(string connectionString)
         {

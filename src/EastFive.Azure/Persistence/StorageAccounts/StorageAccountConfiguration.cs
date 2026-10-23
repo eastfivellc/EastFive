@@ -9,75 +9,57 @@ using EastFive.Configuration;
 namespace EastFive.Azure.Persistence
 {
     /// <summary>
-    /// One Azure Storage account, NAMED by configuration and CREDENTIALED by the vault. The
-    /// committed <c>appsettings</c> carries <c>&lt;Store&gt;.Account</c> (an account name is not a
-    /// secret); the vault carries one secret per account, <c>Azure-Storage-Account-{name}</c>,
-    /// which the whole-vault provider serves as <c>Azure.Storage.Account.{name}</c>. Several
-    /// stores that share an account share that one secret, so rotation is one write.
+    /// One Azure Storage account, NAMED by the values store and CREDENTIALED by the secret store.
+    /// The committed <c>appsettings</c> carries <c>&lt;Store&gt;.Account</c> (an account name is not
+    /// a secret); the secret store carries one secret per account,
+    /// <c>AzureStorage-{account}-ConnectionString</c> (generated: <see cref="ConfigurationTypeAttribute"/>
+    /// <c>AzureStorage</c>, the account member, the property). Several stores on one account share
+    /// that one secret, so rotation is one write.
     /// </summary>
     /// <remarks>
-    /// Resolution, decided by <see cref="Account"/> alone (an account name, when set, is
-    /// authoritative):
-    /// <list type="bullet">
-    /// <item>blank: the store's legacy global key (<c>&lt;Store&gt;.ConnectionString</c>) — how
-    /// every host is configured today, so nothing changes until an account is named;</item>
-    /// <item><c>devstoreaccount1</c>: the emulator. Never a vault read — a hermetic run must not
-    /// depend on the network, and a vault entry of that name must not be able to redirect it.
-    /// The reserved key <c>Azure.Storage.Emulator.ConnectionString</c> wins if set (machine
-    /// files); otherwise the loader FABRICATES Azurite's well-known string from
-    /// <c>Azure.Storage.Emulator.Port</c> (blob; queue and table at +1/+2). Fabrication only
-    /// ever happens for the emulator account and only on a confirmed-missing outcome, never on
-    /// a source failure;</item>
-    /// <item>anything else: <c>Azure.Storage.Account.{name}</c>.</item>
-    /// </list>
-    /// <see cref="Validate"/> refuses a credential for a different account than the one named,
-    /// and an emulator credential whose endpoints leave loopback.
+    /// The account is Required: there is no legacy <c>&lt;Store&gt;.ConnectionString</c> fallback and
+    /// no reader bypasses this type. <c>devstoreaccount1</c> is the emulator and is never a
+    /// secret-store read — a hermetic run must not depend on the network, and a vault entry of that
+    /// name must not be able to redirect it. The reserved VALUES key
+    /// <c>Azure.Storage.Emulator.ConnectionString</c> wins if set (machine files); otherwise the
+    /// credential is FABRICATED as Azurite's well-known string from <c>Azure.Storage.Emulator.Port</c>
+    /// (blob; queue and table at +1/+2). <see cref="Validate"/> refuses a credential for a different
+    /// account than the one named, and an emulator credential whose endpoints leave loopback.
     /// </remarks>
-    public abstract class StorageAccountConfiguration : IProvideConfiguration
+    [ConfigurationType(TypeName)]
+    public abstract class StorageAccountConfiguration : IProvideConfiguration, IResolveConfigurationMember
     {
-        public const string Purpose = "storage";
+        public const string TypeName = "AzureStorage";
+        public const string Purpose = nameof(ConnectionString);
         public const string EmulatorAccount = "devstoreaccount1";
         public const int EmulatorDefaultPort = 10000;
+        public const string EmulatorSource = "emulator";
 
         // Azurite's published well-known key: public knowledge, not a secret.
         private const string EmulatorAccountKey =
             "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==";
 
-        [ConfigurationMember(EastFive.Azure.AppSettings.Persistence.Storage.EmulatorPort,
-            Kind = ConfigurationMemberKind.Defaulted, Default = "10000")]
-        public int EmulatorPort { get; set; }
+        /// <summary>The storage account name; the concrete type declares its <c>&lt;Store&gt;.Account</c>
+        /// key with <c>Account = true</c>.</summary>
+        public abstract string Account { get; set; }
 
-        /// <summary>The storage account name; the concrete type declares its <c>&lt;Store&gt;.Account</c> key.</summary>
-        public abstract string? Account { get; set; }
-
-        /// <summary>The credential; the concrete type declares its legacy <c>&lt;Store&gt;.ConnectionString</c> key.</summary>
+        /// <summary>The credential; the concrete type declares it keyless
+        /// (<c>[ConfigurationMember(Kind = Secret)]</c>).</summary>
         public abstract Secret ConnectionString { get; set; }
-
-        /// <summary>The legacy global key the concrete type's <see cref="ConnectionString"/> is declared with —
-        /// what readers that bypass this type (queue triggers, older drivers) still read.</summary>
-        public abstract string ConnectionStringKey { get; }
 
         /// <summary>The <c>&lt;Store&gt;.Account</c> key the concrete type declares.</summary>
         public static string AccountKey<TConfig>() where TConfig : StorageAccountConfiguration
-            => ConfigurationMembers.For<TConfig>().Members
-                .First(member => string.Equals(member.Property.Name, nameof(Account), StringComparison.Ordinal)).Key!;
+            => ConfigurationMembers.For<TConfig>().AccountMember?.Key
+                ?? throw new InvalidOperationException($"{typeof(TConfig).Name} declares no account member.");
 
         public static bool IsEmulator(string? account)
             => string.Equals(account?.Trim(), EmulatorAccount, StringComparison.OrdinalIgnoreCase);
 
-        public static string AccountSecretKey(string account)
-            => EastFive.Azure.AppSettings.Persistence.Storage.AccountSecretPrefix + account.Trim().ToLowerInvariant();
+        /// <summary>The generated secret name for an account's credential.</summary>
+        public static string SecretName(string account) => SecretNames.Generate(TypeName, account.Trim(), Purpose);
 
-        /// <summary>Which key the credential is read from for the current <see cref="Account"/>.</summary>
-        public string ResolvedConnectionStringKey
-            => string.IsNullOrWhiteSpace(Account) ? ConnectionStringKey
-                : IsEmulator(Account) ? EastFive.Azure.AppSettings.Persistence.Storage.EmulatorConnectionString
-                : AccountSecretKey(Account);
-
-        public SecretReference SecretReference(string purpose)
-            => string.Equals(purpose, Purpose, StringComparison.Ordinal)
-                ? new SecretReference(ResolvedConnectionStringKey, purpose)
-                : throw new InvalidOperationException($"{GetType().Name} has no secret for purpose '{purpose}'.");
+        /// <summary>The secret name this instance's credential is read by (its account must be set).</summary>
+        public string ConnectionStringName => ((IProvideConfiguration)this).SecretReference(Purpose).Name;
 
         public string? Validate()
         {
@@ -88,15 +70,46 @@ namespace EastFive.Azure.Persistence
             if (IsEmulator(Account))
             {
                 if (accountName != null && !IsEmulator(accountName))
-                    return ConnectionStringKey;
+                    return ConnectionStringName;
                 var offLoopback = pairs
                     .Where(pair => pair.Key.EndsWith("Endpoint", StringComparison.OrdinalIgnoreCase))
                     .Any(pair => !Uri.TryCreate(pair.Value, UriKind.Absolute, out var endpoint) || !endpoint.IsLoopback);
-                return offLoopback ? ConnectionStringKey : null;
+                return offLoopback ? ConnectionStringName : null;
             }
             return accountName != null && !string.Equals(accountName.Trim(), Account.Trim(), StringComparison.OrdinalIgnoreCase)
-                ? ConnectionStringKey
+                ? ConnectionStringName
                 : null;
+        }
+
+        /// <summary>The emulator's credential, without consulting the secret store.</summary>
+        public TResult ResolveMember<TResult>(ConfigurationMember member, Func<string, string?> readValue,
+            Func<string, string, TResult> onResolved,
+            Func<TResult> onNotResolved,
+            Func<ConfigIssue, TResult> onInvalid)
+        {
+            if (!member.IsSecret || !IsEmulator(Account))
+                return onNotResolved();
+            ConfigIssue Issue(string key, ConfigIssueCategory category)
+                => new(GetType(), key, ConfigurationMemberKind.Defaulted, category);
+            string? explicitString;
+            string? portText;
+            try
+            {
+                explicitString = readValue(EastFive.Azure.AppSettings.Persistence.Storage.EmulatorConnectionString);
+                portText = readValue(EastFive.Azure.AppSettings.Persistence.Storage.EmulatorPort);
+            }
+            catch (Exception)
+            {
+                return onInvalid(Issue(EastFive.Azure.AppSettings.Persistence.Storage.EmulatorPort, ConfigIssueCategory.SourceFailure));
+            }
+            if (!string.IsNullOrWhiteSpace(explicitString))
+                return onResolved(explicitString, EmulatorSource);
+            if (string.IsNullOrWhiteSpace(portText))
+                return onResolved(EmulatorConnectionString(), EmulatorSource);
+            return int.TryParse(portText.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var port)
+                    && port is >= 1 and <= 65533
+                ? onResolved(EmulatorConnectionString(port), EmulatorSource)
+                : onInvalid(Issue(EastFive.Azure.AppSettings.Persistence.Storage.EmulatorPort, ConfigIssueCategory.Invalid));
         }
 
         /// <summary>Azurite's connection string for a blob port (queue and table follow at +1 and +2).</summary>
@@ -106,58 +119,9 @@ namespace EastFive.Azure.Persistence
                 + $"QueueEndpoint=http://127.0.0.1:{blobPort + 1}/{EmulatorAccount};"
                 + $"TableEndpoint=http://127.0.0.1:{blobPort + 2}/{EmulatorAccount}";
 
-        public static TResult Load<TConfig, TResult>(
-            Func<TConfig, TResult> onConfigured,
-            Func<ConfigIssue, Func<string, TResult>, TResult> onMissing,
-            Func<ConfigIssue, TResult> onInvalid,
-            Func<ConfigIssue, TResult> onSourceFailure)
-            where TConfig : StorageAccountConfiguration, new()
-            => Load(ConfigurationLoader.ReadAmbient, onConfigured, onMissing, onInvalid, onSourceFailure);
-
-        /// <summary>
-        /// <see cref="ConfigurationLoader.Load{TConfig, TResult}(Func{string, string?}, Func{TConfig, TResult}, Func{ConfigIssue, Func{string, TResult}, TResult}, Func{ConfigIssue, TResult}, Func{ConfigIssue, TResult})"/>
-        /// with the emulator fabrication interposed: a missing reserved emulator key is supplied
-        /// from the port setting; every other missing member reaches the caller's
-        /// <paramref name="onMissing"/> unchanged.
-        /// </summary>
-        public static TResult Load<TConfig, TResult>(
-            Func<string, string?> readSetting,
-            Func<TConfig, TResult> onConfigured,
-            Func<ConfigIssue, Func<string, TResult>, TResult> onMissing,
-            Func<ConfigIssue, TResult> onInvalid,
-            Func<ConfigIssue, TResult> onSourceFailure)
-            where TConfig : StorageAccountConfiguration, new()
-            => ConfigurationLoader.Load<TConfig, TResult>(readSetting, onConfigured,
-                (issue, supply) =>
-                {
-                    if (!string.Equals(issue.Key, EastFive.Azure.AppSettings.Persistence.Storage.EmulatorConnectionString, StringComparison.Ordinal))
-                        return onMissing(issue, supply);
-                    ConfigIssue PortIssue(ConfigIssueCategory category)
-                        => new(typeof(TConfig), EastFive.Azure.AppSettings.Persistence.Storage.EmulatorPort, ConfigurationMemberKind.Defaulted, category);
-                    string? portText;
-                    try
-                    {
-                        portText = readSetting(EastFive.Azure.AppSettings.Persistence.Storage.EmulatorPort);
-                    }
-                    catch (Exception)
-                    {
-                        return onSourceFailure(PortIssue(ConfigIssueCategory.SourceFailure));
-                    }
-                    if (string.IsNullOrWhiteSpace(portText))
-                        return supply(EmulatorConnectionString());
-                    return int.TryParse(portText.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var port)
-                            && port is >= 1 and <= 65533
-                        ? supply(EmulatorConnectionString(port))
-                        : onInvalid(PortIssue(ConfigIssueCategory.Invalid));
-                },
-                onInvalid, onSourceFailure);
-
-        /// <summary>The doctor's checklist, minus the reserved emulator key the loader fabricates.</summary>
-        public static string[] Missing<TConfig>(Func<string, string?> readSetting)
-            where TConfig : StorageAccountConfiguration, new()
-            => ConfigurationLoader.Missing<TConfig>(readSetting)
-                .Where(key => !string.Equals(key, EastFive.Azure.AppSettings.Persistence.Storage.EmulatorConnectionString, StringComparison.Ordinal))
-                .ToArray();
+        /// <summary>The account name a connection string carries (<c>AccountName=</c>), or <c>null</c>.</summary>
+        public static string? AccountNameOf(string connectionString)
+            => Parse(connectionString).TryGetValue("AccountName", out var accountName) ? accountName : null;
 
         private static Dictionary<string, string> Parse(string connectionString)
             => connectionString.Split(';')

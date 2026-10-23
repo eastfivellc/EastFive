@@ -63,13 +63,15 @@ namespace EastFive.Configuration
         public static string[] Keys<TConfig>() where TConfig : IProvideConfiguration
             => For<TConfig>().Members.Select(member => member.Key).OfType<string>().ToArray();
 
-        /// <summary>Declared keys of members NOT marked <see cref="ConfigurationMemberKind.Secret"/>.</summary>
+        /// <summary>Declared values keys; every one is public, since secrets have names, not keys.</summary>
         public static string[] PublicKeys<TConfig>() where TConfig : IProvideConfiguration
-            => For<TConfig>().Members.Where(member => !member.IsSecret).Select(member => member.Key).OfType<string>().ToArray();
+            => Keys<TConfig>();
 
-        /// <summary>Declared keys of members marked <see cref="ConfigurationMemberKind.Secret"/>.</summary>
-        public static string[] SecretKeys<TConfig>() where TConfig : IProvideConfiguration
-            => For<TConfig>().Members.Where(member => member.IsSecret).Select(member => member.Key).OfType<string>().ToArray();
+        /// <summary>The secret names an instance reads (account member already set, if any).</summary>
+        public string[] SecretNamesOf(IProvideConfiguration configuration)
+            => Members.Where(member => member.IsSecret)
+                .Select(member => configuration.SecretReference(member.Purpose!).Name)
+                .ToArray();
 
         /// <summary>The secret member declared for <paramref name="purpose"/> (its
         /// <see cref="ConfigurationMemberAttribute.Purpose"/>, or its property name).</summary>
@@ -162,6 +164,8 @@ namespace EastFive.Configuration
                     throw new InvalidOperationException($"{where} is Secret and must be typed {nameof(Secret)}, not {property.PropertyType.Name}.");
                 case ConfigurationMemberKind.Secret when attribute.Default != null:
                     throw new InvalidOperationException($"{where} is Secret and cannot be Defaulted; the two are mutually exclusive.");
+                case ConfigurationMemberKind.Secret when attribute.Key != null:
+                    throw new InvalidOperationException($"{where} is Secret and declares a values key; a secret is read from the secret store by its generated name, never from the values store.");
                 case ConfigurationMemberKind.Secret when attribute.Account:
                     throw new InvalidOperationException($"{where} is Secret and cannot be the account member; an account id is a value.");
                 case ConfigurationMemberKind.Secret when !PropertyShape.IsMatch(property.Name):
