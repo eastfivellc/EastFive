@@ -47,7 +47,7 @@ namespace EastFive.Azure.Functions
 
             var serviceBusTriggerName = serviceBusTriggerNameOverride.HasBlackSpace() ?
                 serviceBusTriggerNameOverride :
-                AppSettings.FunctionProcessorServiceBusTriggerName.ConfigurationString(value => value, (why) => throw new Exception(why));
+                ServiceBusConfiguration.WithFunctionProcessorTriggerName(value => value, (why) => throw new Exception(why));
             try
             {
                 await AzureApplication.SendServiceBusMessageStaticAsync(serviceBusTriggerName, invocationMessage.id.ToString("N"),

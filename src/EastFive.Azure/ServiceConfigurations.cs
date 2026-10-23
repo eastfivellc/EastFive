@@ -57,12 +57,22 @@ namespace EastFive.Azure
                 : ((IProvideConfiguration)this).SecretReference(nameof(WebhookUrl)).Name;
     }
 
-    /// <summary>The Service Bus namespace the function processor uses: <c>ServiceBus-ConnectionString</c>.</summary>
+    /// <summary>The Service Bus namespace the function processor uses: <c>ServiceBus-ConnectionString</c>,
+    /// and the queue invocation messages are sent to.</summary>
     [ConfigurationType("ServiceBus", Label = "Service Bus")]
     public sealed class ServiceBusConfiguration : IProvideConfiguration
     {
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Connection string")]
         public Secret ConnectionString { get; set; } = default!;
+
+        [ConfigurationMember(EastFive.Azure.AppSettings.FunctionProcessorServiceBusTriggerName, Kind = ConfigurationMemberKind.Optional,
+            Label = "Function processor queue", Description = "The queue invocation messages are sent to for the function processor.")]
+        public string? FunctionProcessorTriggerName { get; set; }
+
+        /// <summary>The function processor's queue, in the raw reader's continuation shape.</summary>
+        public static TResult WithFunctionProcessorTriggerName<TResult>(Func<string, TResult> onFound, Func<string, TResult> onUnspecified)
+            => Configured.Member<ServiceBusConfiguration, string, TResult>(config => config.FunctionProcessorTriggerName,
+                EastFive.Azure.AppSettings.FunctionProcessorServiceBusTriggerName, onFound, onUnspecified);
     }
 
     /// <summary>The token that unlocks the table-information diagnostics endpoint:

@@ -78,8 +78,7 @@ namespace EastFive.Azure.Functions
         public static async Task<InvocationMessage?> SendAsync(this InvocationMessage invocationMessage)
         {
             var byteContent = invocationMessage.invocationRef.id.ToByteArray();
-            return await EastFive.Web.Configuration.Settings.GetString(
-                AppSettings.FunctionProcessorServiceBusTriggerName,
+            return await ServiceBusConfiguration.WithFunctionProcessorTriggerName(
                 async (serviceBusTriggerName) =>
                 {
                     try
