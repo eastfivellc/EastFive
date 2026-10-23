@@ -6,25 +6,6 @@ namespace EastFive.Security
 {
 	public static class AES
 	{
-        public static TResult AESFromConfig<TResult>(string keyConfigurationName,
-            Func<System.Security.Cryptography.Aes, TResult> onSuccess,
-            Func<TResult> onNotSpecified,
-            Func<string, TResult> onFailure)
-        {
-            return keyConfigurationName.ConfigurationBase64Bytes(
-                (keyBytes) => 
-                {
-                    var keySize = keyBytes.Length * 8;
-                    var aes = System.Security.Cryptography.Aes.Create();
-                    aes.Padding = PaddingMode.ISO10126;
-                    aes.KeySize = keySize;
-                    aes.Key = keyBytes;
-                    return onSuccess(aes);
-                },
-                onFailure,
-                onNotSpecified);
-        }
-
         public static TResult GenerateGuidKey<TResult>(
             Func<Guid, // key
                 TResult> onSuccess)

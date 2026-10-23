@@ -20,15 +20,56 @@ using EastFive.Web.Configuration;
 
 namespace EastFive.Azure.Persistence.StorageTables
 {
+    /// <summary>What encrypts a <see cref="StoreEncryptedAttribute"/> member: a key and a GUID salt,
+    /// both secrets. Implemented by a configuration type the host loads at startup.</summary>
+    public interface IProvideStorageEncryption
+    {
+        EastFive.Configuration.Secret EncryptionKey { get; }
+
+        /// <summary>A GUID.</summary>
+        EastFive.Configuration.Secret EncryptionSalt { get; }
+    }
+
+    /// <summary>The default storage encryption: <c>StorageEncryption-EncryptionKey</c> and
+    /// <c>StorageEncryption-EncryptionSalt</c>.</summary>
+    [EastFive.Configuration.ConfigurationType("StorageEncryption", Label = "Storage encryption")]
+    public sealed class StorageEncryptionConfiguration : EastFive.Configuration.IProvideConfiguration, IProvideStorageEncryption
+    {
+        [EastFive.Configuration.ConfigurationMember(Kind = EastFive.Configuration.ConfigurationMemberKind.Secret)]
+        public EastFive.Configuration.Secret EncryptionKey { get; set; }
+
+        [EastFive.Configuration.ConfigurationMember(Kind = EastFive.Configuration.ConfigurationMemberKind.Secret, Description = "A GUID.")]
+        public EastFive.Configuration.Secret EncryptionSalt { get; set; }
+
+        public string Validate()
+            => EncryptionSalt == null || Guid.TryParse(EncryptionSalt.Reveal(), out _)
+                ? null
+                : ((EastFive.Configuration.IProvideConfiguration)this).SecretReference(nameof(EncryptionSalt)).Name;
+    }
+
     public class StoreEncryptedAttribute : StorageAttribute
     {
-        public string ConfigPropertySecret { get; set; }
-        public string ConfigPropertySalt { get; set; }
+        /// <summary>The <see cref="IProvideStorageEncryption"/> configuration type (loaded at startup)
+        /// whose key and salt encrypt this member; default <see cref="StorageEncryptionConfiguration"/>.</summary>
+        public Type EncryptionConfiguration { get; set; } = typeof(StorageEncryptionConfiguration);
 
-        public StoreEncryptedAttribute(string configPropertySecret)
+        public StoreEncryptedAttribute()
         {
-            this.ConfigPropertySecret = configPropertySecret;
         }
+
+        public StoreEncryptedAttribute(Type encryptionConfiguration)
+        {
+            this.EncryptionConfiguration = encryptionConfiguration;
+        }
+
+        private TResult WithEncryption<TResult>(Func<string, byte[], TResult> onKeys)
+            => EastFive.Configuration.StartupConfiguration.Get(EncryptionConfiguration,
+                configuration =>
+                {
+                    var encryption = (IProvideStorageEncryption)configuration;
+                    return onKeys(encryption.EncryptionKey.Reveal(), Guid.Parse(encryption.EncryptionSalt.Reveal()).ToByteArray());
+                },
+                issue => throw new EastFive.Web.ConfigurationException(issue.Key, EncryptionConfiguration, issue.ToString()));
 
         public override TResult GetMemberValue<TResult>(Type type,
                 string propertyName, IDictionary<string, EntityProperty> values,
@@ -44,13 +85,9 @@ namespace EastFive.Azure.Persistence.StorageTables
             Func<object, TResult> onBound,
             Func<TResult> onFailedToBind)
         {
-            return this.ConfigPropertySecret.ConfigurationString(
-                (key) =>
-                {
-                    return this.ConfigPropertySalt.ConfigurationGuid(
-                        (saltGuid) =>
+            return WithEncryption(
+                        (key, salt) =>
                         {
-                            var salt = saltGuid.ToByteArray();
                             if (!allValues.TryGetValue(propertyName, out var epValue))
                                 return onFailedToBind();
 
@@ -83,18 +120,13 @@ namespace EastFive.Azure.Persistence.StorageTables
                             var objectValue = decryptedValue.FromByteArray(type);
                             return onBound(objectValue);
                         });
-                });
         }
 
         public override KeyValuePair<string, EntityProperty>[] CastValue(Type typeOfValue, object value, string propertyName)
         {
-            return this.ConfigPropertySecret.ConfigurationString(
-                (key) =>
-                {
-                    return this.ConfigPropertySalt.ConfigurationGuid(
-                        (saltGuid) =>
+            return WithEncryption(
+                        (key, salt) =>
                         {
-                            var salt = saltGuid.ToByteArray();
 
                             var cryptValue = GetEncryptedValue();
                             return propertyName
@@ -130,7 +162,6 @@ namespace EastFive.Azure.Persistence.StorageTables
                                 }
                             }
                         });
-                });
         }
 
         /// <summary>

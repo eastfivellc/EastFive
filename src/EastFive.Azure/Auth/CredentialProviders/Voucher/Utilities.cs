@@ -19,7 +19,8 @@ namespace EastFive.Azure.Auth.Voucher
         {
             byte[] signatureData;
             var hashedData = ComputeHashData(authId, validUntilUtc, out signatureData);
-            return EastFive.Security.AppSettings.CredentialProviderVoucherKey.RSAFromConfig(
+            return EastFive.Configuration.StartupConfiguration.Get<EastFive.Security.VoucherConfiguration, string>(
+                configuration => configuration.SigningKey.RSAFromSecret(
                 (trustedVoucherPrivateKey) =>
                 {
                     using (trustedVoucherPrivateKey)
@@ -29,8 +30,8 @@ namespace EastFive.Azure.Auth.Voucher
                         return Convert.ToBase64String(tokenBytes);
                     }
                 },
-                () => { throw new Exception(); },
-                (issue) => { throw new Exception(); });
+                (why) => throw new EastFive.Web.ConfigurationException(nameof(EastFive.Security.VoucherConfiguration.SigningKey), typeof(EastFive.Security.VoucherConfiguration), why)),
+                issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(EastFive.Security.VoucherConfiguration), issue.ToString()));
         }
 
         public static T ValidateToken<T>(string accessToken,
@@ -73,7 +74,8 @@ namespace EastFive.Azure.Auth.Voucher
 
             byte[] signatureData;
             var hashedData = ComputeHashData(authId, validUntilUtc, out signatureData);
-            return EastFive.Security.AppSettings.CredentialProviderVoucherKey.RSAFromConfig(
+            return EastFive.Configuration.StartupConfiguration.Get<EastFive.Security.VoucherConfiguration, T>(
+                configuration => configuration.SigningKey.RSAFromSecret(
                 (trustedVoucher) =>
                 {
                     using (trustedVoucher)
@@ -87,8 +89,8 @@ namespace EastFive.Azure.Auth.Voucher
                         return success(authId);
                     }
                 },
-                () => unspecifiedConfiguration(Security.AppSettings.CredentialProviderVoucherKey),
-                (issue) => unspecifiedConfiguration($"{Security.AppSettings.CredentialProviderVoucherKey}:{issue}"));
+                (why) => unspecifiedConfiguration($"{nameof(EastFive.Security.VoucherConfiguration)}: {why}")),
+                issue => unspecifiedConfiguration(issue.ToString()));
         }
 
         private static byte [] ComputeHashData(Guid authId, DateTime validUntilUtc, out byte [] signatureData)

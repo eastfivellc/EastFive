@@ -24,7 +24,7 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
                 {
                     return onNotFound();
                 },
-                connectionStringConfigKey: EastFive.Azure.AppSettings.Persistence.DataLake.ConnectionString);
+                storageAccount: EastFive.Azure.Persistence.StorageAccount.DataLake);
         }
 	}
 }

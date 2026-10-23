@@ -228,9 +228,9 @@ namespace EastFive.Api.Azure
         }
 
         private static readonly Lazy<ServiceBusClient> serviceBusClient = new Lazy<ServiceBusClient>(
-            () =>EastFive.Azure.AppSettings.ServiceBusConnectionString.ConfigurationString(
-                (connectionString) => new ServiceBusClient(connectionString),
-                (why) => throw new Exception(why)),
+            () => EastFive.Configuration.StartupConfiguration.Get<EastFive.Azure.ServiceBusConfiguration, ServiceBusClient>(
+                configuration => new ServiceBusClient(configuration.ConnectionString.Reveal()),
+                issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(EastFive.Azure.ServiceBusConfiguration), issue.ToString())),
             true);
 
         private static readonly ConcurrentDictionary<string, ServiceBusSender> serviceBusSenders = new ConcurrentDictionary<string, ServiceBusSender>();

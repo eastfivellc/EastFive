@@ -598,14 +598,8 @@ namespace EastFive.Azure.Auth
                 TableOperators.And,
                 subQuery)
             );
-            var table = EastFive.Azure.AppSettings.Persistence.StorageTables.ConnectionString.ConfigurationString(
-                (conn) =>
-                {
-                    var account = CloudStorageAccount.Parse(conn);
-                    var client = account.CreateCloudTableClient();
-                    return client.GetTableReference("authorization");
-                },
-                (why) => throw new Exception(why));
+            var account = CloudStorageAccount.Parse(EastFive.Azure.Persistence.StorageAccount.Tables.ConnectionStringOrThrow());
+            var table = account.CreateCloudTableClient().GetTableReference("authorization");
 
             var segment = default(TableQuerySegment<GenericTableEntity>);
             var token = default(TableContinuationToken);

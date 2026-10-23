@@ -24,18 +24,18 @@ namespace EastFive.Security.Tokens
             Func<string, TResult> invalidToken,
             Func<string, TResult> missingConfigurationSetting,
             Func<string, string, TResult> invalidConfigurationSetting,
-            string configNameOfIssuerToValidateAgainst = EastFive.Security.AppSettings.TokenIssuer,
-            string configNameOfRsaKeyToValidateAgainst = EastFive.Security.AppSettings.TokenKey)
+            TokenSigning validateAgainst = default)
         {
-            return configNameOfRsaKeyToValidateAgainst.RSAFromConfig(
-                rsaProvider =>
+            return WithSigning(validateAgainst,
+                (signing, rsaProvider) =>
                 {
                     using (rsaProvider)
-                        return configNameOfIssuerToValidateAgainst.ConfigurationString(
-                            issuer =>
+                        return ValidateIssuedBy(signing.Issuer);
+
+                    TResult ValidateIssuedBy(string issuer)
                             {
                                 if (issuer.IsNullOrEmpty())
-                                    return missingConfigurationSetting(configNameOfIssuerToValidateAgainst);
+                                    return missingConfigurationSetting(EastFive.Security.AppSettings.TokenIssuer);
 
                                 var validationParameters = new TokenValidationParameters()
                                 {
@@ -99,12 +99,28 @@ namespace EastFive.Security.Tokens
                                 {
                                     return invalidToken(ex.Message);
                                 }
-                            },
-                            missingConfigurationSetting);
+                            }
                 },
-                () => missingConfigurationSetting(configNameOfRsaKeyToValidateAgainst),
-                (issue) => invalidConfigurationSetting(
-                    configNameOfRsaKeyToValidateAgainst, issue));
+                missingConfigurationSetting,
+                invalidConfigurationSetting);
+        }
+
+        /// <summary>The explicit signing, or the host's (<see cref="TokenSigning.Current{TResult}"/>), with its RSA key opened.</summary>
+        private static TResult WithSigning<TResult>(TokenSigning signing,
+            Func<TokenSigning, System.Security.Cryptography.RSACryptoServiceProvider, TResult> onSigning,
+            Func<string, TResult> missingConfigurationSetting,
+            Func<string, string, TResult> invalidConfigurationSetting)
+        {
+            return signing != null
+                ? Open(signing)
+                : TokenSigning.Current(Open,
+                    issue => issue.Category == EastFive.Configuration.ConfigIssueCategory.Invalid
+                        ? invalidConfigurationSetting(issue.Key, issue.ToString())
+                        : missingConfigurationSetting(issue.ToString()));
+
+            TResult Open(TokenSigning current)
+                => current.WithRsa(rsa => onSigning(current, rsa),
+                    why => invalidConfigurationSetting(nameof(TokenSigning.RsaKey), why));
         }
 
         public static TResult CreateToken<TResult>(Uri scope,
@@ -113,36 +129,20 @@ namespace EastFive.Security.Tokens
             Func<string, TResult> tokenCreated,
             Func<string, TResult> missingConfigurationSetting,
             Func<string, string, TResult> invalidConfigurationSetting,
-            string configNameOfIssuer = EastFive.Security.AppSettings.TokenIssuer,
-            string configNameOfRSAKey = EastFive.Security.AppSettings.TokenKey,
-            string configNameOfRSAAlgorithm = EastFive.Security.AppSettings.TokenAlgorithm,
+            TokenSigning signing = default,
             IEnumerable<KeyValuePair<string, string>> tokenHeaders = default)
         {
-            return RSA.RSAFromConfig(configNameOfRSAKey,
-                (rsaProvider) =>
+            return WithSigning(signing,
+                (current, rsaProvider) =>
                 {
-                    return configNameOfIssuer.ConfigurationString(
-                        issuer =>
-                        {
-                            if (string.IsNullOrWhiteSpace(issuer))
-                                return missingConfigurationSetting(configNameOfIssuer);
-                            var algorithm = configNameOfRSAAlgorithm.ConfigurationString(
-                                algorithm =>
-                                {
-                                    if (string.IsNullOrWhiteSpace(algorithm))
-                                        return Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSha256Signature;
-                                    return algorithm;
-                                },
-                                why => Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSha256Signature);
-                            var jwt = rsaProvider.JwtToken(issuer, scope, claims,
-                                        issued, duration, algorithm, tokenHeaders);
-                            return tokenCreated(jwt);
-                        },
-                            (why) => missingConfigurationSetting(configNameOfIssuer));
+                    if (string.IsNullOrWhiteSpace(current.Issuer))
+                        return missingConfigurationSetting(EastFive.Security.AppSettings.TokenIssuer);
+                    var jwt = rsaProvider.JwtToken(current.Issuer, scope, claims,
+                                issued, duration, current.Algorithm, tokenHeaders);
+                    return tokenCreated(jwt);
                 },
-                () => missingConfigurationSetting("missing"),
-                (issue) => invalidConfigurationSetting(
-                    configNameOfRSAKey, issue));
+                missingConfigurationSetting,
+                invalidConfigurationSetting);
         }
 
         public static TResult ParseToken<TResult>(
@@ -181,17 +181,17 @@ namespace EastFive.Security.Tokens
             Func<string, TResult> invalidToken,
             Func<string, TResult> missingConfigurationSetting,
             Func<string, string, TResult> invalidConfigurationSetting,
-            string configNameOfIssuerToValidateAgainst = AppSettings.TokenIssuer,
-            string configNameOfRsaKeyToValidateAgainst = AppSettings.TokenKey)
+            TokenSigning validateAgainst = default)
         {
-            var result = configNameOfRsaKeyToValidateAgainst.RSAFromConfig(
-                rsaProvider =>
+            var result = WithSigning(validateAgainst,
+                (signing, rsaProvider) =>
                 {
-                    return configNameOfIssuerToValidateAgainst.ConfigurationString(
-                        (issuer) =>
+                    return ValidateIssuedBy(signing.Issuer);
+
+                    TResult ValidateIssuedBy(string issuer)
                         {
                             if (string.IsNullOrEmpty(issuer))
-                                return missingConfigurationSetting(configNameOfIssuerToValidateAgainst);
+                                return missingConfigurationSetting(AppSettings.TokenIssuer);
 
                             var validationParameters = new TokenValidationParameters()
                             {
@@ -267,8 +267,7 @@ namespace EastFive.Security.Tokens
                             {
                                 return invalidToken(ex.Message);
                             }
-                        },
-                        (why) => missingConfigurationSetting(why));
+                        }
 
             //var result = RSA.FromConfig(configNameOfRsaKeyToValidateAgainst,
             //    (rsaProvider) =>
@@ -327,9 +326,8 @@ namespace EastFive.Security.Tokens
             //            }
             //        }
                 },
-                () => missingConfigurationSetting(configNameOfRsaKeyToValidateAgainst),
-                (issue) => invalidConfigurationSetting(
-                    configNameOfRsaKeyToValidateAgainst, issue));
+                missingConfigurationSetting,
+                invalidConfigurationSetting);
             return result;
         }
 
@@ -398,35 +396,6 @@ namespace EastFive.Security.Tokens
         }
         
         
-
-        public static TResult CreateToken<TResult>(Uri scope,
-            DateTime issued, TimeSpan duration,
-            IEnumerable<Claim> claims,
-            Func<string, TResult> tokenCreated,
-            Func<string, TResult> missingConfigurationSetting,
-            Func<string, string, TResult> invalidConfigurationSetting,
-            string configNameOfIssuer = EastFive.Security.AppSettings.TokenIssuer,
-            string configNameOfRSAKey = EastFive.Security.AppSettings.TokenKey)
-        {
-            return configNameOfRSAKey.RSAFromConfig(
-                (rsaProvider) =>
-                {
-                    return configNameOfIssuer.ConfigurationString(
-                        issuer =>
-                        {
-                            if (string.IsNullOrWhiteSpace(issuer))
-                                return missingConfigurationSetting(configNameOfIssuer);
-
-                            var jwt = rsaProvider.JwtToken(issuer, scope, claims,
-                                issued, duration, Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSha256Signature);
-                            return tokenCreated(jwt);
-                        },
-                        missingConfigurationSetting);
-                },
-                () => missingConfigurationSetting(configNameOfRSAKey),
-                (issue) => invalidConfigurationSetting(
-                    configNameOfRSAKey, issue));
-        }
 
         public static TResult GetGuidValue<TResult>(this Claim[] claims, string key,
             Func<Guid, TResult> found,

@@ -33,18 +33,10 @@ namespace EastFive.Azure.Search
 
         public static SearchIndexClient GetIndexClient()
         {
-            return AppSettings.Search.EndPoint.ConfigurationString(
-                searchServiceEndPoint =>
-                {
-                    return AppSettings.Search.AdminApiKey.ConfigurationString(
-                        adminApiKey =>
-                        {
-                            var indexClient = new SearchIndexClient(
-                                new Uri(searchServiceEndPoint), new AzureKeyCredential(adminApiKey),
-                                ClientOptions);
-                            return indexClient;
-                        });
-                });
+            return EastFive.Configuration.StartupConfiguration.Get<SearchConfiguration, SearchIndexClient>(
+                search => new SearchIndexClient(search.EndPoint,
+                    new AzureKeyCredential(search.AdminApiKey.Reveal()), ClientOptions),
+                issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(SearchConfiguration), issue.ToString()));
         }
 
         public static SearchClient GetClient<T>()

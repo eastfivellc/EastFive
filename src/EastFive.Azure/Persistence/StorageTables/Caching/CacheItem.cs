@@ -224,18 +224,7 @@ namespace EastFive.Persistence.Azure.StorageTables.Caching
 
         private BlobServiceClient GetBlobClient()
         {
-            var blobClient = EastFive.Azure.AppSettings.Persistence.StorageTables.ConnectionString.ConfigurationString(
-                (storageSetting) =>
-                {
-                    var cloudStorageAccount = CloudStorageAccount.Parse(storageSetting);
-                    var bc = new BlobServiceClient(storageSetting);
-                    return bc;
-                },
-                (issue) =>
-                {
-                    throw new Exception($"Azure storage key not specified: {issue}");
-                });
-            return blobClient;
+            return new BlobServiceClient(EastFive.Azure.Persistence.StorageAccount.Tables.ConnectionStringOrThrow());
         }
 
         private async Task ImportResponseAsync(HttpResponseMessage response, byte[] responseData,

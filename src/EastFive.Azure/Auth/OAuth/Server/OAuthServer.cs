@@ -20,22 +20,12 @@ namespace EastFive.Azure.OAuth.Server
             /// Lifetime of OAuth access tokens (issued from /oauth/token) in minutes.
             /// Deliberately separate from the session-token lifetime settings.
             /// </summary>
-            [EastFive.Web.ConfigKey(
-                "Lifetime of OAuth access tokens in minutes (default 60).",
-                EastFive.Web.DeploymentOverrides.Suggested,
-                DeploymentSecurityConcern = false,
-                Location = "Application configuration")]
             public const string AccessTokenExpirationInMinutes =
                 "EastFive.Azure.OAuth.AccessTokenExpirationInMinutes";
 
             /// <summary>
             /// Lifetime of OAuth refresh tokens in days (default 30).
             /// </summary>
-            [EastFive.Web.ConfigKey(
-                "Lifetime of OAuth refresh tokens in days (default 30).",
-                EastFive.Web.DeploymentOverrides.Suggested,
-                DeploymentSecurityConcern = false,
-                Location = "Application configuration")]
             public const string RefreshTokenExpirationInDays =
                 "EastFive.Azure.OAuth.RefreshTokenExpirationInDays";
 
@@ -44,11 +34,6 @@ namespace EastFive.Azure.OAuth.Server
             /// documents (default "mcp"). Advisory — tokens carry whatever scope the
             /// authorization granted; endpoints enforce via [RequiredScope].
             /// </summary>
-            [EastFive.Web.ConfigKey(
-                "Space-separated OAuth scopes advertised in discovery metadata (default `mcp`).",
-                EastFive.Web.DeploymentOverrides.Optional,
-                DeploymentSecurityConcern = false,
-                Location = "Application configuration")]
             public const string ScopesSupported =
                 "EastFive.Azure.OAuth.ScopesSupported";
         }

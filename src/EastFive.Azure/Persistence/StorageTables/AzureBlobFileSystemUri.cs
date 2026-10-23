@@ -37,12 +37,10 @@ namespace EastFive.Azure.Persistence.StorageTables
             this.storageName = storageName;
         }
 
-        public static AzureBlobFileSystemUri FromConnectionString(ConnectionString connectionStringKey,
+        /// <summary>A path in a store; the abfs account segment is the store's account name.</summary>
+        public static AzureBlobFileSystemUri FromStorageAccount(EastFive.Azure.Persistence.StorageAccount storageAccount,
             string containerName, string path)
-        {
-            var storageName = connectionStringKey.ConfigurationString(ParseConnectionStringForAccountName);
-            return new AzureBlobFileSystemUri(containerName, path, storageName);
-        }
+            => new AzureBlobFileSystemUri(containerName, path, storageAccount.AccountName);
 
         public AzureBlobFileSystemUri AppendToPath(string fileNameOrDirectory)
         {
@@ -53,35 +51,14 @@ namespace EastFive.Azure.Persistence.StorageTables
             return new AzureBlobFileSystemUri(this.containerName, newPath, this.storageName);
         }
 
-        private static string ParseConnectionStringForAccountName(string connectionString)
-        {
-            var accountNameRegexVariable = "accountName";
-            if (!connectionString.TryMatchRegex($"AccountName=(?<{accountNameRegexVariable}>[^;]+)", out (string, string)[] matches))
-                return string.Empty;
-
-            return matches
-                .Where(match => accountNameRegexVariable.Equals(match.Item1, StringComparison.OrdinalIgnoreCase))
-                .First(
-                    (match, next) =>
-                    {
-                        var storageName = match.Item2;
-                        return storageName;
-                    },
-                    () => string.Empty);
-        }
-
-        public ConnectionString ConnectionString
-        {
-            get
-            {
-                var connectionString = EastFive.Azure.AppSettings.Persistence.DataLake.ConnectionString.ConfigurationString(x => x);
-                var dlAccoutnName = ParseConnectionStringForAccountName(connectionString);
-                if (String.Equals(dlAccoutnName, this.storageName))
-                    return EastFive.Azure.AppSettings.Persistence.DataLake.ConnectionString;
-
-                return EastFive.Azure.AppSettings.Persistence.StorageTables.ConnectionString;
-            }
-        }
+        /// <summary>The store this uri's account belongs to: the data lake when the account names
+        /// match, otherwise the default table store.</summary>
+        public EastFive.Azure.Persistence.StorageAccount StorageAccount
+            => EastFive.Azure.Persistence.StorageAccount.DataLake.Configuration(
+                dataLake => String.Equals(dataLake.Account.Trim(), this.storageName, StringComparison.OrdinalIgnoreCase)
+                    ? EastFive.Azure.Persistence.StorageAccount.DataLake
+                    : EastFive.Azure.Persistence.StorageAccount.Tables,
+                _ => EastFive.Azure.Persistence.StorageAccount.Tables);
 
         public string AbfssUri
         {

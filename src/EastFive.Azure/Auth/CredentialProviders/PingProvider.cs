@@ -76,9 +76,10 @@ namespace EastFive.Azure.Auth.CredentialProviders
             var agentId = extraParams[PingProvider.AgentId];
             var restAuthUsername = extraParams[PingProvider.RestApiKey];
 
-            return await EastFive.Azure.AppSettings.Auth.Ping.PingIdentityAthenaRestApiKey.ConfigurationString(
-                async (restApiKey) =>
+            return await await EastFive.Configuration.ConfigurationLoader.LoadAsync<EastFive.Azure.Auth.PingAthenaConfiguration, Task<TResult>>(
+                async (configuration) =>
                 {
+                    var restApiKey = configuration.RestApiKey.Reveal();
                     using (var httpClient = new HttpClient())
                     {
                         var credentials = Encoding.ASCII.GetBytes($"{restAuthUsername}:{restApiKey}");
@@ -148,7 +149,9 @@ namespace EastFive.Azure.Auth.CredentialProviders
                         }
                     }
                 },
-                (why) => onUnspecifiedConfiguration(why).AsTask());
+                Unspecified, Unspecified, Unspecified);
+
+            Task<TResult> Unspecified(EastFive.Configuration.ConfigIssue issue) => onUnspecifiedConfiguration(issue.ToString()).AsTask();
         }
         
         public TResult ParseCredentailParameters<TResult>(IDictionary<string, string> responseParams, 

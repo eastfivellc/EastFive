@@ -228,18 +228,11 @@ namespace EastFive.Azure.Login
             Func<IProvideLogin, TResult> onLoaded,
             Func<string, TResult> onNotAvailable)
         {
-            return AppSettings.ClientKey.ConfigurationGuid(
-                (clientKey) =>
-                {
-                    return AppSettings.ClientSecret.ConfigurationString(
-                        (clientSecret) =>
-                        {
-                            var provider = new CredentialProvider(clientKey, clientSecret);
-                            return onLoaded(provider);
-                        },
-                        onNotAvailable);
-                },
-                onNotAvailable).AsTask();
+            return EastFive.Configuration.ConfigurationLoader.LoadAsync<EastFive.Azure.Auth.EastFiveLoginConfiguration, TResult>(
+                configuration => onLoaded(new CredentialProvider(configuration.ClientKey, configuration.ClientSecret.Reveal())),
+                issue => onNotAvailable(issue.ToString()),
+                issue => onNotAvailable(issue.ToString()),
+                issue => onNotAvailable(issue.ToString()));
         }
     }
 }

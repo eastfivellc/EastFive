@@ -199,12 +199,11 @@ namespace EastFive.Azure.Auth.Salesforce
 			Func<string, TResult> onRefreshed,
 			Func<string, TResult> onFailure)
 		{
-			return EastFive.Azure.AppSettings.Auth.Salesforce.ConsumerKey.ConfigurationString(
-				clientId =>
-				{
-					return EastFive.Azure.AppSettings.Auth.Salesforce.ConsumerSecret.ConfigurationString(
-						async clientSecret =>
+			return EastFive.Configuration.ConfigurationLoader.LoadAsync<EastFive.Azure.Auth.SalesforceConfiguration, Task<TResult>>(
+						async configuration =>
 						{
+							var clientId = configuration.ConsumerKey;
+							var clientSecret = configuration.ConsumerSecret.Reveal();
 							Uri.TryCreate($"{this.instanceUrl}/services/oauth2/token", UriKind.Absolute, out Uri refreshUrl);
 							var startAttempt = DateTime.Now;
 
@@ -256,9 +255,10 @@ namespace EastFive.Azure.Auth.Salesforce
 									tokenLock.Set();
 									return onFailure(why).AsTask();
 								});
-						});
-				});
+						},
+						NotConfigured, NotConfigured, NotConfigured).Unwrap();
 
+			Task<TResult> NotConfigured(EastFive.Configuration.ConfigIssue issue) => onFailure(issue.ToString()).AsTask();
 		}
 
 		private static object describeCacheLock = new object();

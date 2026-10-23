@@ -195,7 +195,7 @@ namespace EastFive.Azure.Spa
             Func<Stream, TResult> onFound,
             Func<TResult> onNotFound)
         {
-            return EastFive.Azure.AppSettings.SPA.SpaStorage.ConfigurationString(
+            return EastFive.Azure.Persistence.StorageAccount.Spa.ConnectionString(
                 async connectionString =>
                 {
                     try
@@ -219,7 +219,7 @@ namespace EastFive.Azure.Spa
             Func<TResult> onSaved,
             Func<string, TResult> onFailure)
         {
-            return EastFive.Azure.AppSettings.SPA.SpaStorage.ConfigurationString(
+            return EastFive.Azure.Persistence.StorageAccount.Spa.ConnectionString(
                 async connectionString =>
                 {
                     try
@@ -240,7 +240,7 @@ namespace EastFive.Azure.Spa
                         return onFailure(ex.Message);
                     }
                 },
-                why => onFailure(why).AsTask());
+                issue => onFailure(issue.ToString()).AsTask());
         }
 
         private static async Task<(bool, int?, Dictionary<string, byte[]>, Route[], Route?)> LoadSpaAsync(

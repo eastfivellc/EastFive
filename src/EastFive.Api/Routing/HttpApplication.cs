@@ -559,23 +559,21 @@ namespace EastFive.Api
                     typeof(Controllers.ApiSecurity),
                     (httpApp, routeData, paramInfo, success) =>
                     {
-                        return EastFive.Web.Configuration.Settings.GetString(AppSettings.ApiKey,
-                            (authorizedApiKey) =>
+                        return EastFive.Configuration.ConfigurationLoader.LoadAsync<ApiKeyConfiguration, Task<IHttpResponse>>(
+                            apiKey =>
                             {
                                 var queryParams = System.Web.HttpUtility.ParseQueryString(routeData.GetAbsoluteUri().Query);
-                                if (queryParams[ApiSecurityAttribute.apiKeySecurity] == authorizedApiKey)
+                                if (apiKey.Accepts(queryParams[ApiSecurityAttribute.apiKeySecurity]))
                                     return success(new Controllers.ApiSecurity());
 
-                                var authorization = routeData.GetAuthorization();
-
-                                if(authorization == authorizedApiKey)
-                                    return success(new Controllers.ApiSecurity());
-                                if(authorization == authorizedApiKey)
+                                if (apiKey.Accepts(routeData.GetAuthorization()))
                                     return success(new Controllers.ApiSecurity());
 
                                 return routeData.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
                             },
-                            (why) => routeData.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
+                            issue => routeData.CreateResponse(HttpStatusCode.Unauthorized).AddReason(issue.ToString()).AsTask(),
+                            issue => routeData.CreateResponse(HttpStatusCode.Unauthorized).AddReason(issue.ToString()).AsTask(),
+                            issue => routeData.CreateResponse(HttpStatusCode.Unauthorized).AddReason(issue.ToString()).AsTask()).Unwrap();
                     }
                 },
 

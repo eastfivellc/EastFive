@@ -45,13 +45,9 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
         }
 
         public static IQueryable<TResource> CreateQuery(
-            ConnectionString storageConnectionKey = default)
+            EastFive.Azure.Persistence.StorageAccount storageAccount = default)
         {
-            if (storageConnectionKey.IsDefaultOrNull())
-                storageConnectionKey = EastFive.Azure.AppSettings.Persistence.StorageTables.ConnectionString;
-
-            var driver = AzureTableDriverDynamic
-                .FromSettings(storageConnectionKey);
+            var driver = AzureTableDriverDynamic.FromSettings(storageAccount);
             return new StorageQuery<TResource>(driver);
         }
 

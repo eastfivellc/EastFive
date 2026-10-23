@@ -4,15 +4,14 @@ using System;
 namespace EastFive.Configuration
 {
     /// <summary>
-    /// WHERE a secret lives, distinct from the secret itself so a reference can never be passed
-    /// where a credential is expected. Today it is a config key the whole-vault
-    /// <c>IConfiguration</c> provider serves synchronously; a vault alias + name + version is the
-    /// intended later shape, resolved through a direct secret client rather than back through
-    /// <c>IConfiguration</c> (so the dot/dash key mapping never round-trips).
+    /// WHICH secret serves a member, distinct from the secret itself so a reference can never be
+    /// passed where a credential is expected. <see cref="Name"/> is the secret's name in the
+    /// secret store (a vault secret name, <c>[A-Za-z0-9-]</c>), read directly by a secret client
+    /// rather than back through <c>IConfiguration</c>, so no dot/dash key mapping ever applies.
     /// </summary>
-    public sealed record SecretReference(string Key, string Purpose)
+    public sealed record SecretReference(string Name, string Purpose)
     {
-        public override string ToString() => $"{Purpose} -> [{Key}]";
+        public override string ToString() => $"{Purpose} -> [{Name}]";
     }
 
     /// <summary>

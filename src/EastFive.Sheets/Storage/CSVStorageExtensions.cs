@@ -41,7 +41,7 @@ namespace EastFive.Sheets.Storage
                 onSuccess:(blobInfo) => blobInfo,
                 contentDisposition: contentDisposition,
                 contentType: contentType,
-                connectionStringConfigKey: EastFive.Azure.AppSettings.Persistence.DataLake.ConnectionString);
+                storageAccount: EastFive.Azure.Persistence.StorageAccount.DataLake);
         }
 
         public static async Task<BlobContentInfo> StorageSaveCSV(this IEnumerable<string[]> csvData,

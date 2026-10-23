@@ -32,7 +32,7 @@ namespace EastFive.Security
             byte[] signatureData;
             var hashedData = ComputeHashData(authId, validUntilUtc, out signatureData);
 
-            return AppSettings.CredentialProviderVoucherKey.RSAFromConfig(
+            return VoucherConfiguration.WithKey(
                 (trustedVoucherPrivateKey) =>
                 {
                     using (trustedVoucherPrivateKey)
@@ -46,9 +46,9 @@ namespace EastFive.Security
                         return success(token);
                     }
                 },
-                () => missingConfigurationSetting(AppSettings.CredentialProviderVoucherKey),
+                () => missingConfigurationSetting(nameof(VoucherConfiguration)),
                 (issue) => invalidConfigurationSetting(
-                    AppSettings.CredentialProviderVoucherKey, issue));
+                    nameof(VoucherConfiguration), issue));
         }
 
         public static TResult GenerateUrlToken<TResult>(Guid authId, DateTime validUntilUtc,
@@ -84,7 +84,7 @@ namespace EastFive.Security
             byte[] signatureData;
             var hashedData = ComputeHashData(authId, validUntilUtc, out signatureData);
 
-            return AppSettings.CredentialProviderVoucherKey.RSAFromConfig(
+            return VoucherConfiguration.WithKey(
                 (trustedVoucherPrivateKey) =>
                 {
                     using (trustedVoucherPrivateKey)
@@ -95,9 +95,9 @@ namespace EastFive.Security
                         return success(tokenBytes);
                     }
                 },
-                () => missingConfigurationSetting(AppSettings.CredentialProviderVoucherKey),
+                () => missingConfigurationSetting(nameof(VoucherConfiguration)),
                 (issue) => invalidConfigurationSetting(
-                    AppSettings.CredentialProviderVoucherKey, issue));
+                    nameof(VoucherConfiguration), issue));
         }
 
         public static TResult ValidateToken<TResult>(string accessToken,
@@ -141,7 +141,7 @@ namespace EastFive.Security
             byte[] signatureData;
             var hashedData = ComputeHashData(authId, validUntilUtc, out signatureData);
 
-            return AppSettings.CredentialProviderVoucherKey.RSAFromConfig(
+            return VoucherConfiguration.WithKey(
                 (trustedVoucher) =>
                 {
                     using (trustedVoucher)
@@ -155,9 +155,9 @@ namespace EastFive.Security
                         return success(authId);
                     }
                 },
-                () => missingConfigurationSetting(AppSettings.CredentialProviderVoucherKey),
+                () => missingConfigurationSetting(nameof(VoucherConfiguration)),
                 (issue) => invalidConfigurationSetting(
-                    AppSettings.CredentialProviderVoucherKey, issue));
+                    nameof(VoucherConfiguration), issue));
         }
 
         public static TResult ValidateUrlToken<TResult>(string accessToken,

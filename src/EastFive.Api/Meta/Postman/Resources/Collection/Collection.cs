@@ -14,6 +14,15 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
 {
     public class Collection : IReferenceable
     {
+        /// <summary>The Postman API key, from the host's startup-loaded <see cref="PostmanConfiguration"/>.</summary>
+        private static TResult WithPostmanKey<TResult>(Func<string, TResult> onKey,
+            Func<string, TResult> onUnspecified = default)
+            => EastFive.Configuration.StartupConfiguration.Get<PostmanConfiguration, TResult>(
+                configuration => onKey(configuration.ApiKey.Reveal()),
+                issue => onUnspecified is null
+                    ? throw new EastFive.Web.ConfigurationException(issue.Key, typeof(PostmanConfiguration), issue.ToString())
+                    : onUnspecified(issue.ToString()));
+
         public Guid id => info._postman_id;
 
         public Info info { get; set; }
@@ -25,7 +34,7 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
             Func<TResult> onNotFound,
             Func<string, TResult> onFailure = default)
         {
-            return EastFive.Api.AppSettings.Postman.ApiKey.ConfigurationString(
+            return WithPostmanKey(
                 apiKey =>
                 {
                     Uri.TryCreate($"https://api.getpostman.com/collections/{collectionId}", UriKind.Absolute, out Uri getCollectionsUri);
@@ -53,7 +62,7 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
             Func<CollectionSummary, TResult> onCreated)
         {
             var collection = new CollectionCollection() { collection = this };
-            return EastFive.Api.AppSettings.Postman.ApiKey.ConfigurationString(
+            return WithPostmanKey(
                 apiKey =>
                 {
                     Uri.TryCreate($"https://api.getpostman.com/collections", UriKind.Absolute, out Uri getCollectionsUri);
@@ -221,7 +230,7 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
             Func<string, TResult> onFailure)
         {
             var collection = new CollectionCollection() { collection = this };
-            return EastFive.Api.AppSettings.Postman.ApiKey.ConfigurationString(
+            return WithPostmanKey(
                 apiKey =>
                 {
                     Uri.TryCreate($"https://api.getpostman.com/collections/{collection.collection.id}", UriKind.Absolute, out Uri getCollectionsUri);

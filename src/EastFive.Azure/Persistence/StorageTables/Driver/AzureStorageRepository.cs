@@ -62,15 +62,10 @@ namespace BlackBarLabs.Persistence.Azure.StorageTables
         }
 
         public static AzureStorageRepository CreateRepository(
-            string storageSettingConfigurationKeyName)
+            EastFive.Azure.Persistence.StorageAccount storageAccount)
         {
-            return storageSettingConfigurationKeyName.ConfigurationString(
-                connectionString =>
-                {
-                    var cloudStorageAccount = CloudStorageAccount.Parse(connectionString);
-                    var azureStorageRepository = new AzureStorageRepository(cloudStorageAccount, connectionString);
-                    return azureStorageRepository;
-                });
+            var connectionString = storageAccount.ConnectionStringOrThrow();
+            return new AzureStorageRepository(CloudStorageAccount.Parse(connectionString), connectionString);
         }
 
 

@@ -35,18 +35,18 @@ namespace EastFive.Api.Controllers
                 ParameterInfo parameterInfo,
             Func<object, Task<IHttpResponse>> onSuccess)
         {
-            return EastFive.Web.Configuration.Settings.GetString(AppSettings.ApiKey,
-                (authorizedApiKey) =>
+            return EastFive.Configuration.ConfigurationLoader.LoadAsync<ApiKeyConfiguration, Task<IHttpResponse>>(
+                apiKey =>
                 {
                     var queryParams = System.Web.HttpUtility.ParseQueryString(request.GetAbsoluteUri().Query);
-                    if (queryParams[apiKeySecurity] == authorizedApiKey)
+                    if (apiKey.Accepts(queryParams[apiKeySecurity]))
                         return onSuccess(new Controllers.ApiSecurity
                         { 
                             key = queryParams[apiKeySecurity],
                         });
 
                     var authorization = request.GetAuthorization();
-                    if (authorization == authorizedApiKey)
+                    if (apiKey.Accepts(authorization))
                         return onSuccess(new Controllers.ApiSecurity 
                         { 
                             key = authorization,
@@ -54,7 +54,10 @@ namespace EastFive.Api.Controllers
 
                     return request.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
                 },
-                (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
+                Unauthorized, Unauthorized, Unauthorized).Unwrap();
+
+            Task<IHttpResponse> Unauthorized(EastFive.Configuration.ConfigIssue issue)
+                => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(issue.ToString()).AsTask();
         }
     }
 }

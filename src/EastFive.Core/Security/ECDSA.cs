@@ -43,17 +43,23 @@ public static class ECDSA
         }
     }
 
-    public static TResult FromConfig<TResult>(string privateKeyConfigurationName,
-        Func<System.Security.Cryptography.ECDsa, 
+    /// <summary>An ECDSA private key held as a secret (base64). There is no configuration-key overload.</summary>
+    public static TResult FromSecret<TResult>(EastFive.Configuration.Secret privateKey,
+        Func<System.Security.Cryptography.ECDsa,
             string, // alg
             TResult> onSuccess,
-        Func<TResult> onNotSpecified,
         Func<string, TResult> onFailure)
     {
-        return privateKeyConfigurationName.ConfigurationBase64Bytes(
-            (keyBytes) => FromPrivateKey(keyBytes, onSuccess, onFailure),               
-            onFailure,
-            onNotSpecified);
+        byte[] keyBytes;
+        try
+        {
+            keyBytes = Convert.FromBase64String(privateKey.Reveal());
+        }
+        catch (FormatException)
+        {
+            return onFailure("The ECDSA key is not base64.");
+        }
+        return FromPrivateKey(keyBytes, onSuccess, onFailure);
     }
 
     public static TResult GetPublicJWK<TResult>(this System.Security.Cryptography.ECDsa ecdsa,

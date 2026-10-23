@@ -10,18 +10,8 @@ namespace EastFive.Azure.Login
     [Config]
     public static class AppSettings
     {
-        [ConfigKey("Client ID for login", DeploymentOverrides.Suggested,
-            DeploymentSecurityConcern = false,
-            Location = "Stored in AST for given environment",
-            PrivateRepositoryOnly = false,
-            MoreInfo = "Should be of type GUID")]
+        /// <summary>Client ID for login</summary>
         public const string ClientKey = "EastFive.Azure.Login.ClientKey";
 
-        [ConfigKey("Client Key for login", DeploymentOverrides.Mandatory,
-            DeploymentSecurityConcern = true,
-            Location = "Stored in AST for given environment.",
-            PrivateRepositoryOnly = true,
-            MoreInfo = "Base64 string")]
-        public const string ClientSecret = "EastFive.Azure.Login.ClientSecret";
     }
 }

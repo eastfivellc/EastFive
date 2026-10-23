@@ -18,8 +18,7 @@ namespace EastFive.Web
         public static TResult GetClaimsJwtString<TResult>(this string jwtString,
             Func<IEnumerable<Claim>, TResult> success,
             Func<string, TResult> failure,
-            string issuerConfigSetting = EastFive.Security.AppSettings.TokenIssuer,
-            string validationKeyConfigSetting = EastFive.Security.AppSettings.TokenKey)
+            EastFive.Security.Tokens.TokenSigning validateAgainst = default)
         {
             try
             {
@@ -44,7 +43,7 @@ namespace EastFive.Web
                     {
                         return failure($"Invalid config setting[{setting}]:{why}");
                     },
-                    issuerConfigSetting, validationKeyConfigSetting);
+                    validateAgainst);
                 return result;
             }
             catch (Exception)

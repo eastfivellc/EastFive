@@ -8,7 +8,6 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-using EastFive.Web.Configuration;
 
 namespace EastFive.Api.Auth
 {
@@ -17,8 +16,9 @@ namespace EastFive.Api.Auth
     /// first-party machine client. Compose it into an <see cref="HttpClient"/> and every
     /// request goes out with <c>Authorization: Bearer</c>:
     /// <code>
-    /// var handler = ClientCredentialsHandler.FromConfiguration(
-    ///     "Rosemary.TokenEndpoint", "Rosemary.ClientId", "Rosemary.ClientSecret", "Rosemary.Scope");
+    /// // a typed configuration (IProvideConfiguration + IProvideClientCredentials) whose
+    /// // ClientSecret member is read from the secret store by its generated name
+    /// var handler = ClientCredentialsHandler.From(await LoadMyServiceConfigurationAsync());
     /// var http = new HttpClient(handler) { BaseAddress = rosemaryBaseUri };
     /// </code>
     /// Behavior:
@@ -79,26 +79,14 @@ namespace EastFive.Api.Auth
         }
 
         /// <summary>
-        /// Builds a handler from process configuration so a consumer keeps the client id in
-        /// appsettings and the secret in Key Vault: <paramref name="endpointKey"/>,
-        /// <paramref name="clientIdKey"/>, <paramref name="clientSecretKey"/> are REQUIRED keys
-        /// (a missing one throws <see cref="EastFive.Web.ConfigurationException"/>);
-        /// <paramref name="scopeKey"/> is optional and its absence means "registered scope".
+        /// Builds a handler from a consumer's typed configuration: the client id and endpoint are
+        /// values, the secret came from the secret store (never a configuration key read here).
+        /// A blank scope means "registered scope".
         /// </summary>
-        public static ClientCredentialsHandler FromConfiguration(string endpointKey,
-            string clientIdKey, string clientSecretKey, string scopeKey = null)
-        {
-            return endpointKey.ConfigurationUri(
-                endpoint => clientIdKey.ConfigurationString(
-                    clientId => clientSecretKey.ConfigurationString(
-                        clientSecret =>
-                        {
-                            var scope = string.IsNullOrWhiteSpace(scopeKey)
-                                ? null
-                                : scopeKey.ConfigurationString(s => s, why => (string)null);
-                            return new ClientCredentialsHandler(endpoint, clientId, clientSecret, scope);
-                        })));
-        }
+        public static ClientCredentialsHandler From(IProvideClientCredentials credentials,
+            TimeProvider timeProvider = null)
+            => new ClientCredentialsHandler(credentials.TokenEndpoint, credentials.ClientId,
+                credentials.ClientSecret.Reveal(), credentials.Scope, timeProvider);
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
             CancellationToken cancellationToken)
@@ -332,5 +320,16 @@ namespace EastFive.Api.Auth
             var trimmed = body.Trim();
             return trimmed.Length <= 200 ? trimmed : trimmed.Substring(0, 200) + "...";
         }
+    }
+
+    /// <summary>What a client-credentials client needs, implemented by a consumer's typed
+    /// configuration (its <see cref="ClientSecret"/> is a secret-store member).</summary>
+    public interface IProvideClientCredentials
+    {
+        Uri TokenEndpoint { get; }
+        string ClientId { get; }
+        EastFive.Configuration.Secret ClientSecret { get; }
+        /// <summary>Space-delimited scope, or null for the client's registered scope.</summary>
+        string Scope { get; }
     }
 }
