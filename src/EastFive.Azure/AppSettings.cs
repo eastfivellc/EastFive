@@ -182,9 +182,6 @@ namespace EastFive.Azure
             /// <summary>ID of the client</summary>
             public const string ClientId = "EastFive.Azure.AzureADB2C.ClientId";
 
-            /// <summary>ID of the client</summary>
-            public const string ClientSecret = "EastFive.Azure.AzureADB2C.ClientSecret";
-
             /// <summary>The claim identifier used to determine the login subject key.</summary>
             public const string LoginIdClaimType = "EastFive.Azure.Auth.AzureADB2C.LoginIdClaimType";
         }
@@ -202,9 +199,6 @@ namespace EastFive.Azure
                 /// <summary>ID used to identify the application to apple.</summary>
                 public const string ClientId = "EastFive.Apple.ClientId";
 
-                /// <summary>Key used to redeem a token code to Apple.</summary>
-                public const string AppSecret = "EastFive.Apple.ClientSecret";
-
                 /// <summary>This is the list of audiences that are valid for the Apple JWT. This should include the ClientID.</summary>
                 public const string ValidAudiences = "EastFive.Apple.ValidAudiences";
             }
@@ -215,8 +209,6 @@ namespace EastFive.Azure
                 /// <summary>ID used to identify the application to Google.</summary>
                 public const string ClientId = "EastFive.Google.ClientID";
 
-                /// <summary>Key used to redeem a token code to Google.</summary>
-                public const string ClientSecret = "EastFive.Google.ClientSecret";
             }
 
             [Config]
@@ -225,14 +217,11 @@ namespace EastFive.Azure
                 /// <summary>ID used to identify the application to MS.</summary>
                 public const string ClientId = "EastFive.Microsoft.ClientID";
 
-                /// <summary>Key used to redeem a token code to MS.</summary>
-                public const string ClientSecret = "EastFive.Microsoft.ClientSecret";
             }
 
             [Config]
             public static class Ping
             {
-                public const string PingIdentityAthenaRestApiKey = "EastFive.Security.LoginProvider.PingIdentity.Athena.RestApiKey";
                 public const string PingIdentityAthenaRestAuthUsername = "EastFive.Security.LoginProvider.PingIdentity.Athena.RestAuthUsername";
             }
 
@@ -245,8 +234,6 @@ namespace EastFive.Azure
                 /// <summary>ID used to identify the application to Salesforce.</summary>
                 public const string ConsumerKey = "EastFive.Salesforce.ConsumerKey";
 
-                /// <summary>Key used to redeem a token code.</summary>
-                public const string ConsumerSecret = "EastFive.Salesforce.ConsumerSecret";
             }
 
             [Config]

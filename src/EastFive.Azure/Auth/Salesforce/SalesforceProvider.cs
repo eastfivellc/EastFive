@@ -367,16 +367,12 @@ namespace EastFive.Azure.Auth.Salesforce
             Func<IProvideLogin, TResult> onProvideAuthorization,
             Func<string, TResult> onNotAvailable)
         {
-            var discoveryDocumentUrl = AppSettings.Auth.Salesforce.DocumentDiscoveryUrl.ConfigurationUri(
-                ddUrl => ddUrl,
-                onNotSpecified:() => new Uri("https://login.salesforce.com/.well-known/openid-configuration"));
-
-            return AppSettings.Auth.Salesforce.ConsumerKey.ConfigurationString(
-                consumerKey =>
-                {
-                    return AppSettings.Auth.Salesforce.ConsumerSecret.ConfigurationString(
-                        async (consumerSecret) =>
+            return EastFive.Configuration.ConfigurationLoader.LoadAsync<SalesforceConfiguration, Task<TResult>>(
+                        async (configuration) =>
                         {
+                            var discoveryDocumentUrl = configuration.DiscoveryDocument;
+                            var consumerKey = configuration.ConsumerKey;
+                            var consumerSecret = configuration.ConsumerSecret.Reveal();
                             return await await discoveryDocumentUrl.HttpClientGetResourceAsync(
                                 (DiscoveryDocument discDoc) =>
                                 {
@@ -391,9 +387,9 @@ namespace EastFive.Azure.Auth.Salesforce
                                 },
                                 onFailure: (why) => onNotAvailable(why).AsTask());
                         },
-                        (why) => onNotAvailable(why).AsTask());
-                },
-                (why) => onNotAvailable(why).AsTask());
+                        NotAvailable, NotAvailable, NotAvailable).Unwrap();
+
+            Task<TResult> NotAvailable(EastFive.Configuration.ConfigIssue issue) => onNotAvailable(issue.ToString()).AsTask();
         }
 
         public class DiscoveryDocument

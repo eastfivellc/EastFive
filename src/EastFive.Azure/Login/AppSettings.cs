@@ -13,7 +13,5 @@ namespace EastFive.Azure.Login
         /// <summary>Client ID for login</summary>
         public const string ClientKey = "EastFive.Azure.Login.ClientKey";
 
-        /// <summary>Client Key for login</summary>
-        public const string ClientSecret = "EastFive.Azure.Login.ClientSecret";
     }
 }

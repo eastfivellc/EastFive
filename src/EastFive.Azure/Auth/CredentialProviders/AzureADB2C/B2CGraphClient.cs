@@ -233,30 +233,21 @@ namespace EastFive.AzureADB2C
             Func<B2CGraphClient, TResult> onSuccess,
             Func<string, TResult> onConfigurationNotAvailable)
         {
-            // The client_id, client_secret, and tenant are pulled in from the App.config file
-            return Azure.AppSettings.AzureADB2C.ClientId.ConfigurationString(
-                   (clientId) =>
-                   {
-                       return Azure.AppSettings.AzureADB2C.ClientSecret.ConfigurationString(
-                           (clientSecret) =>
-                           {
-                               return Azure.AppSettings.AzureADB2C.Tenant.ConfigurationString(
-                                   (tenant) =>
-                                   {
-                                       try
-                                       {
-                                           var client = new B2CGraphClient(clientId, clientSecret, tenant);
-                                           return onSuccess(client);
-                                       } catch(Exception ex)
-                                       {
-                                           return onConfigurationNotAvailable(ex.Message);
-                                       }
-                                   },
-                                   onConfigurationNotAvailable);
-                           },
-                           onConfigurationNotAvailable);
-                   },
-                   onConfigurationNotAvailable);
+            // Tenant and client id are values; the secret comes from the secret store, loaded at startup.
+            return EastFive.Configuration.StartupConfiguration.Get<EastFive.Azure.Auth.AzureADB2CGraphConfiguration, TResult>(
+                configuration =>
+                {
+                    try
+                    {
+                        var client = new B2CGraphClient(configuration.ClientId, configuration.ClientSecret.Reveal(), configuration.Tenant);
+                        return onSuccess(client);
+                    }
+                    catch (Exception ex)
+                    {
+                        return onConfigurationNotAvailable(ex.Message);
+                    }
+                },
+                issue => onConfigurationNotAvailable(issue.ToString()));
         }
 
         public Task<TResult> GetUserByObjectId<TResult>(string objectId,

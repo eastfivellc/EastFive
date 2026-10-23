@@ -396,12 +396,11 @@ namespace EastFive.Azure.Auth.Microsoft
             Func<IProvideLogin, TResult> onProvideAuthorization,
             Func<string, TResult> onNotAvailable)
         {
-            return AppSettings.Auth.Microsoft.ClientId.ConfigurationString(
-                        applicationId =>
-                        {
-                            return AppSettings.Auth.Microsoft.ClientSecret.ConfigurationString(
-                                async (clientSecret) =>
+            return EastFive.Configuration.ConfigurationLoader.LoadAsync<MicrosoftLoginConfiguration, Task<TResult>>(
+                                async (configuration) =>
                                 {
+                                    var applicationId = configuration.ClientId;
+                                    var clientSecret = configuration.ClientSecret.Reveal();
                                     return await await new Uri(discoveryDocumentUrl).HttpClientGetResourceAsync(
                                         (DiscoveryDocument discDoc) =>
                                         {
@@ -416,9 +415,9 @@ namespace EastFive.Azure.Auth.Microsoft
                                         },
                                         onFailure: (why) => onNotAvailable(why).AsTask());
                                 },
-                                (why) => onNotAvailable(why).AsTask());
-                        },
-                        (why) => onNotAvailable(why).AsTask());
+                                NotAvailable, NotAvailable, NotAvailable).Unwrap();
+
+            Task<TResult> NotAvailable(EastFive.Configuration.ConfigIssue issue) => onNotAvailable(issue.ToString()).AsTask();
         }
 
         public const string discoveryDocumentUrl = "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration";

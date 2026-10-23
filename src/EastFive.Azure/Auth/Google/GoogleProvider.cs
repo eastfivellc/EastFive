@@ -359,12 +359,11 @@ namespace EastFive.Azure.Auth.Google
             Func<IProvideLogin, TResult> onProvideAuthorization,
             Func<string, TResult> onNotAvailable)
         {
-            return AppSettings.Auth.Google.ClientId.ConfigurationString(
-                applicationId =>
-                {
-                            return AppSettings.Auth.Google.ClientSecret.ConfigurationString(
-                                async (clientSecret) =>
+            return EastFive.Configuration.ConfigurationLoader.LoadAsync<GoogleLoginConfiguration, Task<TResult>>(
+                                async (configuration) =>
                                 {
+                                    var applicationId = configuration.ClientId;
+                                    var clientSecret = configuration.ClientSecret.Reveal();
                                     return await await new Uri(discoveryDocumentUrl).HttpClientGetResourceAsync(
                                         (DiscoveryDocument discDoc) =>
                                         {
@@ -379,9 +378,9 @@ namespace EastFive.Azure.Auth.Google
                                         },
                                         onFailure: (why) => onNotAvailable(why).AsTask());
                                 },
-                                (why) => onNotAvailable(why).AsTask());
-                },
-                (why) => onNotAvailable(why).AsTask());
+                                NotAvailable, NotAvailable, NotAvailable).Unwrap();
+
+            Task<TResult> NotAvailable(EastFive.Configuration.ConfigIssue issue) => onNotAvailable(issue.ToString()).AsTask();
         }
 
         public const string discoveryDocumentUrl = "https://accounts.google.com/.well-known/openid-configuration";
