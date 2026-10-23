@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -125,5 +126,29 @@ public class SecretGuardTests
             signing: new EastFive.Security.Tokens.TokenSigning("https://tests.eastfive.invalid/", new Secret(foreign),
                 EastFive.Security.Tokens.TokenSigning.DefaultAlgorithm));
         Assert.False($"Bearer {forged}".GetClaimsJwtString(claims => true, why => false));
+    }
+}
+
+/// <summary>Google client ids carry dots (<c>{project}-{id}.apps.googleusercontent.com</c>), which
+/// cannot be a secret-name segment; the Google configuration drops the constant domain.</summary>
+public class GoogleSecretNameTests
+{
+    [Fact]
+    public async Task GoogleClientId_NamesItsSecretWithoutTheGoogleDomain()
+    {
+        const string clientId = "445833953703-a5ighep676fu7ndo3407eqg8pegvm5mj.apps.googleusercontent.com";
+        var google = new EastFive.Azure.Auth.GoogleLoginConfiguration { ClientId = clientId };
+        Assert.Equal("Google-445833953703-a5ighep676fu7ndo3407eqg8pegvm5mj-ClientSecret",
+            ((IProvideConfiguration)google).SecretReference("ClientSecret").Name);
+
+        var secrets = new InMemorySecretStore(new Dictionary<string, string>
+        {
+            ["Google-445833953703-a5ighep676fu7ndo3407eqg8pegvm5mj-ClientSecret"] = "k-google",
+        });
+        var outcome = await ConfigurationLoader.LoadAsync<EastFive.Azure.Auth.GoogleLoginConfiguration, string>(
+            key => key == EastFive.Azure.AppSettings.Auth.Google.ClientId ? clientId : null, secrets,
+            config => $"{config.ClientId}|{config.ClientSecret.Reveal()}",
+            issue => $"missing:{issue.Key}", issue => $"invalid:{issue.Key}", issue => $"failed:{issue.Key}");
+        Assert.Equal($"{clientId}|k-google", outcome);
     }
 }

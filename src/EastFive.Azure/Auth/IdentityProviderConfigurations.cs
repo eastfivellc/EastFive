@@ -6,12 +6,13 @@ using EastFive.Configuration;
 namespace EastFive.Azure.Auth
 {
     /// <summary>Google sign-in: the client id is a value, the client secret is
-    /// <c>Google-{clientId}-ClientSecret</c> in the secret store.</summary>
+    /// <c>Google-{clientId without .apps.googleusercontent.com}-ClientSecret</c> in the secret store.</summary>
     [ConfigurationType("Google", Label = "Google sign-in")]
     public sealed class GoogleLoginConfiguration : IProvideConfiguration
     {
         [ConfigurationMember(EastFive.Azure.AppSettings.Auth.Google.ClientId, Account = true, Label = "Client ID",
             Location = "Google Cloud console | APIs & Services | Credentials")]
+        [GoogleClientIdSegment]
         public string ClientId { get; set; } = default!;
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Client secret")]
@@ -79,5 +80,17 @@ namespace EastFive.Azure.Auth
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Client secret")]
         public Secret ClientSecret { get; set; } = default!;
+    }
+
+    /// <summary>A Google OAuth client id is <c>{project}-{id}.apps.googleusercontent.com</c>; the dots
+    /// cannot be a secret-name segment and the domain is the same for every client, so the segment
+    /// is the id without it.</summary>
+    [AttributeUsage(AttributeTargets.Property)]
+    public sealed class GoogleClientIdSegmentAttribute : Attribute, IProvideSecretAccountSegment
+    {
+        public const string Domain = ".apps.googleusercontent.com";
+
+        public string SecretAccountSegment(string account)
+            => account.EndsWith(Domain, StringComparison.OrdinalIgnoreCase) ? account[..^Domain.Length] : account;
     }
 }

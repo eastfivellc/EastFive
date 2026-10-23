@@ -65,7 +65,10 @@ use, and never into a log, an exception or a response.
 Secret names are never hand-written. `{Type}-{Account}-{Property}` for a type with an account
 member, `{Type}-{Property}` otherwise: `Type` is the `[ConfigurationType]` name, `Account` the
 account member's value, `Property` the secret member's property name. Names are valid Azure Key
-Vault secret names (`[A-Za-z0-9-]`); an account id that would not be is refused, never mapped.
+Vault secret names (`[A-Za-z0-9-]`); an account id that would not be is refused, never mapped —
+unless the account member declares an exact, type-specific translation with an attribute
+implementing `IProvideSecretAccountSegment` (Google client ids drop their constant
+`.apps.googleusercontent.com` domain). The translated segment is still validated.
 Types that share a `[ConfigurationType]` and an account share one secret — every
 `StorageAccountConfiguration` on account `prod` reads `AzureStorage-prod-ConnectionString`.
 

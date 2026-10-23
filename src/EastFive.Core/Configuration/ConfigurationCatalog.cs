@@ -33,7 +33,8 @@ namespace EastFive.Configuration
         /// account member). Only meaningful when <see cref="GeneratesSecretNames"/>.</summary>
         public IEnumerable<string> SecretNames(string? account = null)
             => Members.Where(member => member.SecretNameTemplate != null)
-                .Select(member => member.SecretNameTemplate!.Replace(ConfigurationCatalog.AccountPlaceholder, account ?? ConfigurationCatalog.AccountPlaceholder));
+                .Select(member => member.SecretNameTemplate!.Replace(ConfigurationCatalog.AccountPlaceholder,
+                    (account == null ? null : ConfigurationMembers.For(Type).AccountSegmentOf(account.Trim())) ?? ConfigurationCatalog.AccountPlaceholder));
 
         public ITestConfiguration? Test
             => Type.GetCustomAttributes(inherit: true).OfType<ITestConfiguration>().FirstOrDefault();
