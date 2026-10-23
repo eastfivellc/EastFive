@@ -54,7 +54,7 @@ namespace EastFive.Azure
             ConfigurationFailureResponse onConfigurationFailure)
         {
             return SpaConfiguration.Current()?.SiteLocation is not { } siteUrl
-                ? onConfigurationFailure($"[{AppSettings.SPA.SiteLocation}] is not configured.", "")
+                ? onConfigurationFailure($"[{EastFive.Azure.SpaConfiguration.SiteLocationKey}] is not configured.", "")
                 : Redirect(siteUrl);
 
             IHttpResponse Redirect(Uri siteUrl)

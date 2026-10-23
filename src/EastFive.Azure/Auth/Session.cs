@@ -109,11 +109,11 @@ namespace EastFive.Azure.Auth
                     if (config.TokenExpirationTimeOfDay is { } timeAndOffset)
                         return DateTimeExtensions.GetDisappearingOffset(timeAndOffset, out TimeSpan duration)
                             ? duration
-                            : throw new Exception($"The settings key `{AppSettings.Auth.TokenExpirationTimeOfDay}` could not be parsed");
+                            : throw new Exception($"The settings key `{EastFive.Azure.Auth.SessionServerConfiguration.TokenExpirationTimeOfDayKey}` could not be parsed");
                     return config.TokenExpirationInMinutes is { } minutes
                         ? TimeSpan.FromMinutes(minutes)
-                        : throw new EastFive.Web.ConfigurationException(AppSettings.Auth.TokenExpirationInMinutes, typeof(double),
-                            $"Neither [{AppSettings.Auth.TokenExpirationTimeOfDay}] nor [{AppSettings.Auth.TokenExpirationInMinutes}] is specified.");
+                        : throw new EastFive.Web.ConfigurationException(EastFive.Azure.Auth.SessionServerConfiguration.TokenExpirationInMinutesKey, typeof(double),
+                            $"Neither [{EastFive.Azure.Auth.SessionServerConfiguration.TokenExpirationTimeOfDayKey}] nor [{EastFive.Azure.Auth.SessionServerConfiguration.TokenExpirationInMinutesKey}] is specified.");
                 },
                 issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(TimeSpan), issue.ToString()));
 

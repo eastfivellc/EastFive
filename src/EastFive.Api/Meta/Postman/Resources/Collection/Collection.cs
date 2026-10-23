@@ -20,7 +20,7 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
             => EastFive.Configuration.StartupConfiguration.Get<PostmanConfiguration, TResult>(
                 configuration => configuration.MonitoringCollectionId is { Length: > 0 } id
                     ? onCollection(id)
-                    : onUnspecified($"[{AppSettings.Postman.MonitoringCollectionId}] is not configured."),
+                    : onUnspecified($"[{EastFive.Api.PostmanConfiguration.MonitoringCollectionIdKey}] is not configured."),
                 issue => onUnspecified(issue.ToString()));
 
         /// <summary>The Postman API key, from the host's startup-loaded <see cref="PostmanConfiguration"/>.</summary>

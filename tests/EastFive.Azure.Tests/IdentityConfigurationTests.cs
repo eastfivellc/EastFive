@@ -32,8 +32,8 @@ public class IdentityConfigurationTests
         Environment.SetEnvironmentVariable(string.Format(PingRedirectConfiguration.ReportSetIdKeyFormat, NewTag), NewReportSet.ToString());
         Environment.SetEnvironmentVariable($"AffirmHealth.PDMS.PingRedirect.{LegacyTag}.PingAuthName", "legacy-auth");
         Environment.SetEnvironmentVariable($"AffirmHealth.PDMS.PingRedirect.{LegacyTag}.PingReportSetId", LegacyReportSet.ToString());
-        Environment.SetEnvironmentVariable(AppSettings.SAML.GetLaunchPage(SamlTag), "/launch/here");
-        Environment.SetEnvironmentVariable(AppSettings.SAML.GetMetadataLocation(SamlTag), "https://idp.example/metadata");
+        Environment.SetEnvironmentVariable(SamlTagConfiguration.LaunchPageKey(SamlTag), "/launch/here");
+        Environment.SetEnvironmentVariable(SamlTagConfiguration.MetadataLocationKey(SamlTag), "https://idp.example/metadata");
         // The same sources TestConfiguration initializes from, so concurrent tests see what they saw.
         EastFive.Web.Configuration.ConfigurationExtensions.Initialize(new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
@@ -93,17 +93,17 @@ public class IdentityConfigurationTests
 
         var asString = new ConfigurationBuilder().AddInMemoryCollection(new[]
         {
-            new System.Collections.Generic.KeyValuePair<string, string?>(AppSettings.Auth.Redirections,
+            new System.Collections.Generic.KeyValuePair<string, string?>(EastFive.Azure.Auth.SessionServerConfiguration.RedirectionsKey,
                 "[{\"Key\":\"a\",\"Value\":\"https://a.example/\"}]"),
         }).Build();
         Assert.Equal(new[] { "a=https://a.example/" }, Keys(asString));
 
         var asSection = new ConfigurationBuilder().AddInMemoryCollection(new[]
         {
-            new System.Collections.Generic.KeyValuePair<string, string?>($"{AppSettings.Auth.Redirections}:0:Key", "b"),
-            new System.Collections.Generic.KeyValuePair<string, string?>($"{AppSettings.Auth.Redirections}:0:Value", "https://b.example/"),
-            new System.Collections.Generic.KeyValuePair<string, string?>($"{AppSettings.Auth.Redirections}:1:Key", "c"),
-            new System.Collections.Generic.KeyValuePair<string, string?>($"{AppSettings.Auth.Redirections}:1:Value", "https://c.example/"),
+            new System.Collections.Generic.KeyValuePair<string, string?>($"{EastFive.Azure.Auth.SessionServerConfiguration.RedirectionsKey}:0:Key", "b"),
+            new System.Collections.Generic.KeyValuePair<string, string?>($"{EastFive.Azure.Auth.SessionServerConfiguration.RedirectionsKey}:0:Value", "https://b.example/"),
+            new System.Collections.Generic.KeyValuePair<string, string?>($"{EastFive.Azure.Auth.SessionServerConfiguration.RedirectionsKey}:1:Key", "c"),
+            new System.Collections.Generic.KeyValuePair<string, string?>($"{EastFive.Azure.Auth.SessionServerConfiguration.RedirectionsKey}:1:Value", "https://c.example/"),
         }).Build();
         Assert.Equal(new[] { "b=https://b.example/", "c=https://c.example/" }, Keys(asSection));
     }

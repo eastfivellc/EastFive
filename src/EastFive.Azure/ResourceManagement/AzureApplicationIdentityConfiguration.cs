@@ -15,21 +15,21 @@ namespace EastFive.Azure.ResourceManagement;
     Description = "The Entra tenant and application id incoming service tokens and Event Grid webhooks are validated against.")]
 public sealed class AzureApplicationIdentityConfiguration : IProvideConfiguration
 {
-    [ConfigurationMember(EastFive.Azure.AppSettings.TenantId, Kind = ConfigurationMemberKind.Optional,
+    [ConfigurationMember(EastFive.Azure.ResourceManagement.AzureClientApplicationConfiguration.TenantIdKey, Kind = ConfigurationMemberKind.Optional,
         Label = "Tenant ID", Description = "The Entra tenant that issues this application's tokens.",
         Location = "Azure portal | Microsoft Entra ID | Overview")]
     public string? TenantId { get; set; }
 
-    [ConfigurationMember(EastFive.Azure.AppSettings.ClientId, Kind = ConfigurationMemberKind.Optional,
+    [ConfigurationMember(EastFive.Azure.ResourceManagement.AzureClientApplicationConfiguration.ClientIdKey, Kind = ConfigurationMemberKind.Optional,
         Label = "Client ID", Description = "This application's Entra application (client) id: the expected token audience.",
         Location = "Azure portal | App registrations | Overview")]
     public string? ClientId { get; set; }
 
     public static TResult WithTenantId<TResult>(Func<string, TResult> onFound, Func<string, TResult> onUnspecified)
         => Configured.Member<AzureApplicationIdentityConfiguration, string, TResult>(config => config.TenantId,
-            EastFive.Azure.AppSettings.TenantId, onFound, onUnspecified);
+            EastFive.Azure.ResourceManagement.AzureClientApplicationConfiguration.TenantIdKey, onFound, onUnspecified);
 
     public static TResult WithClientId<TResult>(Func<string, TResult> onFound, Func<string, TResult> onUnspecified)
         => Configured.Member<AzureApplicationIdentityConfiguration, string, TResult>(config => config.ClientId,
-            EastFive.Azure.AppSettings.ClientId, onFound, onUnspecified);
+            EastFive.Azure.ResourceManagement.AzureClientApplicationConfiguration.ClientIdKey, onFound, onUnspecified);
 }

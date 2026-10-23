@@ -31,11 +31,18 @@ namespace EastFive.Security.Tokens
         Description = "Issuer and RSA key EastFive signs and validates its access tokens with.")]
     public sealed class TokenSigningConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(EastFive.Security.AppSettings.TokenIssuer, Label = "Issuer",
+        public const string AlgorithmKey = "EastFive.Security.Token.Algorithm";
+        public const string AllValidKey = "EastFive.Security.Token.AllValid";
+        public const string ForceRefreshBeforeKey = "EastFive.Web.TokenForceRefreshTime";
+        public const string ForceRefreshMessageKey = "EastFive.Web.TokenForceRefreshMessage";
+        public const string IssuerKey = "EastFive.Security.Token.Issuer";
+        public const string ScopeKey = "EastFive.Security.Token.Scope";
+
+        [ConfigurationMember(IssuerKey, Label = "Issuer",
             Description = "The iss of every token this host issues and accepts.")]
         public string Issuer { get; set; } = default!;
 
-        [ConfigurationMember(EastFive.Security.AppSettings.TokenAlgorithm, Kind = ConfigurationMemberKind.Defaulted,
+        [ConfigurationMember(AlgorithmKey, Kind = ConfigurationMemberKind.Defaulted,
             Default = TokenSigning.DefaultAlgorithm, Scope = ConfigurationScope.Shared)]
         public string Algorithm { get; set; } = default!;
 
@@ -43,20 +50,20 @@ namespace EastFive.Security.Tokens
             Description = "Base64 of the RSA key XML (private).", Location = "Generated: EastFive.Security.RSA.Generate")]
         public Secret SigningKey { get; set; } = default!;
 
-        [ConfigurationMember(EastFive.Security.AppSettings.TokenScope, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(ScopeKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Scope", Description = "The audience (aud) of tokens this host issues.")]
         public Uri? Scope { get; set; }
 
-        [ConfigurationMember(EastFive.Security.AppSettings.TokensAllValid, Kind = ConfigurationMemberKind.Defaulted, Default = "false",
+        [ConfigurationMember(AllValidKey, Kind = ConfigurationMemberKind.Defaulted, Default = "false",
             Label = "Accept every token", Description = "Read claims WITHOUT validating signature or lifetime. Never in a deployed environment.")]
         public bool AllValid { get; set; }
 
-        [ConfigurationMember(EastFive.Web.AppSettings.TokenForceRefreshTime, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(ForceRefreshBeforeKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Refuse tokens issued before", Description = "Tokens issued before this time are refused, forcing clients to sign in again.",
             Location = "Typically the date/time of a web client release")]
         public DateTime? ForceRefreshBefore { get; set; }
 
-        [ConfigurationMember(EastFive.Web.AppSettings.TokenForceRefreshMessage, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(ForceRefreshMessageKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Refused-token message", Description = "The reason given for a token refused by the force-refresh time.")]
         public string? ForceRefreshMessage { get; set; }
 
@@ -64,18 +71,18 @@ namespace EastFive.Security.Tokens
         public static TResult WithScope<TResult>(Func<Uri, TResult> onFound,
             Func<string, TResult>? onUnspecified = null, Func<TResult>? onNotSpecified = null)
             => Configured.Member<TokenSigningConfiguration, Uri, TResult>(config => config.Scope,
-                EastFive.Security.AppSettings.TokenScope, onFound, onUnspecified, onNotSpecified);
+                ScopeKey, onFound, onUnspecified, onNotSpecified);
 
         /// <summary>The token issuer, in the raw reader's continuation shape.</summary>
         public static TResult WithIssuer<TResult>(Func<string, TResult> onFound,
             Func<string, TResult>? onUnspecified = null, Func<TResult>? onNotSpecified = null)
             => Configured.Member<TokenSigningConfiguration, string, TResult>(config => config.Issuer,
-                EastFive.Security.AppSettings.TokenIssuer, onFound, onUnspecified, onNotSpecified);
+                IssuerKey, onFound, onUnspecified, onNotSpecified);
 
         /// <summary>The scope, or a <see cref="EastFive.Web.ConfigurationException"/> naming its key.</summary>
         public static TResult CurrentScope<TResult>(Func<Uri, TResult> onScope, Func<string, TResult> onUnavailable)
             => StartupConfiguration.Get<TokenSigningConfiguration, TResult>(
-                config => config.Scope is { } scope ? onScope(scope) : onUnavailable($"[{EastFive.Security.AppSettings.TokenScope}] is not configured."),
+                config => config.Scope is { } scope ? onScope(scope) : onUnavailable($"[{ScopeKey}] is not configured."),
                 issue => onUnavailable(issue.ToString()));
 
         public string? Validate()

@@ -7,7 +7,9 @@ namespace EastFive.Azure.Persistence
     /// <summary>The default table store, named by <c>EastFive.Azure.StorageTables.Account</c>.</summary>
     public sealed class StorageTablesConfiguration : StorageAccountConfiguration
     {
-        [ConfigurationMember(EastFive.Azure.AppSettings.Persistence.StorageTables.Account, Account = true)]
+        public const string AccountKey = "EastFive.Azure.StorageTables.Account";
+
+        [ConfigurationMember(AccountKey, Account = true)]
         public override string Account { get; set; } = default!;
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
@@ -19,13 +21,16 @@ namespace EastFive.Azure.Persistence
     /// <summary>The SPA package/asset store, named by <c>EastFive.Azure.Spa.Account</c>.</summary>
     public sealed class SpaStorageConfiguration : StorageAccountConfiguration
     {
-        [ConfigurationMember(EastFive.Azure.AppSettings.SPA.SpaStorageAccount, Account = true)]
+        public const string AccountKey = "EastFive.Azure.Spa.Account";
+        public const string ContainerNameKey = "EastFive.Azure.Spa.ContainerName";
+
+        [ConfigurationMember(AccountKey, Account = true)]
         public override string Account { get; set; } = default!;
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
         public override Secret ConnectionString { get; set; } = default!;
 
-        [ConfigurationMember(EastFive.Azure.Persistence.AppSettings.SpaContainer, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(ContainerNameKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Container", Description = "Blob container holding the SPA packages.")]
         public string? ContainerName { get; set; }
     }
@@ -33,7 +38,9 @@ namespace EastFive.Azure.Persistence
     /// <summary>The data lake, named by <c>EastFive.Azure.DataLake.Account</c>.</summary>
     public sealed class DataLakeStorageConfiguration : StorageAccountConfiguration
     {
-        [ConfigurationMember(EastFive.Azure.AppSettings.Persistence.DataLake.Account, Account = true)]
+        public const string AccountKey = "EastFive.Azure.DataLake.Account";
+
+        [ConfigurationMember(AccountKey, Account = true)]
         public override string Account { get; set; } = default!;
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
@@ -46,17 +53,21 @@ namespace EastFive.Azure.Persistence
         Description = "When the table driver's HTTP connection pool grows, stops growing, and shrinks.")]
     public sealed class StorageTablesTuningConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(EastFive.Azure.AppSettings.Persistence.StorageTables.ConnectionCountReductionPoint,
+        public const string ConnectionCountGrowthStoppingPointKey = "EastFive.Azure.Persistence.StorageTables.ConnectionCountGrowthStoppingPoint";
+        public const string ConnectionCountReductionPointKey = "EastFive.Azure.Persistence.StorageTables.ConnectionCountReductionPoint";
+        public const string MinimumParallelConnectionsKey = "EastFive.Azure.Persistence.StorageTables.MinimumParallelConnections";
+
+        [ConfigurationMember(ConnectionCountReductionPointKey,
             Kind = ConfigurationMemberKind.Optional, Scope = ConfigurationScope.Shared,
             Label = "Reduction point", Description = "Machine-wide HTTP connection count at which the pool begins to shrink (default 200).")]
         public long? ConnectionCountReductionPoint { get; set; }
 
-        [ConfigurationMember(EastFive.Azure.AppSettings.Persistence.StorageTables.ConnectionCountGrowthStoppingPoint,
+        [ConfigurationMember(ConnectionCountGrowthStoppingPointKey,
             Kind = ConfigurationMemberKind.Optional, Scope = ConfigurationScope.Shared,
             Label = "Growth stopping point", Description = "Connection count at which the pool stops growing; below the reduction point (default 150).")]
         public long? ConnectionCountGrowthStoppingPoint { get; set; }
 
-        [ConfigurationMember(EastFive.Azure.AppSettings.Persistence.StorageTables.MinimumParallelConnections,
+        [ConfigurationMember(MinimumParallelConnectionsKey,
             Kind = ConfigurationMemberKind.Optional, Scope = ConfigurationScope.Shared,
             Label = "Minimum parallel connections", Description = "The pool never shrinks below this size (default 20).")]
         public long? MinimumParallelConnections { get; set; }

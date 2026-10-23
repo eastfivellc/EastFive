@@ -11,11 +11,14 @@ namespace EastFive.Azure.Communications
         Description = "Redirect (mute) or blind-copy every SendGrid email, for non-production environments.")]
     public sealed class SendGridConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(AppSettings.Communications.MuteEmailToAddress, Kind = ConfigurationMemberKind.Optional,
+        public const string BccAllAddressesKey = "EastFive.SendGrid.BlindCopyAllAddresses";
+        public const string MuteEmailToAddressKey = "EastFive.SendGrid.MuteToAddress";
+
+        [ConfigurationMember(MuteEmailToAddressKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Mute to address", Description = "When set, every email goes to this address instead of its recipient.")]
         public string? MuteEmailToAddress { get; set; }
 
-        [ConfigurationMember(AppSettings.Communications.BccAllAddresses, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(BccAllAddressesKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Blind-copy addresses", Description = "Comma-separated addresses blind-copied on every email.")]
         public string? BccAllAddresses { get; set; }
 

@@ -13,7 +13,7 @@ namespace EastFive.Azure.Auth.Voucher
             // Was System.Configuration's AppSettings, always empty on .NET Core (so this threw).
             return EastFive.Configuration.StartupConfiguration.Get<EastFive.Security.VoucherConfiguration, Uri>(
                 configuration => configuration.ProviderId
-                    ?? throw new EastFive.Web.ConfigurationException(EastFive.Security.AppSettings.CredentialProviderVoucherProviderId, typeof(Uri), "The voucher provider is not configured."),
+                    ?? throw new EastFive.Web.ConfigurationException(EastFive.Security.VoucherConfiguration.ProviderIdKey, typeof(Uri), "The voucher provider is not configured."),
                 issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(Uri), issue.ToString()));
         }
 

@@ -77,7 +77,7 @@ public class CorsConfigurationPipelineTests : TestSession
     {
         var response = await PreflightAsync(new Dictionary<string, string?>
         {
-            [AppSettings.CorsCorrection] = "true",
+            [EastFive.Api.CorsConfiguration.EnabledKey] = "true",
             ["cors:Origins"] = "https://app.partner.example, https://other.example",
             ["cors:MaxAgeSeconds"] = "600",
         }, "https://app.partner.example");
@@ -92,7 +92,7 @@ public class CorsConfigurationPipelineTests : TestSession
     {
         var response = await PreflightAsync(new Dictionary<string, string?>
         {
-            [AppSettings.CorsCorrection] = "true",
+            [EastFive.Api.CorsConfiguration.EnabledKey] = "true",
             ["cors:Origins"] = "https://app.partner.example",
         }, "https://evil.example");
         Assert.Null(response.BranchName);

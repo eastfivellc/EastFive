@@ -11,7 +11,8 @@ namespace EastFive.Azure.Login
     public static class AppSettings
     {
         /// <summary>Client ID for login</summary>
-        public const string ClientKey = "EastFive.Azure.Login.ClientKey";
+        [System.Obsolete("Read EastFiveLoginConfiguration.ClientKey through typed configuration; its key is EastFiveLoginConfiguration.ClientKeyKey.")]
+        public const string ClientKey = EastFive.Azure.Auth.EastFiveLoginConfiguration.ClientKeyKey;
 
     }
 }

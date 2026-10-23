@@ -51,7 +51,7 @@ namespace EastFive.Api
             // A caller-named setting must be one some typed configuration member declares.
             var sessionIdClaimType = sessionIdClaimTypeConfigurationSetting.IsNullOrWhiteSpace()
                 ? Configured.Get<ClaimTypesConfiguration, string>(
-                    config => config.SessionIdClaimType ?? throw MissingSetting(AppSettings.SessionIdClaimType),
+                    config => config.SessionIdClaimType ?? throw MissingSetting(EastFive.Api.ClaimTypesConfiguration.SessionIdClaimTypeKey),
                     issue => throw MissingSetting(issue.Key))
                 : Configured.ReadDeclaredValue(sessionIdClaimTypeConfigurationSetting, value => value,
                     why => throw MissingSetting(sessionIdClaimTypeConfigurationSetting));
@@ -119,7 +119,7 @@ namespace EastFive.Api
             Func<TResult> actorIdNotFound)
         {
             var accountIdClaimTypeConfigurationSetting =
-                EastFive.Api.AppSettings.ActorIdClaimType;
+                EastFive.Api.ClaimTypesConfiguration.ActorIdClaimTypeKey;
             return claims.GetActorId(accountIdClaimTypeConfigurationSetting, success, actorIdNotFound);
         }
 
@@ -129,7 +129,7 @@ namespace EastFive.Api
         /// <summary>The claim type a caller-named setting holds: the typed account claim type for the
         /// framework's own key, otherwise a key some typed configuration member declares.</summary>
         private static string ClaimTypeOf(string accountIdClaimTypeSetting)
-            => string.Equals(accountIdClaimTypeSetting, AppSettings.ActorIdClaimType, StringComparison.Ordinal)
+            => string.Equals(accountIdClaimTypeSetting, EastFive.Api.ClaimTypesConfiguration.ActorIdClaimTypeKey, StringComparison.Ordinal)
                 ? ClaimTypesConfiguration.ActorIdClaimTypeOrDefault()
                 : Configured.ReadDeclaredValue(accountIdClaimTypeSetting, value => value,
                     why => throw MissingSetting(accountIdClaimTypeSetting));

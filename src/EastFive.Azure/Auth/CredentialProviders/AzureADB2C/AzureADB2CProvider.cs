@@ -37,17 +37,17 @@ namespace EastFive.Azure.Auth.CredentialProviders
         static AzureADB2CProvider()
         {
             clientId = AzureADB2CGraphConfiguration.Required(AzureADB2CGraphConfiguration.Loaded().ApplicationId,
-                EastFive.Azure.AppSettings.AzureADB2C.ApplicationId);
+                EastFive.Azure.Auth.AzureADB2CGraphConfiguration.ApplicationIdKey);
 
             endpointsAsync = new Lazy<Task<Endpoints>>(
                 () =>
                 {
                     var b2c = AzureADB2CGraphConfiguration.Loaded();
                     return EastFive.AzureADB2C.Libary.InitializeAsync(
-                            AzureADB2CGraphConfiguration.Required(b2c.Tenant, EastFive.Azure.AppSettings.AzureADB2C.Tenant),
-                            AzureADB2CGraphConfiguration.Required(b2c.SignupFlow, EastFive.Azure.AppSettings.AzureADB2C.SignupFlow),
-                            AzureADB2CGraphConfiguration.Required(b2c.SigninFlow, EastFive.Azure.AppSettings.AzureADB2C.SigninFlow),
-                            AzureADB2CGraphConfiguration.Required(b2c.Audience, EastFive.Azure.AppSettings.AzureADB2C.Audience),
+                            AzureADB2CGraphConfiguration.Required(b2c.Tenant, EastFive.Azure.Auth.AzureADB2CGraphConfiguration.TenantKey),
+                            AzureADB2CGraphConfiguration.Required(b2c.SignupFlow, EastFive.Azure.Auth.AzureADB2CGraphConfiguration.SignupFlowKey),
+                            AzureADB2CGraphConfiguration.Required(b2c.SigninFlow, EastFive.Azure.Auth.AzureADB2CGraphConfiguration.SigninFlowKey),
+                            AzureADB2CGraphConfiguration.Required(b2c.Audience, EastFive.Azure.Auth.AzureADB2CGraphConfiguration.AudienceKey),
                         (signupEndpoint, signinEndpoint, logoutEndpoint, validationParams) =>
                         {
                             return EastFive.AzureADB2C.B2CGraphClient.LoadFromConfig(
@@ -113,7 +113,7 @@ namespace EastFive.Azure.Auth.CredentialProviders
         {
             var stateId = GetState();
             return Configured.Member<AzureADB2CGraphConfiguration, string, TResult>(config => config.LoginIdClaimType,
-                    AppSettings.AzureADB2C.LoginIdClaimType,
+                    EastFive.Azure.Auth.AzureADB2CGraphConfiguration.LoginIdClaimTypeKey,
                 (claimType) =>
                 {
                     var authClaims = responseParams
@@ -158,7 +158,7 @@ namespace EastFive.Azure.Auth.CredentialProviders
                 (claims) =>
                 {
                     return Configured.Member<AzureADB2CGraphConfiguration, string, TResult>(config => config.LoginIdClaimType,
-                            AppSettings.AzureADB2C.LoginIdClaimType,
+                            EastFive.Azure.Auth.AzureADB2CGraphConfiguration.LoginIdClaimTypeKey,
                         (claimType) =>
                         {
                             var authClaims = claims.Claims

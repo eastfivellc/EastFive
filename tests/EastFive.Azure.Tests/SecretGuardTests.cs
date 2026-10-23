@@ -146,7 +146,7 @@ public class GoogleSecretNameTests
             ["Google-445833953703-a5ighep676fu7ndo3407eqg8pegvm5mj-ClientSecret"] = "k-google",
         });
         var outcome = await ConfigurationLoader.LoadAsync<EastFive.Azure.Auth.GoogleLoginConfiguration, string>(
-            key => key == EastFive.Azure.AppSettings.Auth.Google.ClientId ? clientId : null, secrets,
+            key => key == EastFive.Azure.Auth.GoogleLoginConfiguration.ClientIdKey ? clientId : null, secrets,
             config => $"{config.ClientId}|{config.ClientSecret.Reveal()}",
             issue => $"missing:{issue.Key}", issue => $"invalid:{issue.Key}", issue => $"failed:{issue.Key}");
         Assert.Equal($"{clientId}|k-google", outcome);

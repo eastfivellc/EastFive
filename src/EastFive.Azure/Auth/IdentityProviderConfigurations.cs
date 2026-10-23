@@ -10,7 +10,9 @@ namespace EastFive.Azure.Auth
     [ConfigurationType("Google", Label = "Google sign-in")]
     public sealed class GoogleLoginConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(EastFive.Azure.AppSettings.Auth.Google.ClientId, Account = true, Label = "Client ID",
+        public const string ClientIdKey = "EastFive.Google.ClientID";
+
+        [ConfigurationMember(ClientIdKey, Account = true, Label = "Client ID",
             Location = "Google Cloud console | APIs & Services | Credentials")]
         [GoogleClientIdSegment]
         public string ClientId { get; set; } = default!;
@@ -23,7 +25,9 @@ namespace EastFive.Azure.Auth
     [ConfigurationType("Microsoft", Label = "Microsoft sign-in")]
     public sealed class MicrosoftLoginConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(EastFive.Azure.AppSettings.Auth.Microsoft.ClientId, Account = true, Label = "Application (client) ID",
+        public const string ClientIdKey = "EastFive.Microsoft.ClientID";
+
+        [ConfigurationMember(ClientIdKey, Account = true, Label = "Application (client) ID",
             Location = "Entra admin center | App registrations")]
         public string ClientId { get; set; } = default!;
 
@@ -36,13 +40,16 @@ namespace EastFive.Azure.Auth
     [ConfigurationType("Salesforce", Label = "Salesforce")]
     public sealed class SalesforceConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(EastFive.Azure.AppSettings.Auth.Salesforce.ConsumerKey, Label = "Consumer key")]
+        public const string ConsumerKeyKey = "EastFive.Salesforce.ConsumerKey";
+        public const string DiscoveryDocumentKey = "EastFive.Salesforce.DocumentDiscoveryUrl";
+
+        [ConfigurationMember(ConsumerKeyKey, Label = "Consumer key")]
         public string ConsumerKey { get; set; } = default!;
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Consumer secret")]
         public Secret ConsumerSecret { get; set; } = default!;
 
-        [ConfigurationMember(EastFive.Azure.AppSettings.Auth.Salesforce.DocumentDiscoveryUrl, Kind = ConfigurationMemberKind.Defaulted,
+        [ConfigurationMember(DiscoveryDocumentKey, Kind = ConfigurationMemberKind.Defaulted,
             Default = "https://login.salesforce.com/.well-known/openid-configuration", Scope = ConfigurationScope.Shared)]
         public Uri DiscoveryDocument { get; set; } = default!;
     }
@@ -52,32 +59,40 @@ namespace EastFive.Azure.Auth
     [ConfigurationType("AzureADB2C", Label = "Azure AD B2C")]
     public sealed class AzureADB2CGraphConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(EastFive.Azure.AppSettings.AzureADB2C.Tenant, Label = "Tenant")]
+        public const string ApplicationIdKey = "EastFive.Azure.AzureADB2C.ApplicationId";
+        public const string AudienceKey = "EastFive.Azure.AzureADB2C.Audience";
+        public const string ClientIdKey = "EastFive.Azure.AzureADB2C.ClientId";
+        public const string LoginIdClaimTypeKey = "EastFive.Azure.Auth.AzureADB2C.LoginIdClaimType";
+        public const string SigninFlowKey = "EastFive.Azure.AzureADB2C.SigninFlow";
+        public const string SignupFlowKey = "EastFive.Azure.AzureADB2C.SignupFlow";
+        public const string TenantKey = "EastFive.Azure.AzureADB2C.Tenant";
+
+        [ConfigurationMember(TenantKey, Label = "Tenant")]
         public string Tenant { get; set; } = default!;
 
-        [ConfigurationMember(EastFive.Azure.AppSettings.AzureADB2C.ClientId, Label = "Graph client ID")]
+        [ConfigurationMember(ClientIdKey, Label = "Graph client ID")]
         public string ClientId { get; set; } = default!;
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Graph client secret")]
         public Secret ClientSecret { get; set; } = default!;
 
-        [ConfigurationMember(EastFive.Azure.AppSettings.AzureADB2C.ApplicationId, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(ApplicationIdKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Application ID", Description = "The B2C application users sign in to.")]
         public string? ApplicationId { get; set; }
 
-        [ConfigurationMember(EastFive.Azure.AppSettings.AzureADB2C.Audience, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(AudienceKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Audience", Description = "Audience of the B2C tokens this application accepts.")]
         public string? Audience { get; set; }
 
-        [ConfigurationMember(EastFive.Azure.AppSettings.AzureADB2C.SigninFlow, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(SigninFlowKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Sign-in flow", Description = "B2C user flow (policy) for signing in.")]
         public string? SigninFlow { get; set; }
 
-        [ConfigurationMember(EastFive.Azure.AppSettings.AzureADB2C.SignupFlow, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(SignupFlowKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Sign-up flow", Description = "B2C user flow (policy) for signing up.")]
         public string? SignupFlow { get; set; }
 
-        [ConfigurationMember(EastFive.Azure.AppSettings.AzureADB2C.LoginIdClaimType, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(LoginIdClaimTypeKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Login id claim", Description = "The B2C claim whose value identifies the user.")]
         public string? LoginIdClaimType { get; set; }
 
@@ -104,7 +119,9 @@ namespace EastFive.Azure.Auth
     [ConfigurationType("EastFiveLogin", Label = "EastFive login service")]
     public sealed class EastFiveLoginConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(EastFive.Azure.Login.AppSettings.ClientKey, Label = "Client key")]
+        public const string ClientKeyKey = "EastFive.Azure.Login.ClientKey";
+
+        [ConfigurationMember(ClientKeyKey, Label = "Client key")]
         public Guid ClientKey { get; set; }
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Client secret")]

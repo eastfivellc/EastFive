@@ -10,12 +10,15 @@ namespace EastFive.Api
         Description = "The claim types that carry the acting account id and the session id in EastFive tokens.")]
     public sealed class ClaimTypesConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(AppSettings.ActorIdClaimType, Kind = ConfigurationMemberKind.Defaulted,
+        public const string ActorIdClaimTypeKey = "EastFive.Api.Security.AccountIdClaimType";
+        public const string SessionIdClaimTypeKey = "EastFive.Api.Security.SessionIdClaimType";
+
+        [ConfigurationMember(ActorIdClaimTypeKey, Kind = ConfigurationMemberKind.Defaulted,
             Default = Auth.ClaimValues.DefaultAccountClaim, Scope = ConfigurationScope.Shared,
             Label = "Account claim type", Description = "The claim whose value is the acting account's id.")]
         public string ActorIdClaimType { get; set; } = default!;
 
-        [ConfigurationMember(AppSettings.SessionIdClaimType, Kind = ConfigurationMemberKind.Optional, Scope = ConfigurationScope.Shared,
+        [ConfigurationMember(SessionIdClaimTypeKey, Kind = ConfigurationMemberKind.Optional, Scope = ConfigurationScope.Shared,
             Label = "Session claim type", Description = "The claim whose value is the session id; unset means sessions are not read from claims.")]
         public string? SessionIdClaimType { get; set; }
 
@@ -23,7 +26,7 @@ namespace EastFive.Api
         public static TResult WithActorIdClaimType<TResult>(Func<string, TResult> onFound,
             Func<string, TResult>? onUnspecified = null, Func<TResult>? onNotSpecified = null)
             => Configured.Member<ClaimTypesConfiguration, string, TResult>(config => config.ActorIdClaimType,
-                AppSettings.ActorIdClaimType, onFound, onUnspecified, onNotSpecified);
+                ActorIdClaimTypeKey, onFound, onUnspecified, onNotSpecified);
 
         /// <summary>The account claim type, or the default when configuration cannot be read.</summary>
         public static string ActorIdClaimTypeOrDefault()
@@ -35,17 +38,21 @@ namespace EastFive.Api
         Description = "The account and authorization that act as super administrator, and the localhost conveniences for development.")]
     public sealed class SuperAdminConfiguration : IProvideConfiguration
     {
-        public const string AllowLocalHostGlobalSuperAdminKey = "EastFive.Azure.Auth.AllowLocalHostGlobalSuperAdmin";
+        public const string ActorIdKey = "EastFive.Api.Security.SiteAdminAccountId";
+        public const string AuthorizationIdKey = "EastFive.Api.AuthorizationIdSuperAdmin";
 
-        [ConfigurationMember(AppSettings.ActorIdSuperAdmin, Kind = ConfigurationMemberKind.Optional,
+        public const string AllowLocalHostGlobalSuperAdminKey = "EastFive.Azure.Auth.AllowLocalHostGlobalSuperAdmin";
+        public const string AllowLocalHostGlobalSecurityRoleKey = "EastFive.Api.Auth.AllowLocalHostGlobalSecurityRole";
+
+        [ConfigurationMember(ActorIdKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Super-admin account", Description = "Account id that is always a super administrator.")]
         public Guid? ActorId { get; set; }
 
-        [ConfigurationMember(AppSettings.AuthorizationIdSuperAdmin, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(AuthorizationIdKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Super-admin authorization", Description = "Authorization id whose sessions are super-administrator sessions.")]
         public Guid? AuthorizationId { get; set; }
 
-        [ConfigurationMember("EastFive.Api.Auth.AllowLocalHostGlobalSecurityRole", Kind = ConfigurationMemberKind.Defaulted, Default = "false",
+        [ConfigurationMember(AllowLocalHostGlobalSecurityRoleKey, Kind = ConfigurationMemberKind.Defaulted, Default = "false",
             Label = "Trust localhost for roles", Description = "Requests from localhost satisfy every [SecurityRoleRequired]. Development only.")]
         public bool AllowLocalHostGlobalSecurityRole { get; set; }
 
@@ -60,13 +67,13 @@ namespace EastFive.Api
         public static TResult WithActorId<TResult>(Func<Guid, TResult> onFound,
             Func<string, TResult>? onUnspecified = null, Func<TResult>? onNotSpecified = null)
             => Configured.MemberValue<SuperAdminConfiguration, Guid, TResult>(config => config.ActorId,
-                AppSettings.ActorIdSuperAdmin, onFound, onUnspecified, onNotSpecified);
+                ActorIdKey, onFound, onUnspecified, onNotSpecified);
 
         /// <summary>The super-admin authorization id, in the raw reader's continuation shape.</summary>
         public static TResult WithAuthorizationId<TResult>(Func<Guid, TResult> onFound,
             Func<string, TResult>? onUnspecified = null, Func<TResult>? onNotSpecified = null)
             => Configured.MemberValue<SuperAdminConfiguration, Guid, TResult>(config => config.AuthorizationId,
-                AppSettings.AuthorizationIdSuperAdmin, onFound, onUnspecified, onNotSpecified);
+                AuthorizationIdKey, onFound, onUnspecified, onNotSpecified);
     }
 
     /// <summary>The CORS correction handler.</summary>
@@ -74,7 +81,9 @@ namespace EastFive.Api
         Description = "EastFive's CORS correction: which origins besides localhost and the server itself may call the API.")]
     public sealed class CorsConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(AppSettings.CorsCorrection, Kind = ConfigurationMemberKind.Defaulted, Default = "false",
+        public const string EnabledKey = "EastFive.Api.CorsCorrection";
+
+        [ConfigurationMember(EnabledKey, Kind = ConfigurationMemberKind.Defaulted, Default = "false",
             Label = "Enabled", Description = "Answer preflights and add CORS headers.")]
         public bool Enabled { get; set; }
 
@@ -95,11 +104,14 @@ namespace EastFive.Api
         Description = "The default route directory and this server's public address.")]
     public sealed class RoutingConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(AppSettings.DefaultNamespace, Kind = ConfigurationMemberKind.Defaulted, Default = "api", Scope = ConfigurationScope.Shared,
+        public const string DefaultNamespaceKey = "EastFive.Api.DefaultNamespace";
+        public const string SiteUrlKey = "EastFive.Api.SiteUrl";
+
+        [ConfigurationMember(DefaultNamespaceKey, Kind = ConfigurationMemberKind.Defaulted, Default = "api", Scope = ConfigurationScope.Shared,
             Label = "Default namespace", Description = "Route directory for controllers that declare none.")]
         public string DefaultNamespace { get; set; } = default!;
 
-        [ConfigurationMember(AppSettings.SiteUrl, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(SiteUrlKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Site URL", Description = "This server's public address, used to describe it in notifications.")]
         public string? SiteUrl { get; set; }
 
@@ -112,7 +124,9 @@ namespace EastFive.Api
         Description = "Lifetime of session tokens and signed access-token links.")]
     public sealed class AccessTokenLifetimeConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(AppSettings.AccessTokenExpirationInMinutes, Kind = ConfigurationMemberKind.Optional,
+        public const string ExpirationInMinutesKey = "EastFive.Api.AccessTokenExpirationInMinutes";
+
+        [ConfigurationMember(ExpirationInMinutesKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Lifetime (minutes)", Description = "Minutes a session token or signed link stays valid.")]
         public double? ExpirationInMinutes { get; set; }
 
@@ -127,7 +141,7 @@ namespace EastFive.Api
             => Configured.Get<AccessTokenLifetimeConfiguration, TimeSpan>(
                 config => config.ExpirationInMinutes is { } minutes
                     ? TimeSpan.FromMinutes(minutes)
-                    : throw new EastFive.Web.ConfigurationException(AppSettings.AccessTokenExpirationInMinutes, typeof(double), "Access-token lifetime is not configured."),
+                    : throw new EastFive.Web.ConfigurationException(ExpirationInMinutesKey, typeof(double), "Access-token lifetime is not configured."),
                 issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(double), issue.ToString()));
     }
 }

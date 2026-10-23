@@ -16,11 +16,11 @@ namespace EastFive.Azure.Auth
             Func<string, TResult> onNotAvailable)
         {
             return EastFive.Configuration.Configured.Member<AppleConfiguration, string, Task<TResult>>(config => config.ClientId,
-                AppSettings.Auth.Apple.ClientId,
+                EastFive.Azure.Auth.AppleConfiguration.ClientIdKey,
                 applicationId =>
                 {
                     return EastFive.Configuration.Configured.Member<AppleConfiguration, string, Task<TResult>>(config => config.ValidAudiences,
-                        AppSettings.Auth.Apple.ValidAudiences,
+                        EastFive.Azure.Auth.AppleConfiguration.ValidAudiencesKey,
                         (validAudiencesStr) =>
                         {
                             var validAudiences = validAudiencesStr.Split(','.AsArray());

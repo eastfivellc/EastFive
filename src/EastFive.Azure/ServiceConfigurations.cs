@@ -10,7 +10,9 @@ namespace EastFive.Azure
     [ConfigurationType("AzureSearch", Label = "Azure AI Search")]
     public sealed class SearchConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(EastFive.Azure.AppSettings.Search.EndPoint, Label = "Endpoint")]
+        public const string EndPointKey = "EastFive.Azure.Search.SearchServiceEndPoint";
+
+        [ConfigurationMember(EndPointKey, Label = "Endpoint")]
         public Uri EndPoint { get; set; } = default!;
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Admin API key",
@@ -22,7 +24,9 @@ namespace EastFive.Azure
     [ConfigurationType("ComputerVision", Label = "Computer Vision")]
     public sealed class ComputerVisionConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(EastFive.Azure.AppSettings.CognitiveServices.ComputerVisionEndpoint, Label = "Endpoint")]
+        public const string EndpointKey = "EastFive.Azure.CognitiveServices.ComputerVisionEndpoint";
+
+        [ConfigurationMember(EndpointKey, Label = "Endpoint")]
         public Uri Endpoint { get; set; } = default!;
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Subscription key")]
@@ -34,7 +38,9 @@ namespace EastFive.Azure
     [ConfigurationType("ApplicationInsights", Label = "Application Insights query API")]
     public sealed class ApplicationInsightsQueryConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(EastFive.Azure.AppSettings.ApplicationInsights.ApplicationId, Account = true, Label = "Application ID")]
+        public const string ApplicationIdKey = "EastFive.Azure.ApplicationInsights.ApplicationId";
+
+        [ConfigurationMember(ApplicationIdKey, Account = true, Label = "Application ID")]
         public string ApplicationId { get; set; } = default!;
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "API key")]
@@ -62,17 +68,22 @@ namespace EastFive.Azure
     [ConfigurationType("ServiceBus", Label = "Service Bus")]
     public sealed class ServiceBusConfiguration : IProvideConfiguration
     {
+        public const string FunctionProcessorTriggerNameKey = "EastFive.Azure.Functions.ServiceBusTriggerName";
+
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Connection string")]
         public Secret ConnectionString { get; set; } = default!;
 
-        [ConfigurationMember(EastFive.Azure.AppSettings.FunctionProcessorServiceBusTriggerName, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(FunctionProcessorTriggerNameKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Function processor queue", Description = "The queue invocation messages are sent to for the function processor.")]
         public string? FunctionProcessorTriggerName { get; set; }
+
+        /// <summary>The queue name as an Azure Functions binding expression, for <c>[ServiceBusTrigger]</c>.</summary>
+        public const string FunctionProcessorTriggerNameBinding = "%" + FunctionProcessorTriggerNameKey + "%";
 
         /// <summary>The function processor's queue, in the raw reader's continuation shape.</summary>
         public static TResult WithFunctionProcessorTriggerName<TResult>(Func<string, TResult> onFound, Func<string, TResult> onUnspecified)
             => Configured.Member<ServiceBusConfiguration, string, TResult>(config => config.FunctionProcessorTriggerName,
-                EastFive.Azure.AppSettings.FunctionProcessorServiceBusTriggerName, onFound, onUnspecified);
+                FunctionProcessorTriggerNameKey, onFound, onUnspecified);
     }
 
     /// <summary>The token that unlocks the table-information diagnostics endpoint:

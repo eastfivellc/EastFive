@@ -11,10 +11,12 @@ namespace EastFive.Security
     [ConfigurationType("EastFiveVoucher", Label = "Voucher credentials")]
     public sealed class VoucherConfiguration : IProvideConfiguration
     {
+        public const string ProviderIdKey = "EastFive.Security.CredentialProvider.Voucher.Provider";
+
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Description = "Base64 of the RSA key XML.")]
         public Secret SigningKey { get; set; } = default!;
 
-        [ConfigurationMember(AppSettings.CredentialProviderVoucherProviderId, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(ProviderIdKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Trusted provider", Description = "Provider id vouchers are issued under.")]
         public Uri? ProviderId { get; set; }
 

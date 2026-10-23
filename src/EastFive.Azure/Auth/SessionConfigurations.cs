@@ -11,46 +11,53 @@ namespace EastFive.Azure.Auth
         Description = "How long sessions last, where logins land, and how login redirections behave.")]
     public sealed class SessionServerConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(AppSettings.Auth.TokenExpirationTimeOfDay, Kind = ConfigurationMemberKind.Optional,
+        public const string DebugLoginKey = "EastFive.Azure.Auth.DebugLogin";
+        public const string LandingPageKey = "EastFive.Security.SessionServer.RouteDefinitions.LandingPage";
+        public const string PauseRedirectionsKey = "EastFive.Azure.Auth.PauseRedirections";
+        public const string RedirectionsKey = "EastFive.Azure.Auth.Redirections";
+        public const string TokenExpirationInMinutesKey = "EastFive.Security.SessionServer.tokenExpirationInMinutes";
+        public const string TokenExpirationTimeOfDayKey = "EastFive.Security.TokenExpirationTimeOfDay";
+
+        [ConfigurationMember(TokenExpirationTimeOfDayKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Expire at time of day", Description = "Sessions end at this time of day (e.g. \"02:00:00 -05:00\"); wins over the lifetime in minutes.")]
         public string? TokenExpirationTimeOfDay { get; set; }
 
-        [ConfigurationMember(AppSettings.Auth.TokenExpirationInMinutes, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(TokenExpirationInMinutesKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Session lifetime (minutes)", Description = "Minutes a session lasts when no time of day is set.")]
         public double? TokenExpirationInMinutes { get; set; }
 
-        [ConfigurationMember(AppSettings.Auth.LandingPage, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(LandingPageKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Landing page", Description = "Where a completed login lands when the request names no return address.")]
         public string? LandingPage { get; set; }
 
-        [ConfigurationMember(AppSettings.Auth.PauseRedirections, Kind = ConfigurationMemberKind.Defaulted, Default = "false",
+        [ConfigurationMember(PauseRedirectionsKey, Kind = ConfigurationMemberKind.Defaulted, Default = "false",
             Label = "Pause logins", Description = "Refuse every login with a 'logins are paused' message.")]
         public bool PauseRedirections { get; set; }
 
-        [ConfigurationMember(AppSettings.Auth.Redirections, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(RedirectionsKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Redirections", Description = "JSON redirection rules for the redirection modules.")]
         public string? Redirections { get; set; }
 
-        [ConfigurationMember(AppSettings.Auth.DebugLogin, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(DebugLoginKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Debug login redirect", Description = "Developers only: send Ping responses here instead of processing them.")]
         public string? DebugLogin { get; set; }
 
         public static TResult WithLandingPage<TResult>(Func<Uri, TResult> onFound,
             Func<string, TResult>? onUnspecified = null, Func<TResult>? onNotSpecified = null)
             => Configured.MemberUri<SessionServerConfiguration, TResult>(config => config.LandingPage,
-                AppSettings.Auth.LandingPage, onFound, onUnspecified, onNotSpecified);
+                LandingPageKey, onFound, onUnspecified, onNotSpecified);
 
         public static TResult WithDebugLogin<TResult>(Func<Uri, TResult> onFound,
             Func<string, TResult>? onUnspecified = null, Func<TResult>? onNotSpecified = null)
             => Configured.MemberUri<SessionServerConfiguration, TResult>(config => config.DebugLogin,
-                AppSettings.Auth.DebugLogin, onFound, onUnspecified, onNotSpecified);
+                DebugLoginKey, onFound, onUnspecified, onNotSpecified);
 
         /// <summary>The redirection rules deserialized as <typeparamref name="TRules"/>; JSON that does not
         /// deserialize is <paramref name="onInvalid"/>.</summary>
         public static TResult WithRedirections<TRules, TResult>(Func<TRules, TResult> onParsed,
             Func<string, TResult> onInvalid, Func<TResult> onNotSpecified)
             => Configured.Member<SessionServerConfiguration, string, TResult>(config => config.Redirections,
-                AppSettings.Auth.Redirections,
+                RedirectionsKey,
                 json =>
                 {
                     TRules rules;
@@ -75,19 +82,24 @@ namespace EastFive.Azure.Auth
         Description = "Sign in with Apple, and the files Apple fetches to associate this domain with an app.")]
     public sealed class AppleConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(AppSettings.Auth.Apple.ClientId, Kind = ConfigurationMemberKind.Optional,
+        public const string AppSiteAssociationIdKey = "EastFive.Azure.Apple.AppleAppSiteAssociation.AppId";
+        public const string ClientIdKey = "EastFive.Apple.ClientId";
+        public const string DeveloperSiteAssociationKey = "EastFive.Azure.Apple.DeveloperSiteAssociation";
+        public const string ValidAudiencesKey = "EastFive.Apple.ValidAudiences";
+
+        [ConfigurationMember(ClientIdKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Client ID", Description = "Services ID identifying this application to Apple.")]
         public string? ClientId { get; set; }
 
-        [ConfigurationMember(AppSettings.Auth.Apple.ValidAudiences, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(ValidAudiencesKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Valid audiences", Description = "Comma-separated audiences accepted in Apple's JWT; include the client id.")]
         public string? ValidAudiences { get; set; }
 
-        [ConfigurationMember(AppSettings.Apple.AppleAppSiteAssociationId, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(AppSiteAssociationIdKey, Kind = ConfigurationMemberKind.Optional,
             Label = "App site association", Description = "App id served in apple-app-site-association.")]
         public string? AppSiteAssociationId { get; set; }
 
-        [ConfigurationMember(AppSettings.Apple.DeveloperSiteAssociation, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(DeveloperSiteAssociationKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Developer domain association", Description = "Content Apple fetches to prove ownership of this domain.")]
         public string? DeveloperSiteAssociation { get; set; }
 
@@ -126,6 +138,9 @@ namespace EastFive.Azure.Auth
 
         public string InstanceKey { get; }
 
+        public static string MetadataLocationKey(string tag) => $"EastFive.Security.CredentialProvider.SAML.{tag}.MetadataLocation";
+        public static string LaunchPageKey(string tag) => $"EastFive.Security.CredentialProvider.SAML.{tag}.LaunchPage";
+
         [ConfigurationMember("EastFive.Security.CredentialProvider.SAML.{key}.MetadataLocation", Kind = ConfigurationMemberKind.Optional,
             Label = "Metadata location", Description = "The identity provider's SAML metadata document.")]
         public Uri? MetadataLocation { get; set; }
@@ -140,12 +155,12 @@ namespace EastFive.Azure.Auth
         public static TResult WithMetadataLocation<TResult>(string tag, Func<Uri, TResult> onFound, Func<string, TResult> onUnspecified)
             => For(tag)?.MetadataLocation is { } location
                 ? onFound(location)
-                : onUnspecified($"[{AppSettings.SAML.GetMetadataLocation(tag)}] is not specified.");
+                : onUnspecified($"[{MetadataLocationKey(tag)}] is not specified.");
 
         public static TResult WithLaunchPage<TResult>(string tag, Func<string, TResult> onFound, Func<string, TResult> onUnspecified)
             => For(tag)?.LaunchPage is { } launchPage && !string.IsNullOrWhiteSpace(launchPage)
                 ? onFound(launchPage)
-                : onUnspecified($"[{AppSettings.SAML.GetLaunchPage(tag)}] is not specified.");
+                : onUnspecified($"[{LaunchPageKey(tag)}] is not specified.");
     }
 
     /// <summary>This application as a SAML service provider.</summary>
@@ -153,15 +168,19 @@ namespace EastFive.Azure.Auth
         Description = "How this application describes itself to SAML identity providers.")]
     public sealed class SamlConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(AppSettings.SAML.SAMLLoginIdAttributeName, Kind = ConfigurationMemberKind.Optional,
+        public const string LoginIdAttributeNameKey = "EastFive.Security.CredentialProvider.SAML.LoginIdAttributeName";
+        public const string NameIdFormatKey = "EastFive.Security.CredentialProvider.SAML.NameIdFormat";
+        public const string ServiceProviderCertificateKey = "EastFive.Security.CredentialProvider.SAML.ServiceProviderCertificate";
+
+        [ConfigurationMember(LoginIdAttributeNameKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Login id attribute", Description = "The assertion attribute whose value identifies the user.")]
         public string? LoginIdAttributeName { get; set; }
 
-        [ConfigurationMember(AppSettings.SAML.NameIdFormat, Kind = ConfigurationMemberKind.Optional, Scope = ConfigurationScope.Shared,
+        [ConfigurationMember(NameIdFormatKey, Kind = ConfigurationMemberKind.Optional, Scope = ConfigurationScope.Shared,
             Label = "NameID format", Description = "NameID format declared in the service-provider metadata.")]
         public string? NameIdFormat { get; set; }
 
-        [ConfigurationMember(AppSettings.SAML.ServiceProviderCertificate, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(ServiceProviderCertificateKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Service-provider certificate", Description = "Public signing certificate (base64) published in the metadata. Public, not a secret.")]
         public string? ServiceProviderCertificate { get; set; }
 
@@ -177,15 +196,19 @@ namespace EastFive.Azure.OAuth.Server
         Description = "Token lifetimes and advertised scopes of EastFive's OAuth 2.0 server.")]
     public sealed class OAuthServerConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(OAuthServer.AppSettings.AccessTokenExpirationInMinutes, Kind = ConfigurationMemberKind.Defaulted, Default = "60",
+        public const string AccessTokenExpirationInMinutesKey = "EastFive.Azure.OAuth.AccessTokenExpirationInMinutes";
+        public const string RefreshTokenExpirationInDaysKey = "EastFive.Azure.OAuth.RefreshTokenExpirationInDays";
+        public const string ScopesSupportedKey = "EastFive.Azure.OAuth.ScopesSupported";
+
+        [ConfigurationMember(AccessTokenExpirationInMinutesKey, Kind = ConfigurationMemberKind.Defaulted, Default = "60",
             Label = "Access-token lifetime (minutes)", Description = "Lifetime of access tokens issued by /oauth/token.")]
         public double AccessTokenExpirationInMinutes { get; set; }
 
-        [ConfigurationMember(OAuthServer.AppSettings.RefreshTokenExpirationInDays, Kind = ConfigurationMemberKind.Defaulted, Default = "30",
+        [ConfigurationMember(RefreshTokenExpirationInDaysKey, Kind = ConfigurationMemberKind.Defaulted, Default = "30",
             Label = "Refresh-token lifetime (days)", Description = "Lifetime of refresh tokens.")]
         public double RefreshTokenExpirationInDays { get; set; }
 
-        [ConfigurationMember(OAuthServer.AppSettings.ScopesSupported, Kind = ConfigurationMemberKind.Defaulted, Default = OAuthServer.McpScope,
+        [ConfigurationMember(ScopesSupportedKey, Kind = ConfigurationMemberKind.Defaulted, Default = OAuthServer.McpScope,
             Scope = ConfigurationScope.Shared, Label = "Scopes supported",
             Description = "Space-separated scopes advertised in discovery metadata (advisory; endpoints enforce [RequiredScope]).")]
         public string ScopesSupported { get; set; } = default!;

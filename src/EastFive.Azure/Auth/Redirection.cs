@@ -71,7 +71,7 @@ namespace EastFive.Azure.Auth
                 discard =>
                 {
                     return EastFive.Configuration.Configured.MemberValue<SessionServerConfiguration, bool, Task<IHttpResponse>>(
-                        config => config.PauseRedirections, AppSettings.Auth.PauseRedirections,
+                        config => config.PauseRedirections, EastFive.Azure.Auth.SessionServerConfiguration.PauseRedirectionsKey,
                         async pauseRedirections =>
                         {
                             if (pauseRedirections)

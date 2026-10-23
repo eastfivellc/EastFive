@@ -75,15 +75,15 @@ public static class TestConfiguration
         var rsaXmlBase64 = Convert.ToBase64String(Encoding.ASCII.GetBytes(rsa.ToXmlString(true)));
         // Secrets are never values: the key is a local secret override, read by its generated name.
         Set($"Secrets__{SigningKeyName}", rsaXmlBase64);
-        Set(EastFive.Security.AppSettings.TokenIssuer, "https://tests.eastfive.invalid/");
-        Set(EastFive.Security.AppSettings.TokenScope, "https://tests.eastfive.invalid/api");
-        Set(EastFive.Security.AppSettings.TokenAlgorithm,
+        Set(EastFive.Security.Tokens.TokenSigningConfiguration.IssuerKey, "https://tests.eastfive.invalid/");
+        Set(EastFive.Security.Tokens.TokenSigningConfiguration.ScopeKey, "https://tests.eastfive.invalid/api");
+        Set(EastFive.Security.Tokens.TokenSigningConfiguration.AlgorithmKey,
             Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSha256Signature);
 
-        Set(EastFive.Azure.OAuth.Server.OAuthServer.AppSettings.AccessTokenExpirationInMinutes,
+        Set(EastFive.Azure.OAuth.Server.OAuthServerConfiguration.AccessTokenExpirationInMinutesKey,
             AccessTokenExpirationInMinutes.ToString());
 
-        Set(AppSettings.Search.EndPoint, SearchEndPoint);
+        Set(EastFive.Azure.SearchConfiguration.EndPointKey, SearchEndPoint);
         Set("Secrets__AzureSearch-AdminApiKey", SearchAdminApiKey);
 
         static void Set(string key, string value) =>

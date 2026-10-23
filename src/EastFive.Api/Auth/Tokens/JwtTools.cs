@@ -35,7 +35,7 @@ namespace EastFive.Security.Tokens
                     TResult ValidateIssuedBy(string issuer)
                             {
                                 if (issuer.IsNullOrEmpty())
-                                    return missingConfigurationSetting(EastFive.Security.AppSettings.TokenIssuer);
+                                    return missingConfigurationSetting(EastFive.Security.Tokens.TokenSigningConfiguration.IssuerKey);
 
                                 var validationParameters = new TokenValidationParameters()
                                 {
@@ -71,7 +71,7 @@ namespace EastFive.Security.Tokens
 
                                     var claims = principal.Claims.ToArray();
                                     if (policy?.ForceRefreshBefore is { } notValidBeforeTime && validatedToken.ValidFrom < notValidBeforeTime)
-                                        return invalidToken(policy.ForceRefreshMessage ?? $"[{EastFive.Web.AppSettings.TokenForceRefreshMessage}] is not specified.");
+                                        return invalidToken(policy.ForceRefreshMessage ?? $"[{EastFive.Security.Tokens.TokenSigningConfiguration.ForceRefreshMessageKey}] is not specified.");
                                     return success(claims);
                                 }
                                 catch (ArgumentException ex)
@@ -127,7 +127,7 @@ namespace EastFive.Security.Tokens
                 (current, rsaProvider) =>
                 {
                     if (string.IsNullOrWhiteSpace(current.Issuer))
-                        return missingConfigurationSetting(EastFive.Security.AppSettings.TokenIssuer);
+                        return missingConfigurationSetting(EastFive.Security.Tokens.TokenSigningConfiguration.IssuerKey);
                     var jwt = rsaProvider.JwtToken(current.Issuer, scope, claims,
                                 issued, duration, current.Algorithm, tokenHeaders);
                     return tokenCreated(jwt);
@@ -182,7 +182,7 @@ namespace EastFive.Security.Tokens
                     TResult ValidateIssuedBy(string issuer)
                         {
                             if (string.IsNullOrEmpty(issuer))
-                                return missingConfigurationSetting(AppSettings.TokenIssuer);
+                                return missingConfigurationSetting(EastFive.Security.Tokens.TokenSigningConfiguration.IssuerKey);
 
                             var validationParameters = new TokenValidationParameters()
                             {

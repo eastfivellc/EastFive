@@ -385,7 +385,7 @@ namespace EastFive.Azure.Auth.CredentialProviders.Voucher
                 [Api.Meta.Flows.WorkflowObjectParameter(
                     Key0 = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
                     Value0 = ClaimValues.RoleType + "fb7f557f458c4eadb08652c4a7315fd6",
-                    AppSettingKey1 = EastFive.Api.AppSettings.ActorIdClaimType,
+                    AppSettingKey1 = EastFive.Api.ClaimTypesConfiguration.ActorIdClaimTypeKey,
                     Value1 = "{{Account}}")]
                 [Property(Name = ClaimsPropertyName)] Dictionary<string, string> extraClaims,
 

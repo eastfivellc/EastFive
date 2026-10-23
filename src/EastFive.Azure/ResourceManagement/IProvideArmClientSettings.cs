@@ -20,10 +20,13 @@ public interface IProvideArmClientSettings
     Description = "Entra application used for Azure Resource Manager and Event Grid calls.")]
 public sealed class AzureClientApplicationConfiguration : IProvideConfiguration, IProvideArmClientSettings
 {
-    [ConfigurationMember(EastFive.Azure.AppSettings.TenantId, Label = "Tenant ID")]
+    public const string ClientIdKey = "EastFive.Azure.ClientId";
+    public const string TenantIdKey = "EastFive.Azure.TenantId";
+
+    [ConfigurationMember(TenantIdKey, Label = "Tenant ID")]
     public string TenantId { get; set; } = default!;
 
-    [ConfigurationMember(EastFive.Azure.AppSettings.ClientId, Account = true, Label = "Client ID")]
+    [ConfigurationMember(ClientIdKey, Account = true, Label = "Client ID")]
     public string ClientId { get; set; } = default!;
 
     [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Client secret")]

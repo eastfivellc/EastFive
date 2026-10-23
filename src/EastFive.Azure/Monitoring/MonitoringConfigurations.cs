@@ -13,12 +13,15 @@ namespace EastFive.Azure.Monitoring
         Description = "Where this application's telemetry is sent, server-side and from the browser.")]
     public sealed class ApplicationInsightsTelemetryConfiguration : IProvideConfiguration
     {
-        [ConfigurationMember(AppSettings.ApplicationInsights.ConnectionString, Kind = ConfigurationMemberKind.Optional,
+        public const string ConnectionStringKey = "APPLICATIONINSIGHTS_CONNECTION_STRING";
+        public const string InstrumentationKeyKey = "EastFive.Azure.ApplicationInsights.InstrumentationKey";
+
+        [ConfigurationMember(ConnectionStringKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Connection string", Description = "Application Insights connection string; also injected into served SPA index files. Not a secret.",
             Location = "Azure portal | Application Insights | Overview")]
         public string? ConnectionString { get; set; }
 
-        [ConfigurationMember(AppSettings.ApplicationInsights.InstrumentationKey, Kind = ConfigurationMemberKind.Optional,
+        [ConfigurationMember(InstrumentationKeyKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Instrumentation key", Description = "Legacy instrumentation key injected into served SPA index files. Not a secret.",
             Location = "Azure portal | Application Insights | Overview")]
         public string? InstrumentationKey { get; set; }
@@ -33,13 +36,16 @@ namespace EastFive.Azure.Monitoring
         Description = "The name and image exception notification cards show for this application.")]
     public sealed class TeamsNotificationCardConfiguration : IProvideConfiguration
     {
+        public const string AppIdentificationKey = "EastFive.Azure.ApplicationInsights.TeamsAppIdentification";
+        public const string AppImageKey = "EastFive.Azure.ApplicationInsights.TeamsAppImage";
+
         public const string DefaultAppIdentification = "App Logger";
 
-        [ConfigurationMember(AppSettings.ApplicationInsights.TeamsAppIdentification, Kind = ConfigurationMemberKind.Defaulted,
+        [ConfigurationMember(AppIdentificationKey, Kind = ConfigurationMemberKind.Defaulted,
             Default = DefaultAppIdentification, Label = "Application name", Description = "Name shown on notification cards.")]
         public string AppIdentification { get; set; } = default!;
 
-        [ConfigurationMember(AppSettings.ApplicationInsights.TeamsAppImage, Kind = ConfigurationMemberKind.Optional, Scope = ConfigurationScope.Shared,
+        [ConfigurationMember(AppImageKey, Kind = ConfigurationMemberKind.Optional, Scope = ConfigurationScope.Shared,
             Label = "Application image", Description = "Absolute URL of the image shown on notification cards.")]
         public Uri? AppImage { get; set; }
     }

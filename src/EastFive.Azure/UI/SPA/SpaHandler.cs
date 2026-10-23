@@ -611,7 +611,7 @@ namespace EastFive.Azure.Spa
         /// <summary>The SPA package container, from the startup-loaded <see cref="Persistence.SpaStorageConfiguration"/>.</summary>
         private static string SpaContainerName()
             => EastFive.Configuration.StartupConfiguration.Get<Persistence.SpaStorageConfiguration, string>(
-                spa => spa.ContainerName ?? throw new EastFive.Web.ConfigurationException(Persistence.AppSettings.SpaContainer, typeof(string), "The SPA container is not configured."),
+                spa => spa.ContainerName ?? throw new EastFive.Web.ConfigurationException(EastFive.Azure.Persistence.SpaStorageConfiguration.ContainerNameKey, typeof(string), "The SPA container is not configured."),
                 issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(string), issue.ToString()));
     }
 }
