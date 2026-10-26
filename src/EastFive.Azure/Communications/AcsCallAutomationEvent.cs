@@ -14,7 +14,6 @@ using System.Collections.Generic;
 using Microsoft.Azure.Cosmos.Table;
 using System.Reflection;
 using System.Linq;
-using Parquet.Thrift;
 using DocumentFormat.OpenXml.Office2010.Excel;
 using EastFive.Api.Meta.Postman.Resources.Collection;
 

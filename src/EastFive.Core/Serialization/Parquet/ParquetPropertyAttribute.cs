@@ -1,22 +1,22 @@
-﻿using System;
-using System.Linq;
+using System;
 using System.Reflection;
-
-using Parquet.Data;
-
-using EastFive.Extensions;
-using EastFive.Linq;
-using EastFive.Reflection;
-using EastFive.Serialization.Text;
 
 namespace EastFive.Serialization.Parquet
 {
+    /// <summary>
+    /// Maps a property or field to the column <see cref="Name"/> (the member's name when unset).
+    /// Strings, booleans, numbers, <see cref="DateTime"/> and their nullable forms are stored as
+    /// themselves; <see cref="DateTimeOffset"/> as a UTC <see cref="DateTime"/> (INT96, as the 3.x
+    /// engine wrote it); <see cref="Guid"/>, <see cref="IRef{TType}"/> and
+    /// <see cref="IRefOptional{TType}"/> as their "N" string; enums by name.
+    /// </summary>
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = true)]
     public class ParquetPropertyAttribute : ScopedMapParquetPropertyAttribute
     {
         public string Name { get; set; }
 
-        public StringComparison ComparisonType { get; set; }
+        /// <summary>How the column name is matched against a file's columns when reading.</summary>
+        public StringComparison ComparisonType { get; set; } = StringComparison.Ordinal;
 
         public ParquetPropertyAttribute()
         {
@@ -27,52 +27,9 @@ namespace EastFive.Serialization.Parquet
             this.Name = name;
         }
 
-        public override TResource ParseMemberValueFromRow<TResource>(TResource resource,
-            MemberInfo member, (global::Parquet.Data.Field key, object value)[] rowValues)
-        {
-            var type = member.GetPropertyOrFieldType();
-            var nameToMatch = this.Name.HasBlackSpace() ?
-                this.Name
-                :
-                member.Name;
-            var assignment = rowValues
-                .Where(tpl => String.Equals(nameToMatch, tpl.key.Name, ComparisonType))
-                .First(
-                    (rowKeyValue, next) =>
-                    {
-                        var (rowKey, rowValue) = rowKeyValue;
-                        var assign = member.ParseObjectAsAssignment<TResource>(type, rowValue, this.ComparisonType);
-                        return assign;
-                    },
-                    () =>
-                    {
-                        Func<TResource, TResource> assign = (res) => res;
-                        return assign;
-                    });
-            var updatedResource = assignment(resource);
-            return updatedResource;
-        }
+        protected virtual string GetColumnName(MemberInfo member) => Name.HasBlackSpace() ? Name : member.Name;
 
-        
-    }
-
-    public class ParquetPropertyDebugAttribute : ParquetPropertyAttribute
-    {
-        public override bool DoesMap(string scope)
-        {
-            return base.DoesMap(scope);
-        }
-
-        public override bool Match(object obj)
-        {
-            return base.Match(obj);
-        }
-
-        public override TResource ParseMemberValueFromRow<TResource>(TResource resource, MemberInfo member,
-            (Field key, object value)[] rowValues)
-        {
-            return base.ParseMemberValueFromRow(resource, member, rowValues);
-        }
+        public override IBindParquetColumn<TResource> GetColumnBinding<TResource>(MemberInfo member) =>
+            ParquetMemberMapping.Bind<TResource>(member, GetColumnName(member), ComparisonType);
     }
 }
-

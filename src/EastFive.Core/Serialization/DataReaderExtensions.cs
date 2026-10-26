@@ -153,36 +153,5 @@ namespace EastFive.Serialization
                 yield return statement;
             }
         }
-
-        public static global::Parquet.Data.Schema GetParquetSchema(this IDataReader dataReader)
-        {
-            var fieldCount = dataReader.FieldCount;
-            var fields = Enumerable
-                .Range(0, fieldCount)
-                .Select(
-                    (index) =>
-                    {
-                        var name = dataReader.GetName(index);
-                        var type = dataReader.GetFieldType(index);
-                        if (type == typeof(DateTime))
-                            type = typeof(DateTime?);
-                        if (type == typeof(long))
-                            type = typeof(long?);
-                        if (type == typeof(int))
-                            type = typeof(int?);
-                        if (type == typeof(bool))
-                            type = typeof(bool?);
-                        if (type == typeof(float))
-                            type = typeof(float?);
-                        if (type == typeof(double))
-                            type = typeof(double?);
-                        if (type == typeof(decimal))
-                            type = typeof(decimal?);
-                        return new global::Parquet.Data.DataField(name, type);
-                    })
-                .ToArray();
-
-            return new global::Parquet.Data.Schema(fields);
-        }
     }
 }
