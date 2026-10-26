@@ -89,7 +89,7 @@ namespace EastFive.Azure.Communications
                 // In that case, we cannot add participants
                 throw new InvalidOperationException("Call in progress, participant should be added, not called.");
             }
-            return await EastFive.Azure.AppSettings.Communications.Default
+            return await AzureCommunicationsConfiguration.Startup
                 .CreateAutomationClient(
                     async client =>
                     {
@@ -156,7 +156,7 @@ namespace EastFive.Azure.Communications
                 throw new InvalidOperationException("Cannot add participant to call that has not been created.");
             }
 
-            return await EastFive.Azure.AppSettings.Communications.Default
+            return await AzureCommunicationsConfiguration.Startup
                 .CreateAutomationClient(
                     async client =>
                     {
@@ -259,7 +259,7 @@ namespace EastFive.Azure.Communications
         public async Task MuteParticipantAsync(string phoneNumber)
         {
             var phoneCall = this;
-            await EastFive.Azure.AppSettings.Communications.Default
+            await AzureCommunicationsConfiguration.Startup
                 .CreateAutomationClient<Task<bool>>(
                     async client =>
                     {
@@ -276,7 +276,7 @@ namespace EastFive.Azure.Communications
             Func<string, TResult> onFailure)
         {
             var phoneCall = this;
-            return await EastFive.Azure.AppSettings.Communications.Default
+            return await AzureCommunicationsConfiguration.Startup
                 .CreateAutomationClient(
                     async client =>
                     {
@@ -383,7 +383,7 @@ namespace EastFive.Azure.Communications
         {
             var phoneCall = this;
             var aiPhoneCallApiResources = new RequestQuery<AcsPhoneCall>(request);
-            return await EastFive.Azure.AppSettings.Communications.Default
+            return await AzureCommunicationsConfiguration.Startup
                 .CreateAutomationClient(
                     async client =>
                     {
@@ -431,7 +431,7 @@ namespace EastFive.Azure.Communications
             if (string.IsNullOrEmpty(phoneCall.serverCallId))
                 return onFailure("ServerCallId is not set.");
 
-            return await EastFive.Azure.AppSettings.Communications.Default
+            return await AzureCommunicationsConfiguration.Startup
                 .CreateAutomationClient(
                     async client =>
                     {

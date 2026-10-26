@@ -501,7 +501,7 @@ namespace EastFive.Azure.Communications
             if (participantMaybe.phoneNumber.IsNullOrWhiteSpace())
                 return onFailure($"Participant {operationContextGuid} not found for move operation.");
             
-            return await EastFive.Azure.AppSettings.Communications.Default
+            return await AzureCommunicationsConfiguration.Startup
                 .CreateAutomationClient(
                     async client =>
                     {
