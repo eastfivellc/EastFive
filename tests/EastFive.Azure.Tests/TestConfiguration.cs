@@ -31,6 +31,10 @@ public static class TestConfiguration
     public const string SearchEndPoint = "https://fake-search.test/";
     public const string SearchAdminApiKey = "fake-admin-key";
 
+    /// <summary>The configuration this harness installed (null before <see cref="Ensure"/>) — for
+    /// tests asserting what the values store does NOT hold; EastFive itself exposes no raw read.</summary>
+    public static IConfiguration? Values { get; private set; }
+
     public static void Ensure()
     {
         if (Volatile.Read(ref initialized))
@@ -50,6 +54,7 @@ public static class TestConfiguration
                 .Build();
 
             EastFive.Web.Configuration.ConfigurationExtensions.Initialize(configuration);
+            Values = configuration;
 
             // Synchronous framework readers (the storage driver factory, token signing) never load:
             // a host loads its configuration once at startup. Test code may block here; framework

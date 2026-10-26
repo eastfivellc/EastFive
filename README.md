@@ -63,17 +63,22 @@ exception or a response.
 
 Values are typed too. Every setting EastFive itself reads — secret or not — is a member of an
 `IProvideConfiguration` type, and its key is a `{Member}Key` constant on that type
-(`SessionServerConfiguration.LandingPageKey`). The raw readers (`ConfigurationString` and
-friends, `Settings.Get*`) and the old `AppSettings` key constants are `[Obsolete]`, each constant
-naming its typed replacement; the framework builds with no `CS0618`, and a ratchet test in each
-framework test project pins EastFive's raw reads at **zero** (the only allowlisted read is the
-vault credential choice in `KeyVaultSecretStore`, which runs before configuration exists).
+(`SessionServerConfiguration.LandingPageKey`). **There is no raw read API**: the
+`ConfigurationString` family, `Settings.Get*`, `IProvideConfigurationKey` and the old `AppSettings`
+key-constant classes are deleted, not deprecated. `ConfigurationExtensions.Initialize` installs the
+ambient configuration a host built, and only the loader (`src/EastFive.Core/Configuration/`) reads
+a key from it — `ConfigurationLoader.ReadAmbient` is internal. `Configured.ReadDeclaredValue` serves
+the few APIs that take a key name, and only for a key some typed member declares. A guard test in
+each framework test project asserts no assembly exposes a public raw read and no framework source
+reads `IConfiguration`, `ConfigurationManager` or the environment directly (the one allowlisted
+read is the vault credential choice in `KeyVaultSecretStore`, which runs before configuration
+exists).
 
 At the point of use, framework code reads through `Configured`:
 
 ```csharp
 Configured.Get<CorsConfiguration, TResult>(cors => …, issue => …);
-SessionServerConfiguration.WithLandingPage(uri => …, why => …);   // Configured.Member, the raw reader's shape
+SessionServerConfiguration.WithLandingPage(uri => …, why => …);   // Configured.Member, callback-shaped
 ```
 
 A **value-only** type is loaded synchronously from the ambient values on every read, so it is
@@ -118,6 +123,9 @@ Types that share a `[ConfigurationType]` and an account share one secret — eve
 metadata (label, description, location, scope, field kind) and generated names; editors and
 doctors render from it. `IProvideConfigurationLookup` and `ITestConfiguration` are the
 attribute-interface hooks for choices and live checks of a `ConfigurationDraft`.
+`ConfigurationLoader.InspectAsync(construct)` reports how each member of one type stands against
+the ambient values and `SecretStore.Current` (names and sources, never values); the overloads
+taking a `readValue` function inspect explicit sources instead.
 
 ### Where secrets come from
 
@@ -125,7 +133,7 @@ A host initializes `SecretStore.Current` next to `ConfigurationExtensions.Initia
 
 ```csharp
 SecretStore.Initialize(new CompositeSecretStore(
-    new ConfigurationSecretOverrides(ConfigurationLoader.ReadAmbient),   // Secrets:{name}
+    SecretStore.AmbientOverrides,                                       // Secrets:{name}
     KeyVaultSecretStore.From(vaults)));                                 // the environment's vaults, in order
 ```
 
@@ -144,7 +152,7 @@ Loading a type with secret members is asynchronous. Code that cannot await — a
 storage driver factory, token signing — reads a configuration the host loaded once at startup:
 
 ```csharp
-await StartupConfiguration.LoadAsync(new[] { typeof(EastFive.Azure.AppSettings).Assembly, /* … */ });
+await StartupConfiguration.LoadAsync(new[] { typeof(EastFive.Azure.Persistence.StorageAccount).Assembly, /* … */ });
 StartupConfiguration.Get<TokenSigningConfiguration, TResult>(onLoaded, onUnavailable);   // never loads, never blocks
 ```
 

@@ -29,10 +29,6 @@ public class SecretGuardTests
     };
 
     [Fact]
-    public void NoAzureOrSheetsCode_ReadsASecretFromTheValuesStore()
-        => SecretReadGuard.AssertNoSecretReads(ScannedProjects, Framework);
-
-    [Fact]
     public void RetiredSecretKeys_AppearNowhereInAzureOrSheets()
         => SecretReadGuard.AssertRetiredKeysAbsent(ScannedProjects);
 
@@ -103,10 +99,9 @@ public class SecretGuardTests
     public async Task TokenSigningKey_ComesFromTheSecretStore_ThroughTheRealPipeline()
     {
         TestConfiguration.Ensure();
-        Assert.Null(ConfigurationLoader.ReadAmbient("EastFive.Security.Token.Key"));
+        Assert.Null(TestConfiguration.Values!["EastFive.Security.Token.Key"]);
 
-        var rows = await ConfigurationLoader.InspectAsync<EastFive.Security.Tokens.TokenSigningConfiguration>(
-            ConfigurationLoader.ReadAmbient, SecretStore.Current);
+        var rows = await ConfigurationLoader.InspectAsync<EastFive.Security.Tokens.TokenSigningConfiguration>();
         var signingKey = rows.Single(row => row.Member.IsSecret);
         Assert.Equal(TestConfiguration.SigningKeyName, signingKey.Name);
         Assert.Equal($"{SecretSource.LocalOverride} ({ConfigurationSecretOverrides.Section})", signingKey.Source);
