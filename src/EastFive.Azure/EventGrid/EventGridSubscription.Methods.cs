@@ -54,7 +54,7 @@ namespace EastFive.Azure.EventGrid
                 return onFailure("At least one event type is required.");
             }
 
-            return await EastFive.Azure.AppSettings.AzureClientApplications.Default.CreateClientSecretCredential(
+            return await AzureClientApplicationConfiguration.Startup.CreateClientSecretCredential(
                 async credential =>
                 {
                     try
@@ -174,7 +174,7 @@ namespace EastFive.Azure.EventGrid
                 return onNotFound();
             }
 
-            return await EastFive.Azure.AppSettings.AzureClientApplications.Default.CreateClientSecretCredential(
+            return await AzureClientApplicationConfiguration.Startup.CreateClientSecretCredential(
                 async credential =>
                 {
                     try

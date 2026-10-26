@@ -141,8 +141,8 @@ namespace EastFive.Azure.Communications
             Func<string, TResult> onFailure)
         {
             // Parse resource name from connection string
-            return await EastFive.Azure.AppSettings.Communications.Default.CreateResourceManager(
-                    EastFive.Azure.AppSettings.AzureClientApplications.Default,
+            return await AzureCommunicationsConfiguration.Startup.CreateResourceManager(
+                    AzureClientApplicationConfiguration.Startup,
                 async (armClient, resourceName) =>
                 {
                     var filter = "resourceType eq 'Microsoft.Communication/CommunicationServices'";

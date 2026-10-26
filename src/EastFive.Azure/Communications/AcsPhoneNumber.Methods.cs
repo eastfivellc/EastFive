@@ -97,7 +97,7 @@ namespace EastFive.Azure.Communications
             //         $"Warning: Could not discover ACS Resource ID: {discoveryResult.error}");
             // }
 
-            return await EastFive.Azure.AppSettings.Communications.Default
+            return await AzureCommunicationsConfiguration.Startup
                 .CreatePhoneNumbersClient(
                     async client =>
                     {

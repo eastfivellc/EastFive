@@ -231,8 +231,8 @@ A `DelegatingHandler` (in `EastFive.Api`, no Azure dependency) that gives an `Ht
 a client-credentials identity:
 
 ```csharp
-var handler = ClientCredentialsHandler.FromConfiguration(
-    "Rosemary.TokenEndpoint", "Rosemary.ClientId", "Rosemary.ClientSecret", "Rosemary.Scope");
+// credentials: a consumer's typed IProvideClientCredentials configuration
+var handler = ClientCredentialsHandler.From(credentials);
 var http = new HttpClient(handler) { BaseAddress = rosemaryBaseUri };
 ```
 
@@ -241,8 +241,9 @@ var http = new HttpClient(handler) { BaseAddress = rosemaryBaseUri };
 - On a downstream 401: refreshes once, retries once (body buffered); a second 401 is returned.
 - Token-endpoint failures throw `ClientCredentialsTokenException` with `Error` /
   `ErrorDescription` (§5.2), the HTTP status, and the raw body.
-- `FromConfiguration` resolves through `ConfigurationString`, so `ClientId` can live in
-  appsettings and `ClientSecret` in Key Vault; the scope key is optional.
+- `From` takes the consumer's typed configuration: `ClientId`, `TokenEndpoint` and the
+  optional `Scope` are values, and `ClientSecret` comes from the secret store by its generated
+  name — the handler never reads a configuration key.
 
 ## Helper Methods
 

@@ -73,8 +73,9 @@ namespace EastFive.Configuration
     {
         /// <summary>The default VALUES source: the ambient EastFive static configuration.
         /// Unset reads as <c>null</c>; an uninitialized configuration throws, which the loader
-        /// reports as <see cref="ConfigIssueCategory.SourceFailure"/>.</summary>
-        public static string? ReadAmbient(string key)
+        /// reports as <see cref="ConfigIssueCategory.SourceFailure"/>. Internal: nothing outside
+        /// the loader reads a key — callers name a typed configuration and the loader reads its members.</summary>
+        internal static string? ReadAmbient(string key)
             => EastFive.Web.Configuration.ConfigurationExtensions.ReadValue(key) is { } value
                 ? value
                 : EastFive.Web.Configuration.ConfigurationExtensions.SectionJson(key);
@@ -137,6 +138,15 @@ namespace EastFive.Configuration
             }
             return statuses.ToArray();
         }
+
+        /// <summary><see cref="InspectAsync(Func{IProvideConfiguration}, Func{string, string?}, ISecretStore)"/>
+        /// over the ambient sources: the installed values and <see cref="SecretStore.Current"/>.</summary>
+        public static Task<ConfigurationMemberStatus[]> InspectAsync(Func<IProvideConfiguration> construct)
+            => InspectAsync(construct, ReadAmbient, SecretStore.Current);
+
+        public static Task<ConfigurationMemberStatus[]> InspectAsync<TConfig>()
+            where TConfig : IProvideConfiguration, new()
+            => InspectAsync(() => new TConfig());
 
         public static Task<ConfigurationMemberStatus[]> InspectAsync<TConfig>(Func<string, string?> readValue, ISecretStore secrets)
             where TConfig : IProvideConfiguration, new()

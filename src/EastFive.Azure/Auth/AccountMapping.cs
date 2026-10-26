@@ -17,7 +17,7 @@ namespace EastFive.Azure.Auth
         Route = "AccountMapping",
         ContentType = "x-application/auth-account-mapping",
         ContentTypeVersion = "0.1")]
-    [OpenApiRoute(Collection = AppSettings.Auth.OpenApiCollectionName)]
+    [OpenApiRoute(Collection = "EastFive.Azure.Auth")]
     [StorageTable]
     public struct AccountMapping : IReferenceable
     {

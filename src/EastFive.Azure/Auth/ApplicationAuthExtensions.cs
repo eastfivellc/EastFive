@@ -136,7 +136,7 @@ namespace EastFive.Azure.Auth
 
         /// <summary>
         /// Default super-admin check against
-        /// <see cref="EastFive.Api.AppSettings.ActorIdSuperAdmin"/>.
+        /// <see cref="EastFive.Api.SuperAdminConfiguration.ActorId"/>.
         /// </summary>
         public static Task<bool> IsAdminAsync(this IApplication application, SessionToken security)
         {
