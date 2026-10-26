@@ -13,6 +13,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Parquet.Net" Version="6.1.0" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.1" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.1" />
@@ -29,7 +30,6 @@
     <None Remove="Performance\" />
     <None Remove="Serialization\Text\" />
     <None Remove="Serialization\Parquet\" />
-    <None Remove="Parquet.Net" />
     <None Remove="Serialization\DataReader\" />
   </ItemGroup>
   <ItemGroup>
