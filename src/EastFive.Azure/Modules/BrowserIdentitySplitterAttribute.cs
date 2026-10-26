@@ -30,7 +30,7 @@ namespace EastFive.Azure.Auth
 
         public BrowserIdentitySplitterAttribute()
         {
-            (redirections, limits) = EastFive.Azure.AppSettings.Auth.Redirections.ConfigurationJson(
+            (redirections, limits) = EastFive.Azure.Auth.SessionServerConfiguration.WithRedirections(
                    (RedirectionConfiguration[] kvps) =>
                    {
                        var redirs = kvps

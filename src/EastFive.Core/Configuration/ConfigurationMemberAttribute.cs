@@ -87,6 +87,10 @@ namespace EastFive.Configuration
         /// meaningful with <see cref="ConfigurationMemberKind.Defaulted"/>.</summary>
         public string? Default { get; init; }
 
+        /// <summary>A second key read only when <see cref="Key"/> is absent — a former spelling kept
+        /// while deployments migrate. Never written by an editor; may carry the keyed placeholder.</summary>
+        public string? FallbackKey { get; init; }
+
         /// <summary>Short human label for an editor (defaults to the property name).</summary>
         public string? Label { get; init; }
 
@@ -99,8 +103,15 @@ namespace EastFive.Configuration
         /// <summary>More information: a link or a longer note.</summary>
         public string? MoreInfo { get; init; }
 
-        /// <summary>Per-environment or shared; replaces the old deployment-override levels.</summary>
-        public ConfigurationScope Scope { get; init; } = ConfigurationScope.Environment;
+        private ConfigurationScope? scope;
+
+        /// <summary>Per-environment or shared; replaces the old deployment-override levels. Undeclared,
+        /// the member takes its type's <see cref="ConfigurationTypeAttribute.Scope"/>, else
+        /// <see cref="ConfigurationScope.Environment"/>.</summary>
+        public ConfigurationScope Scope { get => scope ?? ConfigurationScope.Environment; init => scope = value; }
+
+        /// <summary>Whether <see cref="Scope"/> was set on this member.</summary>
+        public bool ScopeDeclared => scope.HasValue;
 
         /// <summary>How an editor renders the member; <see cref="ConfigurationFieldKind.Auto"/> derives it.</summary>
         public ConfigurationFieldKind FieldKind { get; init; } = ConfigurationFieldKind.Auto;

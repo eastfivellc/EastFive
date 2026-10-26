@@ -102,6 +102,13 @@ namespace EastFive.Azure.Configuration
         [JsonProperty(PropertyName = FieldKindPropertyName)]
         public string fieldKind;
 
+        public const string InstancePropertyName = "instance";
+        /// <summary>For a keyed type (one instance per tag), which instance this row describes; null for
+        /// the type's template row and for every unkeyed type.</summary>
+        [ApiProperty(PropertyName = InstancePropertyName)]
+        [JsonProperty(PropertyName = InstancePropertyName)]
+        public string instance;
+
         public const string ValuePropertyName = "value";
         /// <summary>The current VALUE of a value member; never populated for a secret.</summary>
         [ApiProperty(PropertyName = ValuePropertyName)]
@@ -119,8 +126,23 @@ namespace EastFive.Azure.Configuration
         public static IHttpResponse GetAsync(
             ContentTypeResponse<Configuration[]> onFound)
         {
-            var configs = ConfigurationCatalog.For(AppDomain.CurrentDomain.GetAssemblies())
-                .SelectMany(type => type.Members.Select(member => new Configuration()
+            var configs = ConfigurationCatalog.WellFormed(AppDomain.CurrentDomain.GetAssemblies())
+                .SelectMany(type => type.Members
+                    .Select(member => Row(type, member))
+                    .Concat(type.IsKeyed
+                        ? ConfigurationCatalog.InstanceKeys(type.Type)
+                            .SelectMany(instance => type.Members.Select(member => Row(type, member) with
+                            {
+                                instance = instance,
+                                key = member.Key?.Replace(IProvideConfigurationInstanceKey.Placeholder, instance, StringComparison.Ordinal),
+                                value = ConfigurationCatalog.CurrentValue(type.Type, member, instance),
+                            }))
+                        : Enumerable.Empty<Configuration>()))
+                .ToArray();
+            return onFound(configs);
+
+            static Configuration Row(ConfigurationTypeDescription type, ConfigurationMemberDescription member)
+                => new Configuration()
                 {
                     configurationType = type.TypeName ?? type.Type.Name,
                     name = member.Property,
@@ -133,12 +155,8 @@ namespace EastFive.Azure.Configuration
                     moreInfo = member.Metadata.MoreInfo,
                     scope = member.Metadata.Scope.ToString(),
                     fieldKind = member.Metadata.FieldKind.ToString(),
-                    value = member.Kind == ConfigurationMemberKind.Secret || member.Key == null
-                        ? null
-                        : ConfigurationLoader.ReadAmbient(member.Key),
-                }))
-                .ToArray();
-            return onFound(configs);
+                    value = ConfigurationCatalog.CurrentValue(member),
+                };
         }
     }
 

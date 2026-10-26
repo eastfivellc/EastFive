@@ -17,11 +17,11 @@ public interface IProvideCommunicationsSettings
 
 /// <summary>Azure Communication Services: the connection string is the secret
 /// <c>AzureCommunications-ConnectionString</c>. Loaded at startup.</summary>
-[ConfigurationType("AzureCommunications", Label = "Azure Communication Services")]
+[ConfigurationType("AzureCommunications", Label = "Azure Communication Services", Description = "Azure Communication Services, for SMS and calls.", Scope = ConfigurationScope.Environment)]
 public sealed class AzureCommunicationsConfiguration : IProvideConfiguration, IProvideCommunicationsSettings
 {
     [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Connection string",
-        Location = "Azure portal | Communication Service | Keys")]
+        Location = "Azure portal | Communication Service | Keys", Description = "Connection string of the Communication Services resource.")]
     public Secret ConnectionString { get; set; } = default!;
 
     public TResult WithConnectionString<TResult>(Func<string, TResult> onConnectionString, Func<string, TResult> onUnavailable)

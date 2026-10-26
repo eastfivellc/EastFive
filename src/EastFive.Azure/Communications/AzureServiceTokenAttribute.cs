@@ -264,7 +264,7 @@ namespace EastFive.Azure.Communications
                     return onInvalidToken("Token is not a valid JWT");
 
                 // Build expected issuer from configured tenant ID
-                return await AppSettings.TenantId.ConfigurationString(
+                return await EastFive.Azure.ResourceManagement.AzureApplicationIdentityConfiguration.WithTenantId(
                     async tenantId =>
                     {
                         var expectedIssuer = $"https://login.microsoftonline.com/{tenantId}/v2.0";
@@ -273,7 +273,7 @@ namespace EastFive.Azure.Communications
                         var signingKeys = openIdConfig.SigningKeys;
 
                         // Use the Entra application (client) ID as the expected audience
-                        return AppSettings.ClientId.ConfigurationString(
+                        return EastFive.Azure.ResourceManagement.AzureApplicationIdentityConfiguration.WithClientId(
                             expectedAudience =>
                             {
                                 var validationParams = new TokenValidationParameters

@@ -345,20 +345,11 @@ namespace EastFive.Api
                             if (!siteAdmin.Accepts(jwtString))
                                 return failure(why);
 
-                            return EastFive.Web.Configuration.Settings.GetString(
-                                EastFive.Api.AppSettings.ActorIdClaimType,
-                                (actorIdClaimType) =>
-                                {
-                                    return EastFive.Web.Configuration.Settings.GetString(
-                                        EastFive.Api.AppSettings.ActorIdSuperAdmin,
-                                        (actorIdSuperAdmin) =>
-                                        {
-                                            var claim = new Claim(actorIdClaimType, actorIdSuperAdmin);
-                                            return success(claim.AsArray());
-                                        },
-                                        failure);
-                                },
-                                failure);
+                            return SuperAdminConfiguration.Current(
+                                superAdmin => superAdmin.ActorId is { } actorIdSuperAdmin
+                                    ? success(new Claim(ClaimTypesConfiguration.ActorIdClaimTypeOrDefault(), actorIdSuperAdmin.ToString()).AsArray())
+                                    : failure($"[{EastFive.Api.SuperAdminConfiguration.ActorIdKey}] is not specified."),
+                                () => failure($"[{EastFive.Api.SuperAdminConfiguration.ActorIdKey}] could not be read."));
                         },
                         _ => failure(why));
                 },
@@ -425,8 +416,7 @@ namespace EastFive.Api
                 (claimsEnumerable) =>
                 {
                     var claims = claimsEnumerable.ToArray();
-                    var accountIdClaimType =
-                        ConfigurationManager.AppSettings[EastFive.Api.AppSettings.ActorIdClaimType];
+                    var accountIdClaimType = ClaimTypesConfiguration.ActorIdClaimTypeOrDefault();
                     var result = claims.GetAccountIdAsync(
                         request, accountIdClaimType,
                         (accountId) => success(accountId, claims));
@@ -440,7 +430,7 @@ namespace EastFive.Api
             Func<Guid, System.Security.Claims.Claim[], Task<IHttpResponse>> success)
         {
             var sessionIdClaimTypeConfigurationSetting =
-                EastFive.Api.AppSettings.SessionIdClaimType;
+                EastFive.Api.ClaimTypesConfiguration.SessionIdClaimTypeKey;
             return GetSessionIdClaimsAsync(request, sessionIdClaimTypeConfigurationSetting, success);
         }
 
@@ -475,7 +465,7 @@ namespace EastFive.Api
         {
             if(sessionIdClaimTypeConfigurationSetting.IsNullOrWhiteSpace())
                 sessionIdClaimTypeConfigurationSetting =
-                    EastFive.Api.AppSettings.SessionIdClaimType;
+                    EastFive.Api.ClaimTypesConfiguration.SessionIdClaimTypeKey;
 
             return request.GetClaims(
                 (claimsEnumerable) =>
@@ -501,7 +491,7 @@ namespace EastFive.Api
             Func<Guid, System.Security.Claims.Claim[], IHttpResponse> success)
         {
             var accountIdClaimTypeConfigurationSetting =
-                EastFive.Api.AppSettings.ActorIdClaimType;
+                EastFive.Api.ClaimTypesConfiguration.ActorIdClaimTypeKey;
             return GetActorIdClaims(request, accountIdClaimTypeConfigurationSetting, success);
         }
 
@@ -513,8 +503,7 @@ namespace EastFive.Api
                 (claimsEnumerable) =>
                 {
                     var claims = claimsEnumerable.ToArray();
-                    var accountIdClaimType =
-                        ConfigurationManager.AppSettings[accountIdClaimTypeConfigurationSetting];
+                    var accountIdClaimType = ClaimTypeSetting(accountIdClaimTypeConfigurationSetting);
                     var result = claims.GetAccountId(
                         request, accountIdClaimType,
                         (accountId) => success(accountId, claims));
@@ -535,9 +524,7 @@ namespace EastFive.Api
                 (claimsEnumerable) =>
                 {
                     var claims = claimsEnumerable.ToArray();
-                    var accountIdClaimType = EastFive.Api.AppSettings.ActorIdClaimType.ConfigurationString(
-                        configValue => configValue,
-                        onUnspecified:(why) => EastFive.Api.Auth.ClaimValues.DefaultAccountClaim);
+                    var accountIdClaimType = ClaimTypesConfiguration.ActorIdClaimTypeOrDefault();
                     var result = claims.GetAccountIdAsync(
                         request, accountIdClaimType,
                         (accountId) => success(accountId, claims));
@@ -572,7 +559,7 @@ namespace EastFive.Api
 
         {
             var accountIdClaimTypeConfigurationSetting =
-                EastFive.Api.AppSettings.ActorIdClaimType;
+                EastFive.Api.ClaimTypesConfiguration.ActorIdClaimTypeKey;
 
             if(!request.RequestUri.TryGetQueryParam("bearer", out string bearer))
                 return onNoBearerParameterFound();
@@ -580,8 +567,7 @@ namespace EastFive.Api
             var foundClaims = bearer.GetClaimsFromJwtToken(
                 claims =>
                 {
-                    var accountIdClaimType =
-                        ConfigurationManager.AppSettings[accountIdClaimTypeConfigurationSetting];
+                    var accountIdClaimType = ClaimTypeSetting(accountIdClaimTypeConfigurationSetting);
                     var result = claims.GetAccountIdAsync(
                         request, accountIdClaimType,
                         (accountId) => onSuccess(accountId, claims.ToArray()));
@@ -614,5 +600,14 @@ namespace EastFive.Api
         }
         
         #endregion
+    
+        /// <summary>The claim type a caller-named setting holds. These reads used
+        /// System.Configuration's AppSettings, which is empty on .NET Core, so they always saw null;
+        /// they now read the typed account claim type, or a key some typed member declares.</summary>
+        private static string ClaimTypeSetting(string accountIdClaimTypeSetting)
+            => accountIdClaimTypeSetting.IsNullOrWhiteSpace()
+                    || string.Equals(accountIdClaimTypeSetting, EastFive.Api.ClaimTypesConfiguration.ActorIdClaimTypeKey, StringComparison.Ordinal)
+                ? ClaimTypesConfiguration.ActorIdClaimTypeOrDefault()
+                : EastFive.Configuration.Configured.ReadDeclaredValue(accountIdClaimTypeSetting, value => value, _ => null);
     }
 }

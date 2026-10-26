@@ -61,33 +61,22 @@ namespace EastFive.Communications.Azure
             message.SetClickTracking(false, true);
             //message.TemplateId = templateName;
 
-            var (emailMute, toAddressEmail) = EastFive.Azure.AppSettings.Communications.MuteEmailToAddress.ConfigurationString(
-                (emailMuteString) =>
-                {
-                    if (emailMuteString.IsNullOrWhiteSpace())
-                        return (false, new EmailAddress(toAddress, toName));
-                    
-                    var muteAddr = new EmailAddress(emailMuteString, $"MUTED[{toAddress}:{toName}]");
-                    return (true, muteAddr);
-                },
-                (why) => (false, new EmailAddress(toAddress, toName)));
+            var sendGrid = EastFive.Azure.Communications.SendGridConfiguration.Current();
+            var emailMuteString = sendGrid?.MuteEmailToAddress;
+            var (emailMute, toAddressEmail) = emailMuteString.IsNullOrWhiteSpace()
+                ? (false, new EmailAddress(toAddress, toName))
+                : (true, new EmailAddress(emailMuteString, $"MUTED[{toAddress}:{toName}]"));
 
             message.AddTo(toAddressEmail);
             // message.SetClickTracking(false, false);
 
-            var bccAddressesAdded = EastFive.Azure.AppSettings.Communications.BccAllAddresses.ConfigurationString(
-                copyEmail =>
-                {
-                    var bccAddresses = (copyEmail.IsNullOrWhiteSpace() ? "" : copyEmail)
-                        .Split(',')
-                        .Where(s => !String.IsNullOrWhiteSpace(s))
-                        .Select((bccAddress) => new EmailAddress(bccAddress))
-                        .ToList();
-                    if (bccAddresses.Any())
-                        message.AddBccs(bccAddresses);
-                    return true;
-                },
-                (why) => false);
+            var bccAddresses = (sendGrid?.BccAllAddresses ?? "")
+                .Split(',')
+                .Where(s => !String.IsNullOrWhiteSpace(s))
+                .Select((bccAddress) => new EmailAddress(bccAddress))
+                .ToList();
+            if (bccAddresses.Any())
+                message.AddBccs(bccAddresses);
 
             
             var subsitutionsSingleDictionary = substitutionsSingle

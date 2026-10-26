@@ -123,7 +123,7 @@ public static class OAuthFixtures
     public static string SuperAdminToken()
     {
         TestConfiguration.Ensure();
-        var scope = EastFive.Security.AppSettings.TokenScope.ConfigurationUri();
+        var scope = EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(uri => uri);
         return EastFive.Api.Auth.JwtTools.CreateToken(
                 Guid.NewGuid(), scope, TimeSpan.FromMinutes(5),
                 new Dictionary<string, string>

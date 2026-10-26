@@ -99,7 +99,7 @@ namespace EastFive.Azure.Auth.Instigations
             Task<IHttpResponse> CreateAsync()
             {
                 var sessionRef = Ref<Session>.SecureRef();
-                return Security.AppSettings.TokenScope.ConfigurationUri(
+                return EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(
                     scope =>
                     {
                         var claims = new Dictionary<string, string>
@@ -109,8 +109,7 @@ namespace EastFive.Azure.Auth.Instigations
                                 sessionRef.id.ToString("N")
                             }
                         };
-                        var duration = EastFive.Api.AppSettings.AccessTokenExpirationInMinutes.ConfigurationDouble(
-                            (minutes) => TimeSpan.FromMinutes(minutes));
+                        var duration = EastFive.Api.AccessTokenLifetimeConfiguration.RequiredLifetime();
                         return Api.Auth.JwtTools.CreateToken(sessionRef.id,
                                 scope, duration, claims,
                             async (tokenNew, whenIssued) =>

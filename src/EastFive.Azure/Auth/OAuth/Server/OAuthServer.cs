@@ -20,22 +20,22 @@ namespace EastFive.Azure.OAuth.Server
             /// Lifetime of OAuth access tokens (issued from /oauth/token) in minutes.
             /// Deliberately separate from the session-token lifetime settings.
             /// </summary>
-            public const string AccessTokenExpirationInMinutes =
-                "EastFive.Azure.OAuth.AccessTokenExpirationInMinutes";
+            [System.Obsolete("Read OAuthServerConfiguration.AccessTokenExpirationInMinutes through typed configuration; its key is OAuthServerConfiguration.AccessTokenExpirationInMinutesKey.")]
+            public const string AccessTokenExpirationInMinutes = EastFive.Azure.OAuth.Server.OAuthServerConfiguration.AccessTokenExpirationInMinutesKey;
 
             /// <summary>
             /// Lifetime of OAuth refresh tokens in days (default 30).
             /// </summary>
-            public const string RefreshTokenExpirationInDays =
-                "EastFive.Azure.OAuth.RefreshTokenExpirationInDays";
+            [System.Obsolete("Read OAuthServerConfiguration.RefreshTokenExpirationInDays through typed configuration; its key is OAuthServerConfiguration.RefreshTokenExpirationInDaysKey.")]
+            public const string RefreshTokenExpirationInDays = EastFive.Azure.OAuth.Server.OAuthServerConfiguration.RefreshTokenExpirationInDaysKey;
 
             /// <summary>
             /// Space-separated scopes advertised in the RFC 8414 / RFC 9728 metadata
             /// documents (default "mcp"). Advisory — tokens carry whatever scope the
             /// authorization granted; endpoints enforce via [RequiredScope].
             /// </summary>
-            public const string ScopesSupported =
-                "EastFive.Azure.OAuth.ScopesSupported";
+            [System.Obsolete("Read OAuthServerConfiguration.ScopesSupported through typed configuration; its key is OAuthServerConfiguration.ScopesSupportedKey.")]
+            public const string ScopesSupported = EastFive.Azure.OAuth.Server.OAuthServerConfiguration.ScopesSupportedKey;
         }
 
         /// <summary>Claim type carrying the OAuth scope(s) granted to the token (space delimited).</summary>
@@ -51,22 +51,16 @@ namespace EastFive.Azure.OAuth.Server
         public const string ClientIdClaimType = "client_id";
 
         public static TimeSpan AccessTokenDuration() =>
-            AppSettings.AccessTokenExpirationInMinutes.ConfigurationDouble(
-                minutes => TimeSpan.FromMinutes(minutes),
-                onNotSpecified: () => TimeSpan.FromMinutes(60));
+            TimeSpan.FromMinutes(OAuthServerConfiguration.Current()?.AccessTokenExpirationInMinutes ?? 60);
 
         public static TimeSpan RefreshTokenDuration() =>
-            AppSettings.RefreshTokenExpirationInDays.ConfigurationDouble(
-                days => TimeSpan.FromDays(days),
-                onNotSpecified: () => TimeSpan.FromDays(30));
+            TimeSpan.FromDays(OAuthServerConfiguration.Current()?.RefreshTokenExpirationInDays ?? 30);
 
         /// <summary>The default scope MCP endpoints are gated on.</summary>
         public const string McpScope = "mcp";
 
         public static string[] ScopesSupported() =>
-            AppSettings.ScopesSupported.ConfigurationString(
-                scopes => scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries),
-                (why) => new[] { McpScope });
+            (OAuthServerConfiguration.Current()?.ScopesSupported ?? McpScope).Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
         /// <summary>The RFC 9728 protected-resource-metadata URL for this host —
         /// advertised in WWW-Authenticate challenges so clients can begin discovery.</summary>

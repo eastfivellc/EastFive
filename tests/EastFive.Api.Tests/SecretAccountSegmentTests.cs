@@ -108,3 +108,87 @@ public class SecretAccountSegmentTests
         Assert.Throws<InvalidOperationException>(() => ConfigurationMembers.For<TranslationOffTheAccount>());
     }
 }
+
+/// <summary>
+/// The account rule at catalog time: the catalog says which member names secrets and how its
+/// value becomes the segment (as-is, or through a named translation), lets an editor check a draft
+/// value BEFORE writing it (the reason names the member), and refuses a type whose DEFAULT account
+/// could never name a secret.
+/// </summary>
+public class SecretAccountRuleTests
+{
+    private sealed class DropDomainAttribute : Attribute, IProvideSecretAccountSegment
+    {
+        public string SecretAccountSegment(string account)
+            => account.EndsWith(".ids.example", StringComparison.Ordinal) ? account[..^".ids.example".Length] : account;
+    }
+
+    [ConfigurationType("Plain")]
+    private sealed class Plain : IProvideConfiguration
+    {
+        [ConfigurationMember("Plain.Account", Account = true)]
+        public string Account { get; set; } = default!;
+
+        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
+        public Secret Key { get; set; } = default!;
+    }
+
+    [ConfigurationType("Translated")]
+    private sealed class Translated : IProvideConfiguration
+    {
+        [ConfigurationMember("Translated.ClientId", Account = true)]
+        [DropDomain]
+        public string ClientId { get; set; } = default!;
+
+        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
+        public Secret Key { get; set; } = default!;
+    }
+
+    [ConfigurationType("BadDefault")]
+    private sealed class UnsafeDefaultAccount : IProvideConfiguration
+    {
+        [ConfigurationMember("BadDefault.Account", Account = true, Kind = ConfigurationMemberKind.Defaulted, Default = "has.dots")]
+        public string Account { get; set; } = default!;
+    }
+
+    [Fact]
+    public void Catalog_MarksTheAccountMember_AndHowItsValueBecomesTheSegment()
+    {
+        var plain = ConfigurationCatalog.Describe(typeof(Plain)).Members.Single(member => member.IsAccount);
+        Assert.Null(plain.AccountSegmentTranslation);
+        var translated = ConfigurationCatalog.Describe(typeof(Translated)).Members.Single(member => member.IsAccount);
+        Assert.Equal(nameof(DropDomainAttribute), translated.AccountSegmentTranslation);
+        Assert.All(ConfigurationCatalog.Describe(typeof(Translated)).Members.Where(member => !member.IsAccount),
+            member => Assert.Null(member.AccountSegmentTranslation));
+    }
+
+    [Theory]
+    [InlineData(typeof(Plain), "acme-prod", null)]
+    [InlineData(typeof(Plain), "acme.prod", "Plain.Account")]
+    [InlineData(typeof(Plain), "", "Plain.Account")]
+    [InlineData(typeof(Translated), "1234-abc.ids.example", null)]
+    [InlineData(typeof(Translated), "1234.abc.other", "Translated.ClientId")]
+    public void Catalog_ChecksADraftAccount_NamingTheMember(Type type, string account, string? problemNames)
+    {
+        var problem = ConfigurationCatalog.Describe(type).AccountProblem(account);
+        if (problemNames == null)
+            Assert.Null(problem);
+        else
+            Assert.Contains(problemNames, problem);
+    }
+
+    [Fact]
+    public void ADefaultAccountThatCannotNameASecret_IsADeclarationError()
+        => Assert.Throws<InvalidOperationException>(() => ConfigurationMembers.For<UnsafeDefaultAccount>());
+
+    [Fact]
+    public void ATypeWithoutAnAccount_HasNoAccountProblem()
+        => Assert.Null(ConfigurationCatalog.Describe(typeof(Plain2)).AccountProblem("anything.at.all"));
+
+    [ConfigurationType("Global")]
+    private sealed class Plain2 : IProvideConfiguration
+    {
+        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
+        public Secret Key { get; set; } = default!;
+    }
+}

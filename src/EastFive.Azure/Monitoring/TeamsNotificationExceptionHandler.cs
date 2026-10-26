@@ -168,14 +168,9 @@ namespace EastFive.Azure.Monitoring
              IHttpRequest request, IHttpResponse response, Exception ex,
              Func<MessageCard.Section> getAdditionalInformation = default)
         {
-            var appName = AppSettings.ApplicationInsights.TeamsAppIdentification
-                .ConfigurationString(
-                    x => x,
-                    (why) => "App Logger");
-            var appImage = AppSettings.ApplicationInsights.TeamsAppImage
-                .ConfigurationString(
-                    x => new Uri(x),
-                    (why) => default);
+            var (appName, appImage) = EastFive.Configuration.Configured.Get<TeamsNotificationCardConfiguration, (string, Uri)>(
+                card => (card.AppIdentification, card.AppImage),
+                _ => (TeamsNotificationCardConfiguration.DefaultAppIdentification, default(Uri)));
 
             var sections = new MessageCard.Section[]
             {
@@ -361,10 +356,7 @@ namespace EastFive.Azure.Monitoring
                     // Diagnostics must never fail the response they report — default the
                     // Postman-link token lifetime when the setting is absent instead of
                     // throwing (an unhandled throw here turns every reported 404 into a 500).
-                    var offset = EastFive.Api.AppSettings.AccessTokenExpirationInMinutes.ConfigurationDouble(
-                        (minutes) => TimeSpan.FromMinutes(minutes),
-                        (why) => TimeSpan.FromMinutes(60),
-                        () => TimeSpan.FromMinutes(60));
+                    var offset = EastFive.Api.AccessTokenLifetimeConfiguration.Lifetime(TimeSpan.FromMinutes(60));
                     var expiresOn = DateTime.UtcNow + offset;
                     actions = new QueryableServer<Api.Azure.Monitoring.MonitoringRequest>(request)
                         .Where(mr => mr.monitoringRequestRef == monitoringRequest.monitoringRequestRef)
@@ -440,11 +432,13 @@ namespace EastFive.Azure.Monitoring
 
             string getServerDescription()
             {
-                var description = System.Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME");
+                var appService = AppServiceConfiguration.Current();
+                var description = appService?.SiteName;
                 if (description.IsNullOrWhiteSpace())
-                    description = System.Environment.GetEnvironmentVariable("WEBSITE_HOSTNAME");
+                    description = appService?.HostName;
                 if (description.IsNullOrWhiteSpace())
-                    description = System.Environment.GetEnvironmentVariable(EastFive.Api.AppSettings.SiteUrl);
+                    description = EastFive.Configuration.Configured.Get<EastFive.Api.RoutingConfiguration, string>(
+                        routing => routing.SiteUrl, _ => null);
                 if (description.IsNullOrWhiteSpace())
                     description = System.Environment.MachineName;
                 if (description.IsNullOrWhiteSpace())

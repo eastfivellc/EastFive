@@ -24,7 +24,8 @@ namespace EastFive.Api.Azure.Apple
                 ContentResponse onSuccess,
                 NotFoundResponse onNotFound)
         {
-            return EastFive.Azure.AppSettings.Apple.AppleAppSiteAssociationId.ConfigurationString(
+            return EastFive.Configuration.Configured.Member<EastFive.Azure.Auth.AppleConfiguration, string, IHttpResponse>(
+                config => config.AppSiteAssociationId, EastFive.Azure.Auth.AppleConfiguration.AppSiteAssociationIdKey,
                 (appId) =>
                 {
                     var content = new

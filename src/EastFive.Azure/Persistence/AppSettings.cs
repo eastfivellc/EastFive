@@ -6,6 +6,7 @@ namespace EastFive.Azure.Persistence
     public static class AppSettings
     {
         /// <summary>Default azure spa container name</summary>
-        public const string SpaContainer = "EastFive.Azure.Spa.ContainerName";
+        [System.Obsolete("Read SpaStorageConfiguration.ContainerName through typed configuration; its key is SpaStorageConfiguration.ContainerNameKey.")]
+        public const string SpaContainer = EastFive.Azure.Persistence.SpaStorageConfiguration.ContainerNameKey;
     }
 }

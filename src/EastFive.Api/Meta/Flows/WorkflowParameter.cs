@@ -494,7 +494,7 @@ namespace EastFive.Api.Meta.Flows
             if (appSettingKey.HasBlackSpace())
             {
                 string extracted = null;
-                var didExtract = appSettingKey.ConfigurationString(
+                var didExtract = EastFive.Configuration.Configured.ReadDeclaredValue(appSettingKey,
                     value => { extracted = value; return true; },
                     why => false);
                 resolvedKey = extracted;
@@ -508,7 +508,7 @@ namespace EastFive.Api.Meta.Flows
         {
             if (appSettingValue.HasBlackSpace())
             {
-                _ = appSettingValue.ConfigurationString(
+                _ = EastFive.Configuration.Configured.ReadDeclaredValue(appSettingValue,
                     appSettingExtractedValue =>
                     {
                         requestObj.WriteValue(appSettingExtractedValue);

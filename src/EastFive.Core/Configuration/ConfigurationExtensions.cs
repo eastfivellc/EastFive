@@ -18,6 +18,48 @@ namespace EastFive.Web.Configuration
             ConfigurationExtensions.configuration = configuration;
         }
 
+        /// <summary>Every key the ambient configuration holds (empty before <see cref="Initialize"/>) —
+        /// how the catalog enumerates the instances of keyed configuration types.</summary>
+        public static IEnumerable<string> ConfiguredKeys()
+            => configuration == null
+                ? Enumerable.Empty<string>()
+                : Microsoft.Extensions.Configuration.ConfigurationExtensions.AsEnumerable(configuration)
+                    .Where(pair => pair.Value != null)
+                    .Select(pair => pair.Key)
+                    .ToArray();
+
+        /// <summary>
+        /// A key that holds a STRUCTURED section rather than a value (an <c>appsettings.json</c> array or
+        /// object), as JSON text: integer-keyed children become an array, others an object, leaves
+        /// strings. Null when the key has no children. How a typed member reads a JSON setting that is
+        /// written structurally — the raw JSON reader accepted both spellings.
+        /// </summary>
+        internal static string SectionJson(string key)
+        {
+            if (configuration == null)
+                return null;
+            var section = configuration.GetSection(key);
+            return section.GetChildren().Any()
+                ? Newtonsoft.Json.JsonConvert.SerializeObject(ToJson(section))
+                : null;
+
+            static object ToJson(IConfigurationSection node)
+            {
+                var children = node.GetChildren().ToArray();
+                if (children.Length == 0)
+                    return node.Value;
+                return children.All(child => int.TryParse(child.Key, out _))
+                    ? children.OrderBy(child => int.Parse(child.Key)).Select(ToJson).ToArray()
+                    : children.ToDictionary(child => child.Key, ToJson);
+            }
+        }
+
+        /// <summary>The ambient value of <paramref name="key"/>, or null — the read under
+        /// <see cref="EastFive.Configuration.ConfigurationLoader.ReadAmbient"/>. Throws when
+        /// configuration is not initialized, which the loader reports as a source failure.</summary>
+        internal static string ReadValue(string key) => configuration[key];
+
+        [Obsolete("Read configuration through a typed IProvideConfiguration loaded by ConfigurationLoader.")]
         public static TResult ConfigurationString<TResult>(this string key,
             Func<string, TResult> onFound,
             Func<string, TResult> onUnspecified = default)
@@ -32,6 +74,7 @@ namespace EastFive.Web.Configuration
             throw new ConfigurationException(key, typeof(string), msg);
         }
 
+        [Obsolete("Read configuration through a typed IProvideConfiguration loaded by ConfigurationLoader.")]
         public static TResult ConfigurationString<TResult>(this IProvideConfigurationKey key,
             Func<string, TResult> onFound,
             Func<string, TResult> onUnspecified = default)
@@ -48,6 +91,7 @@ namespace EastFive.Web.Configuration
             throw new ConfigurationException(key.Key, typeof(string), msg);
         }
 
+        [Obsolete("Read configuration through a typed IProvideConfiguration loaded by ConfigurationLoader.")]
         private static TResult ConfigurationBase<TBase, TResult>(string key,
                 Func<string, Func<string, TResult>, TResult> convert,
             Func<string, TResult> onFailure = default,
@@ -80,6 +124,7 @@ namespace EastFive.Web.Configuration
                 });
         }
 
+        [Obsolete("Read configuration through a typed IProvideConfiguration loaded by ConfigurationLoader.")]
         public static TResult ConfigurationBoolean<TResult>(this string key,
             Func<bool, TResult> onParsed,
             Func<string, TResult> onFailure = default,
@@ -97,9 +142,11 @@ namespace EastFive.Web.Configuration
                 onNotSpecified: onNotSpecified);
         }
 
+        [Obsolete("Read configuration through a typed IProvideConfiguration loaded by ConfigurationLoader.")]
         public static Uri ConfigurationUri(this string key)
             => key.ConfigurationUri(v => v);
 
+        [Obsolete("Read configuration through a typed IProvideConfiguration loaded by ConfigurationLoader.")]
         public static TResult ConfigurationUri<TResult>(this string key,
             Func<Uri, TResult> onParsed,
             Func<string, TResult> onFailure = default,
@@ -117,6 +164,7 @@ namespace EastFive.Web.Configuration
                 onNotSpecified: onNotSpecified);
         }
 
+        [Obsolete("Read configuration through a typed IProvideConfiguration loaded by ConfigurationLoader.")]
         public static TResult ConfigurationDateTime<TResult>(this string key,
             Func<DateTime, TResult> onParsed,
             Func<string, TResult> onFailure = default,
@@ -137,6 +185,7 @@ namespace EastFive.Web.Configuration
                 onNotSpecified: onNotSpecified);
         }
 
+        [Obsolete("Read configuration through a typed IProvideConfiguration loaded by ConfigurationLoader.")]
         public static TResult ConfigurationDouble<TResult>(this string key,
             Func<double, TResult> onParsed,
             Func<string, TResult> onFailure = default,
@@ -154,6 +203,7 @@ namespace EastFive.Web.Configuration
                 onNotSpecified: onNotSpecified);
         }
 
+        [Obsolete("Read configuration through a typed IProvideConfiguration loaded by ConfigurationLoader.")]
         public static TResult ConfigurationLong<TResult>(this string key,
             Func<long, TResult> onParsed,
             Func<string, TResult> onFailure = default,
@@ -171,6 +221,7 @@ namespace EastFive.Web.Configuration
                 onNotSpecified: onNotSpecified);
         }
 
+        [Obsolete("Read configuration through a typed IProvideConfiguration loaded by ConfigurationLoader.")]
         public static TResult ConfigurationGuid<TResult>(this string key,
             Func<Guid, TResult> onParsed,
             Func<string, TResult> onFailure = default,
@@ -188,6 +239,7 @@ namespace EastFive.Web.Configuration
                 onNotSpecified: onNotSpecified);
         }
 
+        [Obsolete("Read configuration through a typed IProvideConfiguration loaded by ConfigurationLoader.")]
         public static TResult ConfigurationBase64Bytes<TResult>(this string key,
             Func<byte[], TResult> onParsed,
             Func<string, TResult> onFailure = default,
@@ -212,6 +264,7 @@ namespace EastFive.Web.Configuration
                 onNotSpecified: onNotSpecified);
         }
 
+        [Obsolete("Read configuration through a typed IProvideConfiguration loaded by ConfigurationLoader.")]
         public static TResult ConfigurationJson<TConfig, TResult>(this string key,
             Func<TConfig, TResult> onParsed,
             Func<string, TResult> onFailure = default,

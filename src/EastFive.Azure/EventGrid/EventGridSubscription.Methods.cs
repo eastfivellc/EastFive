@@ -70,12 +70,12 @@ namespace EastFive.Azure.EventGrid
                         };
 
                         // Both AAD properties must be set together or not at all
-                        var tenantGuid = AppSettings.TenantId.ConfigurationString(
+                        var tenantGuid = EastFive.Azure.ResourceManagement.AzureApplicationIdentityConfiguration.WithTenantId(
                             tenantId => Guid.TryParse(tenantId, out var parsed)
                                 ? (Guid?)parsed
                                 : default(Guid?),
                             (why) => default(Guid?));
-                        var expectedAudience = AppSettings.ClientId.ConfigurationString(
+                        var expectedAudience = EastFive.Azure.ResourceManagement.AzureApplicationIdentityConfiguration.WithClientId(
                             clientId => clientId,
                             (why) => default(string));
 

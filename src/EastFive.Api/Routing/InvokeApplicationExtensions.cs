@@ -295,8 +295,7 @@ namespace EastFive.Api
                         (accountId) => accountId,
                         () => throw new Exception());
 
-                    var duration = EastFive.Api.AppSettings.AccessTokenExpirationInMinutes.ConfigurationDouble(
-                        (minutes) => TimeSpan.FromMinutes(minutes));
+                    var duration = AccessTokenLifetimeConfiguration.RequiredLifetime();
                     return SignWithSpecificAccessToken(requestQuery, sessionId, actorId, duration);
                 },
                 () => throw new Exception(),

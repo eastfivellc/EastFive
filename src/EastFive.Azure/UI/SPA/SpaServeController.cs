@@ -95,9 +95,7 @@ namespace EastFive.Azure.Spa
             if (packageBytes.IsDefaultNullOrEmpty())
                 return onFailure("No package content was provided.");
 
-            var buildConfigPath = EastFive.Azure.AppSettings.SPA.BuildConfigPath.ConfigurationString(
-                path => path,
-                (why) => "build.json");
+            var buildConfigPath = SpaConfiguration.Current()?.BuildConfigPath ?? "build.json";
             try
             {
                 using (var archive = new ZipArchive(new MemoryStream(packageBytes), ZipArchiveMode.Read))

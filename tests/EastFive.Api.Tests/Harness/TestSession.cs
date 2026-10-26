@@ -65,7 +65,12 @@ public class TestSession
     /// V3-first fork. Use this for regressions in envelope/binder behavior;
     /// typed-envelope dispatch would bypass the code under test.
     /// </summary>
-    public async Task<ResponseBranchCapture> DispatchRawAsync(MethodInfo method, IHttpRequest request)
+    public Task<ResponseBranchCapture> DispatchRawAsync(MethodInfo method, IHttpRequest request)
+        => DispatchRawAsync(this.Application, method, request);
+
+    /// <summary><see cref="DispatchRawAsync(MethodInfo, IHttpRequest)"/> through another application —
+    /// for application-level handlers (<c>IHandleRoutes</c> attributes) the shared one does not carry.</summary>
+    public async Task<ResponseBranchCapture> DispatchRawAsync(HttpApplication app, MethodInfo method, IHttpRequest request)
     {
         var candidate = CandidateFor(method);
 
@@ -74,7 +79,6 @@ public class TestSession
         try
         {
             var didPick = false;
-            var app = this.Application;
             var handlers = ApplicationHandlers.For(app);
             var response = await MethodDispatcher
                 .PickDeserializerAsync(handlers, request,

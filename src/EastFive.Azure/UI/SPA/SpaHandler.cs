@@ -100,27 +100,20 @@ namespace EastFive.Azure.Spa
         {
             try
             {
-                return EastFive.Azure.AppSettings.SPA.BuildConfigPath.ConfigurationString(
-                    buildJsonPath =>
-                    {
-                        dynamicServe = EastFive.Azure.AppSettings.SPA.ServeEnabled.ConfigurationBoolean(
-                            ds => ds,
-                            onFailure: why => false,
-                            onNotSpecified: () => false);
+                var spa = SpaConfiguration.Current();
+                return spa?.BuildConfigPath is not { Length: > 0 } buildJsonPath ? false : Setup(buildJsonPath);
 
-                        var additionalZipNames = EastFive.Azure.AppSettings.SPA.AdditionalPackages.ConfigurationString(
-                            packages => packages
-                                .Split(',')
-                                .Select(package => package.Trim())
-                                .Where(package => !package.IsNullOrWhiteSpace())
-                                .ToArray(),
-                            (why) => new string[] { });
+                bool Setup(string buildJsonPath)
+                    {
+                        dynamicServe = spa.ServeEnabled;
+
+                        var additionalZipNames = spa.AdditionalPackageNames;
 
                         signal.Reset();
                         loadTask = Task.Run(
                             async () =>
                             {
-                                var indexHtmlPath = EastFive.Azure.AppSettings.SPA.IndexHtmlPath.ConfigurationString(path => path, (why) => string.Empty);
+                                var indexHtmlPath = spa.IndexHtmlPath ?? string.Empty;
                                 var packages = await new string[] { PrimaryPackageZipName }
                                     .Concat(additionalZipNames)
                                     .Select(
@@ -146,8 +139,7 @@ namespace EastFive.Azure.Spa
                                 return !primaryPackage.IsDefaultOrNull();
                             });
                         return true;
-                    },
-                    (why) => false);
+                    }
             }
             catch(Exception)
             {
@@ -201,7 +193,7 @@ namespace EastFive.Azure.Spa
                     try
                     {
                         var blobClient = AzureTableDriverDynamic.FromStorageString(connectionString).BlobClient;
-                        var containerName = Persistence.AppSettings.SpaContainer.ConfigurationString(name => name);
+                        var containerName = SpaContainerName();
                         var container = blobClient.GetBlobContainerClient(containerName);
                         var blobRef = container.GetBlobClient(zipName);
                         var blobStream = await blobRef.OpenReadAsync();
@@ -225,7 +217,7 @@ namespace EastFive.Azure.Spa
                     try
                     {
                         var blobClient = AzureTableDriverDynamic.FromStorageString(connectionString).BlobClient;
-                        var containerName = Persistence.AppSettings.SpaContainer.ConfigurationString(name => name);
+                        var containerName = SpaContainerName();
                         var container = blobClient.GetBlobContainerClient(containerName);
                         await container.CreateIfNotExistsAsync();
                         var blobRef = container.GetBlobClient(zipName);
@@ -292,8 +284,17 @@ namespace EastFive.Azure.Spa
                             },
                             () => (default(int?), default(Route[]), default(Route?), default(string[])).AsTask());
 
-                    var lookup = await EastFive.Azure.AppSettings.SPA.SiteLocation.ConfigurationString(
-                        async (siteLocation) =>
+                    var lookup = SpaConfiguration.Current()?.SiteLocation is { } siteLocation
+                        ? await ExtractSpaFilesAsync(siteLocation)
+                        : MissingSiteLocation();
+
+                    Dictionary<string, byte[]> MissingSiteLocation()
+                    {
+                        application.Logger.Warning("Could not find SpaSiteLocation - is this key set in app settings?");
+                        return new Dictionary<string, byte[]>();
+                    }
+
+                    async Task<Dictionary<string, byte[]>> ExtractSpaFilesAsync(Uri siteLocation)
                         {
                             application.Logger.Trace($"SpaHandlerModule - ExtractSpaFiles   siteLocation: {siteLocation}");
                             var spaFiles = await zipArchive.Entries
@@ -313,12 +314,9 @@ namespace EastFive.Azure.Spa
                                         if (!indexFiles.Contains(entity.FullName, StringComparison.OrdinalIgnoreCase))
                                             return entity.FullName.PairWithValue(fileBytes);
 
-                                        var aiInstrumentationKey = EastFive.Azure.AppSettings.ApplicationInsights.InstrumentationKey.ConfigurationString(
-                                            (value) => value,
-                                            (missingKey) => string.Empty);
-                                        var aiConnectionString = EastFive.Azure.AppSettings.ApplicationInsights.ConnectionString.ConfigurationString(
-                                            (value) => value,
-                                            (missingKey) => string.Empty);
+                                        var telemetry = EastFive.Azure.Monitoring.ApplicationInsightsTelemetryConfiguration.Current();
+                                        var aiInstrumentationKey = telemetry?.InstrumentationKey ?? string.Empty;
+                                        var aiConnectionString = telemetry?.ConnectionString ?? string.Empty;
                                         return fileBytes
                                             .GetString()
                                             .Replace("2734e0b8-5801-4b33-86a1-e5ae322399d6", aiInstrumentationKey, StringComparison.OrdinalIgnoreCase)
@@ -329,12 +327,7 @@ namespace EastFive.Azure.Spa
                                 .AsyncEnumerable()
                                 .ToArrayAsync();
                             return spaFiles.ToDictionary();
-                        },
-                        (why) =>
-                        {
-                            application.Logger.Warning("Could not find SpaSiteLocation - is this key set in app settings?");
-                            return new Dictionary<string, byte[]>().AsTask();
-                        });
+                        }
                     return (true, minimumVersion, lookup, aliasPaths, defaultPath);
                 }
             }
@@ -496,9 +489,7 @@ namespace EastFive.Azure.Spa
                             indexCacheControl, expiresIndex);
                     }
 
-                    var immutableDays = EastFive.Azure.AppSettings.SPA.FilesExpirationInDays.ConfigurationDouble(
-                        d => d,
-                        onNotSpecified: () => 1.0);
+                    var immutableDays = SpaConfiguration.Current()?.FilesExpirationInDays ?? 1.0;
                     var cacheControl =
                         new Microsoft.Net.Http.Headers.CacheControlHeaderValue()
                         {
@@ -616,5 +607,11 @@ namespace EastFive.Azure.Spa
                     })
                 .ToArray();
         }
+    
+        /// <summary>The SPA package container, from the startup-loaded <see cref="Persistence.SpaStorageConfiguration"/>.</summary>
+        private static string SpaContainerName()
+            => EastFive.Configuration.StartupConfiguration.Get<Persistence.SpaStorageConfiguration, string>(
+                spa => spa.ContainerName ?? throw new EastFive.Web.ConfigurationException(EastFive.Azure.Persistence.SpaStorageConfiguration.ContainerNameKey, typeof(string), "The SPA container is not configured."),
+                issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(string), issue.ToString()));
     }
 }

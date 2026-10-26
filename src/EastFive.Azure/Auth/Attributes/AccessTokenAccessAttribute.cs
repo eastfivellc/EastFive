@@ -31,7 +31,7 @@ namespace EastFive.Azure.Auth
             return request.ValidateAccessTokenAccount(this.ShouldSkipValidationForLocalhost,
                 accessTokenInfo =>
                 {
-                    return EastFive.Security.AppSettings.TokenScope.ConfigurationUri(
+                    return EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(
                         (scope) =>
                         {
                             var tokenExpiration = TimeSpan.FromMinutes(1.0);

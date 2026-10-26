@@ -70,7 +70,8 @@ namespace EastFive.Azure.Auth
             return await await redirection.StorageCreateAsync(
                 discard =>
                 {
-                    return EastFive.Azure.AppSettings.Auth.PauseRedirections.ConfigurationBoolean(
+                    return EastFive.Configuration.Configured.MemberValue<SessionServerConfiguration, bool, Task<IHttpResponse>>(
+                        config => config.PauseRedirections, EastFive.Azure.Auth.SessionServerConfiguration.PauseRedirectionsKey,
                         async pauseRedirections =>
                         {
                             if (pauseRedirections)

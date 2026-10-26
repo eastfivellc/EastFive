@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace EastFive.Web.Configuration
 {
+    [Obsolete("Read configuration through a typed IProvideConfiguration loaded by ConfigurationLoader.")]
     public static class Settings
     {
         public static TResult GetString<TResult>(string key,

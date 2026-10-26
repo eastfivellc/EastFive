@@ -21,11 +21,9 @@ namespace EastFive.Api.Auth
 
         public bool AllowLocalHost { get; set; } = false;
 
-        public static bool allowLocalHostGlobal = EastFive.Api.AppSettings.Auth.AllowLocalHostGlobalSecurityRole
-            .ConfigurationBoolean(
-                allow => allow,
-                onFailure: (why) => false,
-                onNotSpecified: () => false);
+        /// <summary>Read at use (the static was read once, before configuration might be initialized).</summary>
+        public static bool allowLocalHostGlobal
+            => SuperAdminConfiguration.Current(config => config.AllowLocalHostGlobalSecurityRole, () => false);
 
         public virtual StringComparison Comparison { get; set; } = StringComparison.OrdinalIgnoreCase;
 

@@ -101,7 +101,7 @@ namespace EastFive.Azure.Auth
                     if (SecurityRoleRequiredAttribute.allowLocalHostGlobal)
                         if (request.IsLocalHostRequest())
                         {
-                            return Api.AppSettings.AuthorizationIdSuperAdmin.ConfigurationGuid(
+                            return EastFive.Api.SuperAdminConfiguration.WithAuthorizationId(
                                 (authorizationIdSuperAdmin) =>
                                 {
                                     var token = new SessionToken

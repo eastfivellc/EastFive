@@ -1,4 +1,5 @@
 ﻿using System;
+using EastFive.Configuration;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -47,15 +48,14 @@ namespace EastFive.Api
             Func<TResult> sessionIdNotFound,
                 string sessionIdClaimTypeConfigurationSetting = default)
         {
-            if(sessionIdClaimTypeConfigurationSetting.IsNullOrWhiteSpace())
-                sessionIdClaimTypeConfigurationSetting =
-                    EastFive.Api.AppSettings.SessionIdClaimType;
-
-            return sessionIdClaimTypeConfigurationSetting.ConfigurationString(
-                sessionIdClaimType =>
-                {
-                    return claims.GetSessionId(sessionIdClaimType, onSuccess, sessionIdNotFound);
-                });
+            // A caller-named setting must be one some typed configuration member declares.
+            var sessionIdClaimType = sessionIdClaimTypeConfigurationSetting.IsNullOrWhiteSpace()
+                ? Configured.Get<ClaimTypesConfiguration, string>(
+                    config => config.SessionIdClaimType ?? throw MissingSetting(EastFive.Api.ClaimTypesConfiguration.SessionIdClaimTypeKey),
+                    issue => throw MissingSetting(issue.Key))
+                : Configured.ReadDeclaredValue(sessionIdClaimTypeConfigurationSetting, value => value,
+                    why => throw MissingSetting(sessionIdClaimTypeConfigurationSetting));
+            return claims.GetSessionId(sessionIdClaimType, onSuccess, sessionIdNotFound);
         }
 
         public static IHttpResponse GetAccountId(this IEnumerable<System.Security.Claims.Claim> claims,
@@ -119,32 +119,36 @@ namespace EastFive.Api
             Func<TResult> actorIdNotFound)
         {
             var accountIdClaimTypeConfigurationSetting =
-                EastFive.Api.AppSettings.ActorIdClaimType;
+                EastFive.Api.ClaimTypesConfiguration.ActorIdClaimTypeKey;
             return claims.GetActorId(accountIdClaimTypeConfigurationSetting, success, actorIdNotFound);
         }
+
+        private static EastFive.Web.ConfigurationException MissingSetting(string key)
+            => new(key, typeof(string), $"The configuration value for [{key}] is not specified.");
+
+        /// <summary>The claim type a caller-named setting holds: the typed account claim type for the
+        /// framework's own key, otherwise a key some typed configuration member declares.</summary>
+        private static string ClaimTypeOf(string accountIdClaimTypeSetting)
+            => string.Equals(accountIdClaimTypeSetting, EastFive.Api.ClaimTypesConfiguration.ActorIdClaimTypeKey, StringComparison.Ordinal)
+                ? ClaimTypesConfiguration.ActorIdClaimTypeOrDefault()
+                : Configured.ReadDeclaredValue(accountIdClaimTypeSetting, value => value,
+                    why => throw MissingSetting(accountIdClaimTypeSetting));
 
         public static TResult GetActorId<TResult>(this IEnumerable<System.Security.Claims.Claim> claims, 
             string accountIdClaimType,
             Func<Guid, TResult> success,
             Func<TResult> actorIdNotFound)
         {
-            //var accountIdClaimValue = CloudConfigurationManager.GetSetting(accountIdClaimType);
-            return accountIdClaimType.ConfigurationString(
-                accountIdClaimValue =>
-                {
-                    //TODO - Log if not found
+            var accountIdClaimValue = ClaimTypeOf(accountIdClaimType);
+            var adminClaim = claims
+                .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimValue) == 0);
 
-                    var adminClaim = claims
-                        .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimValue) == 0);
+            if (default(System.Security.Claims.Claim) == adminClaim)
+                return actorIdNotFound();
 
-                    if (default(System.Security.Claims.Claim) == adminClaim)
-                        return actorIdNotFound();
-
-                    if (Guid.TryParse(adminClaim.Value, out Guid accountId) && accountId != Guid.Empty)
-                        return success(accountId);
-                    else
-                        return actorIdNotFound();
-                }); // ConfigurationContext.Instance.AppSettings[accountIdClaimType];
+            if (Guid.TryParse(adminClaim.Value, out Guid accountId) && accountId != Guid.Empty)
+                return success(accountId);
+            return actorIdNotFound();
         }
 
         public static bool IsAuthorizedForRole(this IEnumerable<System.Security.Claims.Claim> claims,

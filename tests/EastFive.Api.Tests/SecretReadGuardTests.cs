@@ -97,24 +97,8 @@ public static class SecretReadGuard
     /// <summary>Reads whose key is computed at run time, and why none can name a framework secret.</summary>
     private static readonly Dictionary<string, string> DynamicReads = new(StringComparer.Ordinal)
     {
-        ["Core/Configuration/Configuration.cs"] = "the generic typed-key helper itself",
-        ["Core/Configuration/ConfigurationLoader.cs"] = "the loader's VALUES reader (secrets go through ISecretStore)",
-        ["Core/Configuration/ConfigurationExtensions.cs"] = "the ConfigurationString family itself",
-        ["Api/Meta/Flows/WorkflowParameter.cs"] = "consumer-named values rendered into Postman flows; framework secrets have no keys",
-        ["Api/Extensions/ClaimsExtensions.cs"] = "claim-type setting names passed by callers (values)",
-        ["Azure/Auth/PingRedirectConfiguration.cs"] = "per-tag auth name / report-set id values",
-        ["Azure/Auth/SAML/SAMLRedirect.cs"] = "per-tag launch page / metadata location values",
-        ["Azure/Auth/SAML/SamlMetadata.cs"] = "optional SAML metadata values (the SP certificate is public)",
-        ["Azure/Auth/Token.cs"] = "token claim-type values",
-        ["Azure/Monitoring/TeamsNotificationExceptionHandler.cs"] = "Teams card app name / image values",
-        ["Api/Auth/Claims/SecurityRoleRequiredAttribute.cs"] = "a boolean feature flag named by the attribute",
-        ["Azure/Auth/Attributes/SuperAdminClaimAttribute.cs"] = "a boolean feature flag named by the attribute",
-        ["Api/Routing/Handlers/CorsHandler.cs"] = "CORS origins and max-age values",
-        ["Azure/Persistence/StorageTables/Driver/E5CloudTable.cs"] = "connection-pool tuning numbers",
-        ["Azure/Auth/Session.cs"] = "token lifetime and claim-type values",
-        ["Azure/AzureApplication.cs"] = "redirect and application-id values",
-        ["Azure/Auth/AuthApplicationRedirection.cs"] = "redirect values",
-        ["Azure/Auth/CredentialProviders/AzureADB2C/AzureADB2CProvider.cs"] = "B2C flow and tenant values",
+        ["Core/Configuration/Configuration.cs"] = "the obsolete generic typed-key helper itself",
+        ["Core/Configuration/ConfigurationExtensions.cs"] = "the obsolete ConfigurationString family itself",
     };
 
     public static readonly Regex ReadCall = new(

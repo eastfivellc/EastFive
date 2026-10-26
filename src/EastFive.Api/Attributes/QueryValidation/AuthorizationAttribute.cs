@@ -23,14 +23,14 @@ namespace EastFive.Api
                 (claimsEnumerable) =>
                 {
                     var claims = claimsEnumerable.ToArray();
-                    return AppSettings.ActorIdClaimType.ConfigurationString(
-                        (accountIdClaimType) =>
+                    return EastFive.Configuration.Configured.Get<ClaimTypesConfiguration, SelectParameterResult>(
+                        (configuration) =>
                         {
                             return claims
                                 .First<Claim, SelectParameterResult>(
                                     (claim, next) =>
                                     {
-                                        if (String.Compare(claim.Type, accountIdClaimType) == 0)
+                                        if (String.Compare(claim.Type, configuration.ActorIdClaimType) == 0)
                                         {
                                             var accountId = Guid.Parse(claim.Value);
                                             if (parameterRequiringValidation.ParameterType.IsSubClassOfGeneric(typeof(IRef<>)))
@@ -54,7 +54,7 @@ namespace EastFive.Api
                                     });
 
                         },
-                        (why) => SelectParameterResult.FailureHeader(why, "Authentication", parameterRequiringValidation));
+                        (issue) => SelectParameterResult.FailureHeader(issue.ToString(), "Authentication", parameterRequiringValidation));
                 },
                 () => SelectParameterResult.FailureHeader("Authentication header not set.",
                     "Authentication", parameterRequiringValidation),

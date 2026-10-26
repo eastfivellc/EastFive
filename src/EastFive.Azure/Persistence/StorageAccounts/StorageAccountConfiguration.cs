@@ -35,6 +35,14 @@ namespace EastFive.Azure.Persistence
         public const int EmulatorDefaultPort = 10000;
         public const string EmulatorSource = "emulator";
 
+        /// <summary>Blob port of the local storage emulator (queue and table follow at +1 and +2). Only
+        /// consulted when a store names the emulator account devstoreaccount1.</summary>
+        public const string EmulatorPortKey = "Azure.Storage.Emulator.Port";
+
+        /// <summary>An explicit emulator connection string (machine files only, never a vault); absent,
+        /// one is fabricated from <see cref="EmulatorPortKey"/>.</summary>
+        public const string EmulatorConnectionStringKey = "Azure.Storage.Emulator.ConnectionString";
+
         // Azurite's published well-known key: public knowledge, not a secret.
         private const string EmulatorAccountKey =
             "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==";
@@ -95,12 +103,12 @@ namespace EastFive.Azure.Persistence
             string? portText;
             try
             {
-                explicitString = readValue(EastFive.Azure.AppSettings.Persistence.Storage.EmulatorConnectionString);
-                portText = readValue(EastFive.Azure.AppSettings.Persistence.Storage.EmulatorPort);
+                explicitString = readValue(EmulatorConnectionStringKey);
+                portText = readValue(EmulatorPortKey);
             }
             catch (Exception)
             {
-                return onInvalid(Issue(EastFive.Azure.AppSettings.Persistence.Storage.EmulatorPort, ConfigIssueCategory.SourceFailure));
+                return onInvalid(Issue(EmulatorPortKey, ConfigIssueCategory.SourceFailure));
             }
             if (!string.IsNullOrWhiteSpace(explicitString))
                 return onResolved(explicitString, EmulatorSource);
@@ -109,7 +117,7 @@ namespace EastFive.Azure.Persistence
             return int.TryParse(portText.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var port)
                     && port is >= 1 and <= 65533
                 ? onResolved(EmulatorConnectionString(port), EmulatorSource)
-                : onInvalid(Issue(EastFive.Azure.AppSettings.Persistence.Storage.EmulatorPort, ConfigIssueCategory.Invalid));
+                : onInvalid(Issue(EmulatorPortKey, ConfigIssueCategory.Invalid));
         }
 
         /// <summary>Azurite's connection string for a blob port (queue and table follow at +1 and +2).</summary>

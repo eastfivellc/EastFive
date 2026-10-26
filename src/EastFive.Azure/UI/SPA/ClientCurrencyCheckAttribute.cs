@@ -21,10 +21,7 @@ namespace EastFive.Azure.Modules
 
         public ClientCurrencyCheckAttribute()
         {
-            this.clientMinimumVersionMaybe = AppSettings.ClientMinimumVersion.ConfigurationLong(
-                clientMinimumVersion => clientMinimumVersion,
-                (why) => default,
-                () => default);
+            this.clientMinimumVersionMaybe = SpaConfiguration.Current()?.ClientMinimumVersion;
         }
 
         public async Task<IHttpResponse> HandleRouteAsync(Type controllerType, IInvokeResource resourceInvoker,

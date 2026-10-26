@@ -258,8 +258,7 @@ namespace EastFive.Azure.Functions
             IAzureApplication azureApplication)
         {
             var byteContent = invocationMessageRef.id.ToByteArray();
-            return EastFive.Web.Configuration.Settings.GetString(
-                AppSettings.FunctionProcessorServiceBusTriggerName,
+            return ServiceBusConfiguration.WithFunctionProcessorTriggerName(
                 (serviceBusTriggerName) =>
                 {
                     return azureApplication.SendServiceBusMessageAsync(serviceBusTriggerName, invocationMessageRef.id.ToString("N"), byteContent);

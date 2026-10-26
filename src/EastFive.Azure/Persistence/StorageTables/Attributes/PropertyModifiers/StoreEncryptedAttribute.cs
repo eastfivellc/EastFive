@@ -32,13 +32,13 @@ namespace EastFive.Azure.Persistence.StorageTables
 
     /// <summary>The default storage encryption: <c>StorageEncryption-EncryptionKey</c> and
     /// <c>StorageEncryption-EncryptionSalt</c>.</summary>
-    [EastFive.Configuration.ConfigurationType("StorageEncryption", Label = "Storage encryption")]
+    [EastFive.Configuration.ConfigurationType("StorageEncryption", Label = "Storage encryption", Description = "The key and salt that encrypt [StoreEncrypted] properties at rest.", Scope = EastFive.Configuration.ConfigurationScope.Environment)]
     public sealed class StorageEncryptionConfiguration : EastFive.Configuration.IProvideConfiguration, IProvideStorageEncryption
     {
-        [EastFive.Configuration.ConfigurationMember(Kind = EastFive.Configuration.ConfigurationMemberKind.Secret)]
+        [EastFive.Configuration.ConfigurationMember(Kind = EastFive.Configuration.ConfigurationMemberKind.Secret, Label = "Encryption key", Description = "Key that encrypts [StoreEncrypted] properties.")]
         public EastFive.Configuration.Secret EncryptionKey { get; set; }
 
-        [EastFive.Configuration.ConfigurationMember(Kind = EastFive.Configuration.ConfigurationMemberKind.Secret, Description = "A GUID.")]
+        [EastFive.Configuration.ConfigurationMember(Kind = EastFive.Configuration.ConfigurationMemberKind.Secret, Description = "A GUID.", Label = "Encryption salt")]
         public EastFive.Configuration.Secret EncryptionSalt { get; set; }
 
         public string Validate()

@@ -14,6 +14,15 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
 {
     public class Collection : IReferenceable
     {
+        /// <summary>The monitoring collection id, from the host's startup-loaded <see cref="PostmanConfiguration"/>.</summary>
+        public static TResult WithMonitoringCollection<TResult>(Func<string, TResult> onCollection,
+            Func<string, TResult> onUnspecified)
+            => EastFive.Configuration.StartupConfiguration.Get<PostmanConfiguration, TResult>(
+                configuration => configuration.MonitoringCollectionId is { Length: > 0 } id
+                    ? onCollection(id)
+                    : onUnspecified($"[{EastFive.Api.PostmanConfiguration.MonitoringCollectionIdKey}] is not configured."),
+                issue => onUnspecified(issue.ToString()));
+
         /// <summary>The Postman API key, from the host's startup-loaded <see cref="PostmanConfiguration"/>.</summary>
         private static TResult WithPostmanKey<TResult>(Func<string, TResult> onKey,
             Func<string, TResult> onUnspecified = default)
@@ -178,7 +187,7 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
             Func<CollectionSummary, TResult> onCreatedOrUpdated,
             Func<string, TResult> onFailure)
         {
-            return await EastFive.Api.AppSettings.Postman.MonitoringCollectionId.ConfigurationString(
+            return await WithMonitoringCollection(
                 async collectionId =>
                 {
                     return await await EastFive.Api.Meta.Postman.Resources.Collection.Collection.GetAsync(collectionId,

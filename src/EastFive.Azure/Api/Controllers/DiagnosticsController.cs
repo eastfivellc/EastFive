@@ -1,5 +1,5 @@
 ﻿using Newtonsoft.Json;
-using System.Configuration;
+using System;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -25,14 +25,19 @@ namespace EastFive.Azure.Diagnostics
         [EastFive.Api.HttpGet]
         public static Task<IHttpResponse> Get(EastFive.Api.Security security, IHttpRequest request)
         {
-            return EastFive.Web.Configuration.Settings.GetGuid(
-                EastFive.Api.AppSettings.ActorIdSuperAdmin,
+            return EastFive.Api.SuperAdminConfiguration.WithActorId(
                 (actorIdSuperAdmin) =>
                 {
                     if (actorIdSuperAdmin == security.performingAsActorId)
                     {
-                        var settings = ConfigurationManager.AppSettings.AllKeys
-                            .Select(x => new AppSetting { Name = x, Value = ConfigurationManager.AppSettings[x] }).OrderBy(x => x.Name).ToArray();
+                        // The declared VALUE settings of every typed configuration; secrets are never read here.
+                        var settings = EastFive.Configuration.ConfigurationCatalog.For(AppDomain.CurrentDomain.GetAssemblies())
+                            .SelectMany(type => type.Members)
+                            .Select(member => (member.Key, value: EastFive.Configuration.ConfigurationCatalog.CurrentValue(member)))
+                            .Where(setting => setting.value != null)
+                            .Select(setting => new AppSetting { Name = setting.Key, Value = setting.value })
+                            .GroupBy(setting => setting.Name).Select(group => group.First())
+                            .OrderBy(x => x.Name).ToArray();
                         return new JsonHttpResponse(request, System.Net.HttpStatusCode.OK, settings).AsTask<IHttpResponse>();
                     }
                     return request.CreateResponse(System.Net.HttpStatusCode.NotFound).AsTask();

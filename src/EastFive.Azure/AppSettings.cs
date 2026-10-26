@@ -15,17 +15,21 @@ namespace EastFive.Azure
             public static class StorageTables
             {
                 /// <summary>When the total of HTTP connections reaches this point the connection poolb will _begin_ being reduced.</summary>
-                public const string ConnectionCountReductionPoint = "EastFive.Azure.Persistence.StorageTables.ConnectionCountReductionPoint";
+                [System.Obsolete("Read StorageTablesTuningConfiguration.ConnectionCountReductionPoint through typed configuration; its key is StorageTablesTuningConfiguration.ConnectionCountReductionPointKey.")]
+                public const string ConnectionCountReductionPoint = EastFive.Azure.Persistence.StorageTablesTuningConfiguration.ConnectionCountReductionPointKey;
 
                 /// <summary>When the total of HTTP connections reaches this point the connection pool will stop growing.</summary>
-                public const string ConnectionCountGrowthStoppingPoint = "EastFive.Azure.Persistence.StorageTables.ConnectionCountGrowthStoppingPoint";
+                [System.Obsolete("Read StorageTablesTuningConfiguration.ConnectionCountGrowthStoppingPoint through typed configuration; its key is StorageTablesTuningConfiguration.ConnectionCountGrowthStoppingPointKey.")]
+                public const string ConnectionCountGrowthStoppingPoint = EastFive.Azure.Persistence.StorageTablesTuningConfiguration.ConnectionCountGrowthStoppingPointKey;
 
                 /// <summary>Size of the connection pool will not go below this point.</summary>
-                public const string MinimumParallelConnections = "EastFive.Azure.Persistence.StorageTables.MinimumParallelConnections";
+                [System.Obsolete("Read StorageTablesTuningConfiguration.MinimumParallelConnections through typed configuration; its key is StorageTablesTuningConfiguration.MinimumParallelConnectionsKey.")]
+                public const string MinimumParallelConnections = EastFive.Azure.Persistence.StorageTablesTuningConfiguration.MinimumParallelConnectionsKey;
 
                 /// <summary>Storage ACCOUNT NAME of the default table store (not a secret); its credential is
                 /// the secret AzureStorage-{account}-ConnectionString. See <see cref="EastFive.Azure.Persistence.StorageTablesConfiguration"/>.</summary>
-                public const string Account = "EastFive.Azure.StorageTables.Account";
+                [System.Obsolete("Read StorageTablesConfiguration.Account through typed configuration; its key is StorageTablesConfiguration.AccountKey.")]
+                public const string Account = EastFive.Azure.Persistence.StorageTablesConfiguration.AccountKey;
 
 
             }
@@ -35,7 +39,8 @@ namespace EastFive.Azure
             {
                 /// <summary>Storage ACCOUNT NAME of the data lake (not a secret); its credential is the
                 /// secret AzureStorage-{account}-ConnectionString.</summary>
-                public const string Account = "EastFive.Azure.DataLake.Account";
+                [System.Obsolete("Read DataLakeStorageConfiguration.Account through typed configuration; its key is DataLakeStorageConfiguration.AccountKey.")]
+                public const string Account = EastFive.Azure.Persistence.DataLakeStorageConfiguration.AccountKey;
             }
 
             /// <summary>Keys shared by every <see cref="EastFive.Azure.Persistence.StorageAccountConfiguration"/>.</summary>
@@ -43,10 +48,12 @@ namespace EastFive.Azure
             public static class Storage
             {
                 /// <summary>Blob port of the local storage emulator (queue and table follow at +1 and +2). Only consulted when a store names the emulator account devstoreaccount1.</summary>
-                public const string EmulatorPort = "Azure.Storage.Emulator.Port";
+                [System.Obsolete("Use StorageAccountConfiguration.EmulatorPortKey.")]
+                public const string EmulatorPort = EastFive.Azure.Persistence.StorageAccountConfiguration.EmulatorPortKey;
 
                 /// <summary>Reserved: an explicit emulator connection string. Absent, one is fabricated from Azure.Storage.Emulator.Port. Never read from a vault.</summary>
-                public const string EmulatorConnectionString = "Azure.Storage.Emulator.ConnectionString";
+                [System.Obsolete("Use StorageAccountConfiguration.EmulatorConnectionStringKey.")]
+                public const string EmulatorConnectionString = EastFive.Azure.Persistence.StorageAccountConfiguration.EmulatorConnectionStringKey;
             }
         }
 
@@ -54,67 +61,88 @@ namespace EastFive.Azure
         [Config]
         public static class SPA
         {
-            public const string BuildConfigPath = "EastFive.Azure.SPA.BuildConfigPath";
-            public const string IndexHtmlPath = "EastFive.Azure.SPA.IndexHtmlPath";
-            public const string SiteLocation = "EastFive.Azure.SpaSiteLocation";
+            [System.Obsolete("Read SpaConfiguration.BuildConfigPath through typed configuration; its key is SpaConfiguration.BuildConfigPathKey.")]
+            public const string BuildConfigPath = EastFive.Azure.SpaConfiguration.BuildConfigPathKey;
+            [System.Obsolete("Read SpaConfiguration.IndexHtmlPath through typed configuration; its key is SpaConfiguration.IndexHtmlPathKey.")]
+            public const string IndexHtmlPath = EastFive.Azure.SpaConfiguration.IndexHtmlPathKey;
+            [System.Obsolete("Read SpaConfiguration.SiteLocation through typed configuration; its key is SpaConfiguration.SiteLocationKey.")]
+            public const string SiteLocation = EastFive.Azure.SpaConfiguration.SiteLocationKey;
 
             /// <summary>Expiration in days for immutable spa files.</summary>
-            public const string FilesExpirationInDays = "EastFive.Azure.SpaFilesExpirationInDays";
+            [System.Obsolete("Read SpaConfiguration.FilesExpirationInDays through typed configuration; its key is SpaConfiguration.FilesExpirationInDaysKey.")]
+            public const string FilesExpirationInDays = EastFive.Azure.SpaConfiguration.FilesExpirationInDaysKey;
 
             /// <summary>Enable dynamic serving of the SPA.</summary>
-            public const string ServeEnabled = "EastFive.Azure.SpaServeEnabled";
+            [System.Obsolete("Read SpaConfiguration.ServeEnabled through typed configuration; its key is SpaConfiguration.ServeEnabledKey.")]
+            public const string ServeEnabled = EastFive.Azure.SpaConfiguration.ServeEnabledKey;
 
             /// <summary>Storage ACCOUNT NAME of the SPA store; credential is the vault secret Azure-Storage-Account-{name}. Not a secret.</summary>
-            public const string SpaStorageAccount = "EastFive.Azure.Spa.Account";
+            [System.Obsolete("Read SpaStorageConfiguration.Account through typed configuration; its key is SpaStorageConfiguration.AccountKey.")]
+            public const string SpaStorageAccount = EastFive.Azure.Persistence.SpaStorageConfiguration.AccountKey;
 
             /// <summary>Comma-separated list of additional SPA package zip blob names (e.g. admin.zip) </summary>
-            public const string AdditionalPackages = "EastFive.Azure.Spa.AdditionalPackages";
+            [System.Obsolete("Read SpaConfiguration.AdditionalPackages through typed configuration; its key is SpaConfiguration.AdditionalPackagesKey.")]
+            public const string AdditionalPackages = EastFive.Azure.SpaConfiguration.AdditionalPackagesKey;
         }
 
         [Config]
         public static class ApplicationInsights
         {
             /// <summary>Identifies the application insights endpoint to which data is posted.</summary>
-            public const string ConnectionString = "APPLICATIONINSIGHTS_CONNECTION_STRING";
+            [System.Obsolete("Read ApplicationInsightsTelemetryConfiguration.ConnectionString through typed configuration; its key is ApplicationInsightsTelemetryConfiguration.ConnectionStringKey.")]
+            public const string ConnectionString = EastFive.Azure.Monitoring.ApplicationInsightsTelemetryConfiguration.ConnectionStringKey;
 
             /// <summary>Identifies the application insights endpoint to which data is posted.</summary>
-            public const string InstrumentationKey = "EastFive.Azure.ApplicationInsights.InstrumentationKey";
+            [System.Obsolete("Read ApplicationInsightsTelemetryConfiguration.InstrumentationKey through typed configuration; its key is ApplicationInsightsTelemetryConfiguration.InstrumentationKeyKey.")]
+            public const string InstrumentationKey = EastFive.Azure.Monitoring.ApplicationInsightsTelemetryConfiguration.InstrumentationKeyKey;
 
             /// <summary>Username for API access to Application Insights.</summary>
-            public const string ApplicationId = "EastFive.Azure.ApplicationInsights.ApplicationId";
+            [System.Obsolete("Read ApplicationInsightsQueryConfiguration.ApplicationId through typed configuration; its key is ApplicationInsightsQueryConfiguration.ApplicationIdKey.")]
+            public const string ApplicationId = EastFive.Azure.ApplicationInsightsQueryConfiguration.ApplicationIdKey;
 
 
+            [System.Obsolete("No longer read by EastFive.")]
             public const string ApiBase = "EastFive.Azure.ApplicationInsights.ApiBase";
 
+            [System.Obsolete("No longer read by EastFive.")]
             public const string Path = "EastFive.Azure.ApplicationInsights.Path";
 
 
-            public const string TeamsAppIdentification = "EastFive.Azure.ApplicationInsights.TeamsAppIdentification";
+            [System.Obsolete("Read TeamsNotificationCardConfiguration.AppIdentification through typed configuration; its key is TeamsNotificationCardConfiguration.AppIdentificationKey.")]
+            public const string TeamsAppIdentification = EastFive.Azure.Monitoring.TeamsNotificationCardConfiguration.AppIdentificationKey;
 
-            public const string TeamsAppImage = "EastFive.Azure.ApplicationInsights.TeamsAppImage";
+            [System.Obsolete("Read TeamsNotificationCardConfiguration.AppImage through typed configuration; its key is TeamsNotificationCardConfiguration.AppImageKey.")]
+            public const string TeamsAppImage = EastFive.Azure.Monitoring.TeamsNotificationCardConfiguration.AppImageKey;
         }
 
         [Config]
         public static class Search
         {
             /// <summary>Identifies the search endpoint to use.</summary>
-            public const string EndPoint = "EastFive.Azure.Search.SearchServiceEndPoint";
+            [System.Obsolete("Read SearchConfiguration.EndPoint through typed configuration; its key is SearchConfiguration.EndPointKey.")]
+            public const string EndPoint = EastFive.Azure.SearchConfiguration.EndPointKey;
 
         }
 
-        public const string ClientMinimumVersion = "EastFive.Azure.Modules.ClientMinimumVersion";
+        [System.Obsolete("Read SpaConfiguration.ClientMinimumVersion through typed configuration; its key is SpaConfiguration.ClientMinimumVersionKey.")]
+        public const string ClientMinimumVersion = EastFive.Azure.SpaConfiguration.ClientMinimumVersionKey;
 
-        public const string FunctionProcessorServiceBusTriggerName = "EastFive.Azure.Functions.ServiceBusTriggerName";
-        public const string FunctionProcessorServiceBusTriggerNamePercent = "%" + FunctionProcessorServiceBusTriggerName + "%";
+        [System.Obsolete("Read ServiceBusConfiguration.FunctionProcessorTriggerName through typed configuration; its key is ServiceBusConfiguration.FunctionProcessorTriggerNameKey.")]
+        public const string FunctionProcessorServiceBusTriggerName = EastFive.Azure.ServiceBusConfiguration.FunctionProcessorTriggerNameKey;
+        [System.Obsolete("Use ServiceBusConfiguration.FunctionProcessorTriggerNameBinding.")]
+        public const string FunctionProcessorServiceBusTriggerNamePercent = EastFive.Azure.ServiceBusConfiguration.FunctionProcessorTriggerNameBinding;
 
-        public const string CDNEndpointHostname = "EastFive.Azure.CDNEndpointHostname";
-        public const string CDNApiRoutePrefix = "EastFive.Azure.CDNApiRoutePrefix";
+        [System.Obsolete("Read CdnConfiguration.EndpointHostname through typed configuration; its key is CdnConfiguration.EndpointHostnameKey.")]
+        public const string CDNEndpointHostname = EastFive.Azure.CdnConfiguration.EndpointHostnameKey;
+        [System.Obsolete("Read CdnConfiguration.ApiRoutePrefix through typed configuration; its key is CdnConfiguration.ApiRoutePrefixKey.")]
+        public const string CDNApiRoutePrefix = EastFive.Azure.CdnConfiguration.ApiRoutePrefixKey;
 
         [Config]
         public static class CognitiveServices
         {
             /// <summary>Endpoint used by computer vision to analyze image Content.</summary>
-            public const string ComputerVisionEndpoint = "EastFive.Azure.CognitiveServices.ComputerVisionEndpoint";
+            [System.Obsolete("Read ComputerVisionConfiguration.Endpoint through typed configuration; its key is ComputerVisionConfiguration.EndpointKey.")]
+            public const string ComputerVisionEndpoint = EastFive.Azure.ComputerVisionConfiguration.EndpointKey;
 
         }
 
@@ -123,77 +151,97 @@ namespace EastFive.Azure
         {
 
             /// <summary>The IdP certificate in base64 format (public key only). </summary>
-            public static string GetMetadataLocation(string tag) => $"EastFive.Security.CredentialProvider.SAML.{tag}.MetadataLocation";
+            [System.Obsolete("Read SamlTagConfiguration.MetadataLocation through typed configuration; its key is SamlTagConfiguration.MetadataLocationKey(tag).")]
+            public static string GetMetadataLocation(string tag) => EastFive.Azure.Auth.SamlTagConfiguration.MetadataLocationKey(tag);
 
             /// <summary>Internal page (relative URI) to send the browser to when the tag's </summary>
-            public static string GetLaunchPage(string tag) => $"EastFive.Security.CredentialProvider.SAML.{tag}.LaunchPage";
+            [System.Obsolete("Read SamlTagConfiguration.LaunchPage through typed configuration; its key is SamlTagConfiguration.LaunchPageKey(tag).")]
+            public static string GetLaunchPage(string tag) => EastFive.Azure.Auth.SamlTagConfiguration.LaunchPageKey(tag);
 
             /// <summary>The name of the attribute in the SAML assertion whoms value contains a unique key identifying the user. </summary>
-            public const string SAMLLoginIdAttributeName = "EastFive.Security.CredentialProvider.SAML.LoginIdAttributeName";
+            [System.Obsolete("Read SamlConfiguration.LoginIdAttributeName through typed configuration; its key is SamlConfiguration.LoginIdAttributeNameKey.")]
+            public const string SAMLLoginIdAttributeName = EastFive.Azure.Auth.SamlConfiguration.LoginIdAttributeNameKey;
 
             /// <summary>NameID format for SAML metadata.</summary>
-            public const string NameIdFormat = "EastFive.Security.CredentialProvider.SAML.NameIdFormat";
+            [System.Obsolete("Read SamlConfiguration.NameIdFormat through typed configuration; its key is SamlConfiguration.NameIdFormatKey.")]
+            public const string NameIdFormat = EastFive.Azure.Auth.SamlConfiguration.NameIdFormatKey;
 
             /// <summary>Service provider signing certificate in base64 format (public cert only).</summary>
-            public const string ServiceProviderCertificate = "EastFive.Security.CredentialProvider.SAML.ServiceProviderCertificate";
+            [System.Obsolete("Read SamlConfiguration.ServiceProviderCertificate through typed configuration; its key is SamlConfiguration.ServiceProviderCertificateKey.")]
+            public const string ServiceProviderCertificate = EastFive.Azure.Auth.SamlConfiguration.ServiceProviderCertificateKey;
         }
 
         [Config]
         public static class Apple
         {
             /// <summary>Used to prove ownership of this domain to Apple.</summary>
-            public const string DeveloperSiteAssociation = "EastFive.Azure.Apple.DeveloperSiteAssociation";
+            [System.Obsolete("Read AppleConfiguration.DeveloperSiteAssociation through typed configuration; its key is AppleConfiguration.DeveloperSiteAssociationKey.")]
+            public const string DeveloperSiteAssociation = EastFive.Azure.Auth.AppleConfiguration.DeveloperSiteAssociationKey;
 
-            public const string AppleAppSiteAssociationId = "EastFive.Azure.Apple.AppleAppSiteAssociation.AppId";
+            [System.Obsolete("Read AppleConfiguration.AppSiteAssociationId through typed configuration; its key is AppleConfiguration.AppSiteAssociationIdKey.")]
+            public const string AppleAppSiteAssociationId = EastFive.Azure.Auth.AppleConfiguration.AppSiteAssociationIdKey;
         }
 
         [Config]
         public static class AzureADB2C
         {
             /// <summary>Identifies this Tenant to AADB2C</summary>
-            public const string Tenant = "EastFive.Azure.AzureADB2C.Tenant";
+            [System.Obsolete("Read AzureADB2CGraphConfiguration.Tenant through typed configuration; its key is AzureADB2CGraphConfiguration.TenantKey.")]
+            public const string Tenant = EastFive.Azure.Auth.AzureADB2CGraphConfiguration.TenantKey;
 
             /// <summary>Identifies this application (multiple applications per tenant) to an AADB2C application</summary>
-            public const string ApplicationId = "EastFive.Azure.AzureADB2C.ApplicationId";
+            [System.Obsolete("Read AzureADB2CGraphConfiguration.ApplicationId through typed configuration; its key is AzureADB2CGraphConfiguration.ApplicationIdKey.")]
+            public const string ApplicationId = EastFive.Azure.Auth.AzureADB2CGraphConfiguration.ApplicationIdKey;
 
             /// <summary>The audience used for token validation.</summary>
-            public const string Audience = "EastFive.Azure.AzureADB2C.Audience";
+            [System.Obsolete("Read AzureADB2CGraphConfiguration.Audience through typed configuration; its key is AzureADB2CGraphConfiguration.AudienceKey.")]
+            public const string Audience = EastFive.Azure.Auth.AzureADB2CGraphConfiguration.AudienceKey;
 
             /// <summary>The name of the flow for user sign in.</summary>
-            public const string SigninFlow = "EastFive.Azure.AzureADB2C.SigninFlow";
+            [System.Obsolete("Read AzureADB2CGraphConfiguration.SigninFlow through typed configuration; its key is AzureADB2CGraphConfiguration.SigninFlowKey.")]
+            public const string SigninFlow = EastFive.Azure.Auth.AzureADB2CGraphConfiguration.SigninFlowKey;
 
             /// <summary>The name of the flow for user sign up.</summary>
-            public const string SignupFlow = "EastFive.Azure.AzureADB2C.SignupFlow";
+            [System.Obsolete("Read AzureADB2CGraphConfiguration.SignupFlow through typed configuration; its key is AzureADB2CGraphConfiguration.SignupFlowKey.")]
+            public const string SignupFlow = EastFive.Azure.Auth.AzureADB2CGraphConfiguration.SignupFlowKey;
 
             /// <summary>ID of the client</summary>
-            public const string ClientId = "EastFive.Azure.AzureADB2C.ClientId";
+            [System.Obsolete("Read AzureADB2CGraphConfiguration.ClientId through typed configuration; its key is AzureADB2CGraphConfiguration.ClientIdKey.")]
+            public const string ClientId = EastFive.Azure.Auth.AzureADB2CGraphConfiguration.ClientIdKey;
 
             /// <summary>The claim identifier used to determine the login subject key.</summary>
-            public const string LoginIdClaimType = "EastFive.Azure.Auth.AzureADB2C.LoginIdClaimType";
+            [System.Obsolete("Read AzureADB2CGraphConfiguration.LoginIdClaimType through typed configuration; its key is AzureADB2CGraphConfiguration.LoginIdClaimTypeKey.")]
+            public const string LoginIdClaimType = EastFive.Azure.Auth.AzureADB2CGraphConfiguration.LoginIdClaimTypeKey;
         }
 
         [Config]
         public static class Auth
         {
-            public const string Redirections = "EastFive.Azure.Auth.Redirections";
-            public const string PauseRedirections = "EastFive.Azure.Auth.PauseRedirections";
-            public const string DebugLogin = "EastFive.Azure.Auth.DebugLogin";
+            [System.Obsolete("Read SessionServerConfiguration.Redirections through typed configuration; its key is SessionServerConfiguration.RedirectionsKey.")]
+            public const string Redirections = EastFive.Azure.Auth.SessionServerConfiguration.RedirectionsKey;
+            [System.Obsolete("Read SessionServerConfiguration.PauseRedirections through typed configuration; its key is SessionServerConfiguration.PauseRedirectionsKey.")]
+            public const string PauseRedirections = EastFive.Azure.Auth.SessionServerConfiguration.PauseRedirectionsKey;
+            [System.Obsolete("Read SessionServerConfiguration.DebugLogin through typed configuration; its key is SessionServerConfiguration.DebugLoginKey.")]
+            public const string DebugLogin = EastFive.Azure.Auth.SessionServerConfiguration.DebugLoginKey;
 
             [Config]
             public static class Apple
             {
                 /// <summary>ID used to identify the application to apple.</summary>
-                public const string ClientId = "EastFive.Apple.ClientId";
+                [System.Obsolete("Read AppleConfiguration.ClientId through typed configuration; its key is AppleConfiguration.ClientIdKey.")]
+                public const string ClientId = EastFive.Azure.Auth.AppleConfiguration.ClientIdKey;
 
                 /// <summary>This is the list of audiences that are valid for the Apple JWT. This should include the ClientID.</summary>
-                public const string ValidAudiences = "EastFive.Apple.ValidAudiences";
+                [System.Obsolete("Read AppleConfiguration.ValidAudiences through typed configuration; its key is AppleConfiguration.ValidAudiencesKey.")]
+                public const string ValidAudiences = EastFive.Azure.Auth.AppleConfiguration.ValidAudiencesKey;
             }
 
             [Config]
             public static class Google
             {
                 /// <summary>ID used to identify the application to Google.</summary>
-                public const string ClientId = "EastFive.Google.ClientID";
+                [System.Obsolete("Read GoogleLoginConfiguration.ClientId through typed configuration; its key is GoogleLoginConfiguration.ClientIdKey.")]
+                public const string ClientId = EastFive.Azure.Auth.GoogleLoginConfiguration.ClientIdKey;
 
             }
 
@@ -201,13 +249,15 @@ namespace EastFive.Azure
             public static class Microsoft
             {
                 /// <summary>ID used to identify the application to MS.</summary>
-                public const string ClientId = "EastFive.Microsoft.ClientID";
+                [System.Obsolete("Read MicrosoftLoginConfiguration.ClientId through typed configuration; its key is MicrosoftLoginConfiguration.ClientIdKey.")]
+                public const string ClientId = EastFive.Azure.Auth.MicrosoftLoginConfiguration.ClientIdKey;
 
             }
 
             [Config]
             public static class Ping
             {
+                [System.Obsolete("No longer read by EastFive.")]
                 public const string PingIdentityAthenaRestAuthUsername = "EastFive.Security.LoginProvider.PingIdentity.Athena.RestAuthUsername";
             }
 
@@ -215,10 +265,12 @@ namespace EastFive.Azure
             public static class Salesforce
             {
                 /// <summary>URL used to identify the application to Salesforce.</summary>
-                public const string DocumentDiscoveryUrl = "EastFive.Salesforce.DocumentDiscoveryUrl";
+                [System.Obsolete("Read SalesforceConfiguration.DiscoveryDocument through typed configuration; its key is SalesforceConfiguration.DiscoveryDocumentKey.")]
+                public const string DocumentDiscoveryUrl = EastFive.Azure.Auth.SalesforceConfiguration.DiscoveryDocumentKey;
 
                 /// <summary>ID used to identify the application to Salesforce.</summary>
-                public const string ConsumerKey = "EastFive.Salesforce.ConsumerKey";
+                [System.Obsolete("Read SalesforceConfiguration.ConsumerKey through typed configuration; its key is SalesforceConfiguration.ConsumerKeyKey.")]
+                public const string ConsumerKey = EastFive.Azure.Auth.SalesforceConfiguration.ConsumerKeyKey;
 
             }
 
@@ -228,23 +280,30 @@ namespace EastFive.Azure
                 /// <summary>
                 /// The email address and name from which a token credential is sent.
                 /// </summary>
+                [System.Obsolete("No longer read by EastFive.")]
                 public const string FromEmail = "EastFive.Azure.Auth.TokenCredential.Email.FromEmail";
+                [System.Obsolete("No longer read by EastFive.")]
                 public const string FromName = "EastFive.Azure.Auth.TokenCredential.Email.FromName";
                 /// <summary>
                 /// Subject for token credntial email.
                 /// </summary>
+                [System.Obsolete("No longer read by EastFive.")]
                 public const string Subject = "EastFive.Azure.Auth.TokenCredential.Email.Subject";
             }
 
             /// <summary>Link that is sent (emailed) to the user to login to the application</summary>
-            public const string LandingPage = "EastFive.Security.SessionServer.RouteDefinitions.LandingPage";
+            [System.Obsolete("Read SessionServerConfiguration.LandingPage through typed configuration; its key is SessionServerConfiguration.LandingPageKey.")]
+            public const string LandingPage = EastFive.Azure.Auth.SessionServerConfiguration.LandingPageKey;
 
             public const string OpenApiCollectionName = "EastFive.Azure.Auth";
 
-            public const string TokenExpirationInMinutes = "EastFive.Security.SessionServer.tokenExpirationInMinutes";
-            public const string TokenExpirationTimeOfDay = "EastFive.Security.TokenExpirationTimeOfDay"; //ex: "02:00:00 -05:00"
+            [System.Obsolete("Read SessionServerConfiguration.TokenExpirationInMinutes through typed configuration; its key is SessionServerConfiguration.TokenExpirationInMinutesKey.")]
+            public const string TokenExpirationInMinutes = EastFive.Azure.Auth.SessionServerConfiguration.TokenExpirationInMinutesKey;
+            [System.Obsolete("Read SessionServerConfiguration.TokenExpirationTimeOfDay through typed configuration; its key is SessionServerConfiguration.TokenExpirationTimeOfDayKey.")]
+            public const string TokenExpirationTimeOfDay = EastFive.Azure.Auth.SessionServerConfiguration.TokenExpirationTimeOfDayKey; //ex: "02:00:00 -05:00"
 
-            public static string AllowLocalHostGlobalSuperAdmin = "EastFive.Azure.Auth.AllowLocalHostGlobalSuperAdmin";
+            [System.Obsolete("Read SuperAdminConfiguration.AllowLocalHostGlobalSuperAdmin through typed configuration; its key is SuperAdminConfiguration.AllowLocalHostGlobalSuperAdminKey.")]
+            public static string AllowLocalHostGlobalSuperAdmin = EastFive.Api.SuperAdminConfiguration.AllowLocalHostGlobalSuperAdminKey;
         }
 
         [Config]
@@ -253,8 +312,10 @@ namespace EastFive.Azure
             /// <summary>The startup-loaded <see cref="AzureCommunicationsConfiguration"/>.</summary>
             public static IProvideCommunicationsSettings Default => AzureCommunicationsConfiguration.Startup;
 
-            public const string MuteEmailToAddress = "EastFive.SendGrid.MuteToAddress";
-            public const string BccAllAddresses = "EastFive.SendGrid.BlindCopyAllAddresses";
+            [System.Obsolete("Read SendGridConfiguration.MuteEmailToAddress through typed configuration; its key is SendGridConfiguration.MuteEmailToAddressKey.")]
+            public const string MuteEmailToAddress = EastFive.Azure.Communications.SendGridConfiguration.MuteEmailToAddressKey;
+            [System.Obsolete("Read SendGridConfiguration.BccAllAddresses through typed configuration; its key is SendGridConfiguration.BccAllAddressesKey.")]
+            public const string BccAllAddresses = EastFive.Azure.Communications.SendGridConfiguration.BccAllAddressesKey;
         }
 
         // [Config]
@@ -283,9 +344,11 @@ namespace EastFive.Azure
         }
 
         /// <summary>Azure Tenant ID.</summary>
-        public const string TenantId = "EastFive.Azure.TenantId";
+        [System.Obsolete("Read AzureClientApplicationConfiguration.TenantId through typed configuration; its key is AzureClientApplicationConfiguration.TenantIdKey.")]
+        public const string TenantId = EastFive.Azure.ResourceManagement.AzureClientApplicationConfiguration.TenantIdKey;
 
         /// <summary>Azure Client ID.</summary>
-        public const string ClientId = "EastFive.Azure.ClientId";
+        [System.Obsolete("Read AzureClientApplicationConfiguration.ClientId through typed configuration; its key is AzureClientApplicationConfiguration.ClientIdKey.")]
+        public const string ClientId = EastFive.Azure.ResourceManagement.AzureClientApplicationConfiguration.ClientIdKey;
     }
 }

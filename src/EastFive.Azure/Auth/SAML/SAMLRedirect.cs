@@ -55,7 +55,7 @@ namespace EastFive.Azure.Auth
                 parameters.TryGetValue("launch", out var launch);
                 var hasSmartContext = iss.HasBlackSpace() && launch.HasBlackSpace();
 
-                var launchResponse = EastFive.Azure.AppSettings.SAML.GetLaunchPage(tag).ConfigurationString(
+                var launchResponse = EastFive.Azure.Auth.SamlTagConfiguration.WithLaunchPage(tag,
                     launchPage =>
                     {
                         if (hasSmartContext)
@@ -71,7 +71,7 @@ namespace EastFive.Azure.Auth
                             ? onRedirectResponse(launchUri)
                             : onFailure($"Configured launch page for SAML tag `{tag}` is not a valid URI");
                     },
-                    onUnspecified: why => default(IHttpResponse));
+                    why => default(IHttpResponse));
                 if (launchResponse != null)
                     return launchResponse;
             }
@@ -79,7 +79,7 @@ namespace EastFive.Azure.Auth
             var method = EastFive.Azure.Auth.Method.ByMethodName(
                 SAMLProvider.IntegrationName, application);
 
-            return await EastFive.Azure.AppSettings.SAML.GetMetadataLocation(tag).ConfigurationUri(
+            return await EastFive.Azure.Auth.SamlTagConfiguration.WithMetadataLocation(tag,
                 metadataLocation =>
                 {
                     parameters[MetadataLocationParameter] = metadataLocation.AbsoluteUri;
@@ -125,7 +125,7 @@ namespace EastFive.Azure.Auth
                     return await EastFive.Azure.Auth.PingRedirectConfiguration.GetPingReportSetId(tag,
                         async reportSetId =>
                         {
-                            return await EastFive.Azure.AppSettings.SAML.GetMetadataLocation(tag).ConfigurationUri(
+                            return await EastFive.Azure.Auth.SamlTagConfiguration.WithMetadataLocation(tag,
                                 async metadataLocation =>
                                 {
                                     var queryParameters = request.RequestUri.ParseQuery();

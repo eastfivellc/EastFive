@@ -261,7 +261,7 @@ namespace EastFive.Azure.OAuth.Server
                 oauthClaims[OAuthServer.ScopeClaimType] = grantedScope;
 
             var duration = OAuthServer.AccessTokenDuration();
-            return await EastFive.Security.AppSettings.TokenScope.ConfigurationUri(
+            return await EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(
                 tokenScope =>
                 {
                     return EastFive.Api.Auth.JwtTools.CreateToken(
@@ -338,7 +338,7 @@ namespace EastFive.Azure.OAuth.Server
                             return Error(onError, "server_error", "Please retry the request.");
                     }
 
-                    return await EastFive.Security.AppSettings.TokenScope.ConfigurationUri(
+                    return await EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(
                         async tokenScope =>
                         {
                             return await EastFive.Api.Auth.JwtTools.CreateToken(

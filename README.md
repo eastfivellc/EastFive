@@ -56,9 +56,45 @@ var outcome = await ConfigurationLoader.LoadAsync<TelnyxConfiguration, TResult>(
     onConfigured, onMissing, onInvalid, onSourceFailure);
 ```
 
-`ConfigurationString` and friends are for values only; a guard test in each framework test
-project fails if one reads a secret. `Secret` has no public value: `Reveal()` it at the point of
-use, and never into a log, an exception or a response.
+`Secret` has no public value: `Reveal()` it at the point of use, and never into a log, an
+exception or a response.
+
+### All configuration is typed
+
+Values are typed too. Every setting EastFive itself reads — secret or not — is a member of an
+`IProvideConfiguration` type, and its key is a `{Member}Key` constant on that type
+(`SessionServerConfiguration.LandingPageKey`). The raw readers (`ConfigurationString` and
+friends, `Settings.Get*`) and the old `AppSettings` key constants are `[Obsolete]`, each constant
+naming its typed replacement; the framework builds with no `CS0618`, and a ratchet test in each
+framework test project pins EastFive's raw reads at **zero** (the only allowlisted read is the
+vault credential choice in `KeyVaultSecretStore`, which runs before configuration exists).
+
+At the point of use, framework code reads through `Configured`:
+
+```csharp
+Configured.Get<CorsConfiguration, TResult>(cors => …, issue => …);
+SessionServerConfiguration.WithLandingPage(uri => …, why => …);   // Configured.Member, the raw reader's shape
+```
+
+A **value-only** type is loaded synchronously from the ambient values on every read, so it is
+always current; a type with **secret** members is served from the host's startup load and never
+loaded there. Put a value on a secret-bearing type only when every reader of the value also needs
+that secret — otherwise a missing secret would take the value down with it — and give it a
+value-only type instead (`ApplicationInsightsTelemetryConfiguration` beside
+`ApplicationInsightsQueryConfiguration`).
+
+**Keyed families** — one instance per name, such as a Ping redirect or a SAML provider per tag —
+implement `IProvideConfigurationInstanceKey`. Member keys carry a `{key}` placeholder, a
+`FallbackKey` may name a former spelling, and `ConfigurationCatalog.InstanceKeys(type)` lists
+the instances the configuration names.
+
+A member that holds JSON accepts both a JSON string and a structured `appsettings.json` section
+at its key.
+
+**Every member is described.** A catalog-completeness test requires a label and description on
+every type and member and a declared scope (on the member, or as the type's default via
+`[ConfigurationType(…, Scope = …)]`); the SuperAdmin `Configuration` endpoint renders the catalog,
+keyed instances included, and never a secret's value.
 
 ### Generated secret names
 
@@ -69,6 +105,12 @@ Vault secret names (`[A-Za-z0-9-]`); an account id that would not be is refused,
 unless the account member declares an exact, type-specific translation with an attribute
 implementing `IProvideSecretAccountSegment` (Google client ids drop their constant
 `.apps.googleusercontent.com` domain). The translated segment is still validated.
+
+**The account rule:** an account member used for secret naming must be vault-safe by FORMAT or
+declare its translation. The catalog checks a draft value (`ConfigurationTypeDescription.
+AccountProblem`) before it is written, and an unsafe declared default is a declaration error. A
+vendor id that could ever be unsafe is never given a hand-picked alias member; it gets a
+translation, so the vendor id stays the one value an operator enters.
 Types that share a `[ConfigurationType]` and an account share one secret — every
 `StorageAccountConfiguration` on account `prod` reads `AzureStorage-prod-ConnectionString`.
 
