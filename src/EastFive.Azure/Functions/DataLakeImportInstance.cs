@@ -15,6 +15,7 @@ using EastFive.Persistence.Azure.StorageTables;
 using EastFive.Extensions;
 using EastFive.Analytics;
 using EastFive.Azure.Persistence.StorageTables;
+using EastFive.Serialization.Parquet;
 
 namespace EastFive.Azure.Functions
 {
@@ -103,9 +104,13 @@ namespace EastFive.Azure.Functions
                 new Analytics.AnalyticsLogger(log));
             var dateTime = DateTime.UtcNow;
             return await await item.path.ReadParquetDataFromDataLakeAsync(import.exportUri.containerName,
-                    async (TResource[] resourceLines) =>
+                    async (TResource[] resourceLines, UnparsedRow[] unparsedLines) =>
                     {
-                        capturedLog.Information($"[{item.path}] Loaded--{resourceLines.Length} lines (skipping {item.skip})");
+                        capturedLog.Information($"[{item.path}] Loaded--{resourceLines.Length} lines, {unparsedLines.Length} unparsed values (skipping {item.skip})");
+                        // Logged, not appended as report errors: an unparsed row is not in resourceLines,
+                        // and report error indexes are re-run as resourceLines positions.
+                        foreach (var unparsed in unparsedLines.Take(20))
+                            capturedLog.Warning($"[{item.path}] File row {unparsed.Row}, column {unparsed.Column} could not be parsed: {unparsed.Reason}");
 
                         var indexesToRun = item.lines
                             .NullToEmpty()
@@ -175,6 +180,14 @@ namespace EastFive.Azure.Functions
                     {
                         capturedLog.Information($"[{item.path}]: Not found");
                         return onFileNotFound().AsTask();
+                    },
+                    onUnreadable: (reason) =>
+                    {
+                        capturedLog.Critical($"[{item.path}]: Unreadable: {reason}");
+                        var report = item
+                            .GenerateReport(this.exportFromDataLake, DataLakeImportStatus.FaultedFile, 0)
+                            .AppendError(0, reason);
+                        return onFileIngested(report).AsTask();
                     });
         }
     }
