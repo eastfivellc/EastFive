@@ -78,7 +78,7 @@ public class ImageHttpResponseTests : TestSession
 public static class ImageObjectResponseProbe
 {
     [HttpPost]
-    public static IHttpResponse Fetch(ImageSharpResponse onImage)
+    public static IHttpResponse Fetch(SkiaImageResponse onImage)
         => onImage(Halves(), width: 4, contentType: "image/png");
 }
 

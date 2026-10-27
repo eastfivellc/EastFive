@@ -1,6 +1,4 @@
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Processing;
+using SkiaSharp;
 
 using Xunit;
 
@@ -21,7 +19,7 @@ public class ImageExtensionsTests
     [Fact]
     public void TryReadImage_Png_ReadsSizeAndFormat()
     {
-        Assert.True(HalvesPng().TryReadImage(out Image image, out IImageFormat format));
+        Assert.True(HalvesPng().TryReadImage(out SKBitmap image, out SKEncodedImageFormat format));
         using (image)
         {
             Assert.Equal((8, 4), (image.Width, image.Height));
@@ -32,7 +30,7 @@ public class ImageExtensionsTests
     [Fact]
     public void TryReadImage_Jpeg_ReadsSizeAndFormat()
     {
-        Assert.True(TwoByOneJpeg.TryReadImage(out Image image, out IImageFormat format));
+        Assert.True(TwoByOneJpeg.TryReadImage(out SKBitmap image, out SKEncodedImageFormat format));
         using (image)
         {
             Assert.Equal((2, 1), (image.Width, image.Height));
@@ -45,7 +43,7 @@ public class ImageExtensionsTests
     [Fact]
     public void TryReadImage_NotAnImage_IsFalse()
     {
-        Assert.False("not an image at all"u8.ToArray().TryReadImage(out Image _, out IImageFormat _));
+        Assert.False("not an image at all"u8.ToArray().TryReadImage(out SKBitmap _, out SKEncodedImageFormat _));
     }
 
     [Fact]
@@ -93,6 +91,20 @@ public class ImageExtensionsTests
         Assert.Equal(expected, Mime(requested.ParseImageEncoder()));
     }
 
+    /// <summary>
+    /// CHANGED by the Skia port: Skia encodes PNG, JPEG and WEBP only, and anything else falls
+    /// back to PNG. ImageSharp encoded TIFF and GIF as asked, and answered an unknown type with
+    /// the format whose name was nearest by edit distance (QOI for application/x-unknown).
+    /// </summary>
+    [Theory]
+    [InlineData("image/tiff")]
+    [InlineData("image/gif")]
+    [InlineData("application/x-unknown")]
+    public void ParseImageEncoder_UnencodableType_IsPng(string requested)
+    {
+        Assert.Equal("image/png", Mime(requested.ParseImageEncoder()));
+    }
+
     [Fact]
     public void ParseImageEncoder_NoType_IsPng()
     {
@@ -107,7 +119,7 @@ public class ImageExtensionsTests
     {
         using var image = Halves();
 
-        // Called through the class: an instance Save(string path) on the image type would win.
+        // Called through the class, as it had to be when an instance Save(string path) would win.
         var (bytes, format) = ImageLoadingExtensions.Save(image, mimeType);
 
         Assert.Equal(mimeType, Mime(format));
@@ -147,7 +159,7 @@ public class ImageExtensionsTests
         var dataUri = image.Base64Encode("image/png");
 
         Assert.StartsWith("data:image/png;base64,", dataUri);
-        Assert.True(dataUri.TryParseImage(out Image parsed, out IImageFormat format));
+        Assert.True(dataUri.TryParseImage(out SKBitmap parsed, out SKEncodedImageFormat format));
         using (parsed)
         {
             Assert.Equal((8, 4), (parsed.Width, parsed.Height));
@@ -168,7 +180,7 @@ public class ImageExtensionsTests
     [Fact]
     public void TryParseImage_NotADataUri_IsFalse()
     {
-        Assert.False("plainly not base64 image data".TryParseImage(out Image _, out IImageFormat _));
+        Assert.False("plainly not base64 image data".TryParseImage(out SKBitmap _, out SKEncodedImageFormat _));
     }
 
     [Fact]
@@ -248,7 +260,7 @@ public class ImageExtensionsTests
     [Fact]
     public void ComputeMaxAspect_CentresTheCrop()
     {
-        Assert.True(ImageSharpManipulationExtensions.ComputeMaxAspect(1.0, 8, 4,
+        Assert.True(SkiaManipulationExtensions.ComputeMaxAspect(1.0, 8, 4,
             out var x, out var y, out var width, out var height));
         Assert.Equal((2, 0, 4, 4), (x, y, width, height));
     }
@@ -286,53 +298,59 @@ public class ImageExtensionsTests
     [Fact]
     public void ExifOrientation_IsRead()
     {
-        using var image = Image.Load(OrientedJpeg);
+        Assert.Equal(6, (int)OrientedJpeg.ExifGetRotateFlip());
+    }
 
-        Assert.Equal(6, (int)image.ExifGetRotateFlip());
+    [Fact]
+    public void ExifOrientation_NoExif_IsUpright()
+    {
+        Assert.Equal(SKEncodedOrigin.TopLeft, HalvesPng().ExifGetRotateFlip());
     }
 
     [Fact]
     public void FixOrientation_RotatesThePixels()
     {
-        using var image = Image.Load(OrientedJpeg);
+        using var image = Load(OrientedJpeg);
 
-        var fix = image.FixOrientation();
-        image.Mutate(ctx => fix(ctx));
+        image.FixOrientation(OrientedJpeg.ExifGetRotateFlip());
 
         Assert.Equal((1, 2), (image.Width, image.Height));
     }
 
     /// <summary>
     /// Orientation 6 means "rotate 90° clockwise to display", which puts the stored LEFT (white)
-    /// pixel on top. Today's port rotates the other way (ImageSharp's Rotate270) and puts the
-    /// RIGHT (black) pixel on top. Pinned as measured, not as correct.
+    /// pixel on top. CHANGED by the Skia port: the ImageSharp version rotated the other way
+    /// (Rotate270) and put the RIGHT (black) pixel on top, which displayed portrait phone photos
+    /// upside down.
     /// </summary>
     [Fact]
     public void FixOrientation_Direction()
     {
-        using var image = Image.Load(OrientedJpeg);
+        using var image = Load(OrientedJpeg);
 
-        var fix = image.FixOrientation();
-        image.Mutate(ctx => fix(ctx));
+        image.FixOrientation(OrientedJpeg.ExifGetRotateFlip());
 
-        Assert.True(IsDark(Pixel(image, 0, 0)));
-        Assert.True(IsLight(Pixel(image, 0, 1)));
+        Assert.True(IsLight(Pixel(image, 0, 0)));
+        Assert.True(IsDark(Pixel(image, 0, 1)));
     }
 
     [Fact]
     public void ExifTaken_IsDateTimeOriginal()
     {
-        using var image = Image.Load(OrientedJpeg);
+        Assert.Equal(new DateTime(2024, 5, 6, 7, 8, 9), OrientedJpeg.ExifTaken());
+    }
 
-        Assert.Equal(new DateTime(2024, 5, 6, 7, 8, 9), image.ExifTaken());
+    /// <summary>CHANGED by the Skia port: the ImageSharp version threw NullReferenceException on an image with no EXIF.</summary>
+    [Fact]
+    public void ExifTaken_NoExif_IsNull()
+    {
+        Assert.Null(HalvesPng().ExifTaken());
     }
 
     [Fact]
     public void ExifLatLon_AreSignedDecimalDegrees()
     {
-        using var image = Image.Load(OrientedJpeg);
-
-        Assert.Equal(Latitude, image.ExifLat()!.Value, 6);
-        Assert.Equal(Longitude, image.ExifLon()!.Value, 6);
+        Assert.Equal(Latitude, OrientedJpeg.ExifLat()!.Value, 6);
+        Assert.Equal(Longitude, OrientedJpeg.ExifLon()!.Value, 6);
     }
 }

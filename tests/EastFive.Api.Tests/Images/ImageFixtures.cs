@@ -1,9 +1,8 @@
 using System.Text;
 
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
+
+using EastFive.Images;
 
 namespace EastFive.Api.Tests.Images;
 
@@ -37,37 +36,38 @@ internal static class ImageFixtures
     // ---- library-specific ----
 
     /// <summary>An 8x4 image: the left half red, the right half blue.</summary>
-    public static Image Halves()
+    public static SKBitmap Halves()
     {
-        var image = new Image<Rgba32>(8, 4);
+        var image = new SKBitmap(new SKImageInfo(8, 4, SKColorType.Rgba8888, SKAlphaType.Premul));
         for (var y = 0; y < image.Height; y++)
             for (var x = 0; x < image.Width; x++)
-                image[x, y] = x < 4 ? new Rgba32(255, 0, 0) : new Rgba32(0, 0, 255);
+                image.SetPixel(x, y, x < 4 ? new SKColor(255, 0, 0) : new SKColor(0, 0, 255));
         return image;
     }
 
     public static byte[] HalvesPng()
     {
         using var image = Halves();
-        using var stream = new MemoryStream();
-        image.Save(stream, new PngEncoder());
-        return stream.ToArray();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        return data.ToArray();
     }
 
-    public static (byte R, byte G, byte B) Pixel(Image image, int x, int y)
+    public static (byte R, byte G, byte B) Pixel(SKBitmap image, int x, int y)
     {
-        using var rgba = image.CloneAs<Rgba32>();
-        var pixel = rgba[x, y];
-        return (pixel.R, pixel.G, pixel.B);
+        var pixel = image.GetPixel(x, y);
+        return (pixel.Red, pixel.Green, pixel.Blue);
     }
 
-    public static string Mime(IImageFormat format) => format.DefaultMimeType;
+    public static string Mime(SKEncodedImageFormat format) => format.ToMimeType();
 
     public static (int Width, int Height, string Mime) Decode(byte[] bytes)
     {
-        using var image = Image.Load(bytes);
-        return (image.Width, image.Height, image.Metadata.DecodedImageFormat!.DefaultMimeType);
+        using var codec = SKCodec.Create(new MemoryStream(bytes));
+        return (codec.Info.Width, codec.Info.Height, codec.EncodedFormat.ToMimeType());
     }
+
+    /// <summary>Decodes without orienting, as <c>TryReadImage</c> does.</summary>
+    public static SKBitmap Load(byte[] bytes) => SKBitmap.Decode(bytes);
 
     // ---- library-independent ----
 

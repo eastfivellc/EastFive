@@ -91,15 +91,19 @@ namespace EastFive.Azure.Media
             #pragma warning restore CA1416
         }
 
-        public static Task<TResult> LoadImageSharpAsync<TResult>(this IBlobRef blobRef,
-            Func<SixLabors.ImageSharp.Image, MediaTypeHeaderValue, ContentDispositionHeaderValue, SixLabors.ImageSharp.Formats.IImageFormat, TResult> onFound,
+        /// <summary>
+        /// The blob decoded with Skia. The bitmap is NOT oriented: for an EXIF-rotated photo,
+        /// read the origin from the bytes and apply <c>FixOrientation</c>.
+        /// </summary>
+        public static Task<TResult> LoadSkiaImageAsync<TResult>(this IBlobRef blobRef,
+            Func<SkiaSharp.SKBitmap, MediaTypeHeaderValue, ContentDispositionHeaderValue, SkiaSharp.SKEncodedImageFormat, TResult> onFound,
             Func<TResult> onNotFound,
             Func<byte[], MediaTypeHeaderValue, ContentDispositionHeaderValue, TResult> onInvalidImage = default)
         {
             return blobRef.LoadBytesAsync(
                 (blobId, imageBytes, mediaType, disposition) =>
                 {
-                    if (imageBytes.TryReadImage(out SixLabors.ImageSharp.Image image, out SixLabors.ImageSharp.Formats.IImageFormat format))
+                    if (imageBytes.TryReadImage(out SkiaSharp.SKBitmap image, out SkiaSharp.SKEncodedImageFormat format))
                         return onFound(image, mediaType, disposition, format);
 
                     if (onInvalidImage.IsDefaultOrNull())
@@ -110,11 +114,11 @@ namespace EastFive.Azure.Media
                 onNotFound);
         }
 
-        public static Task<TResult> LoadImageSharpAsync<TResult>(this IBlobRef blobRef,
-                Func<SixLabors.ImageSharp.Image, MediaTypeHeaderValue, ContentDispositionHeaderValue, TResult> onFound,
+        public static Task<TResult> LoadSkiaImageAsync<TResult>(this IBlobRef blobRef,
+                Func<SkiaSharp.SKBitmap, MediaTypeHeaderValue, ContentDispositionHeaderValue, TResult> onFound,
                 Func<TResult> onNotFound,
                 Func<byte[], MediaTypeHeaderValue, ContentDispositionHeaderValue, TResult> onInvalidImage = default) =>
-            blobRef.LoadImageSharpAsync(
+            blobRef.LoadSkiaImageAsync(
                 (image, mediaType, disposition, format) => onFound(image, mediaType, disposition),
                 onNotFound:onNotFound,
                 onInvalidImage: onInvalidImage);
