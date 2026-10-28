@@ -18,7 +18,7 @@ using System.Web;
 using Microsoft.CodeAnalysis;
 using Microsoft.AspNetCore.Razor.Hosting;
 
-using SixLabors.ImageSharp.Formats;
+using SkiaSharp;
 
 using EastFive;
 using EastFive.Linq;
@@ -223,9 +223,9 @@ namespace EastFive.Api
                     //{
                         // Was not Windoze
 
-                        if (imageData.TryReadImage(out SixLabors.ImageSharp.Image image, out IImageFormat format))
+                        if (imageData.TryReadImage(out SKBitmap image, out SKEncodedImageFormat format))
                         {
-                            var resizedResponse = new ImageSharpHttpResponse(request, this.StatusCode,
+                            var resizedResponse = new SkiaImageHttpResponse(request, this.StatusCode,
                                 image, width, height, fill, filename);
                             return UpdateResponse(parameterInfo, httpApp, request, resizedResponse);
                         }
@@ -246,8 +246,9 @@ namespace EastFive.Api
                     if (contentType.NullToEmpty().StartsWith("image", StringComparison.OrdinalIgnoreCase))
                         return contentType;
 
-                    if (imageData.TryReadImage(out SixLabors.ImageSharp.Image image, out IImageFormat format))
-                        return format.DefaultMimeType;
+                    if (imageData.TryReadImage(out SKBitmap image, out SKEncodedImageFormat format))
+                        using (image)
+                            return format.ToMimeType();
 
                     return contentType;
                 }
@@ -377,12 +378,12 @@ namespace EastFive.Api
         }
     }
 
-    [ImageSharpResponse]
-    public delegate IHttpResponse ImageSharpResponse(SixLabors.ImageSharp.Image image,
+    [SkiaImageResponse]
+    public delegate IHttpResponse SkiaImageResponse(SKBitmap image,
         int? width = default, int? height = default,
         string contentType = default,
         string filename = default);
-    public class ImageSharpResponseAttribute : HttpFuncDelegateAttribute
+    public class SkiaImageResponseAttribute : HttpFuncDelegateAttribute
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.OK;
 
@@ -392,27 +393,28 @@ namespace EastFive.Api
                 IHttpRequest request, ParameterInfo parameterInfo,
             Func<object, Task<IHttpResponse>> onSuccess)
         {
-            ImageSharpResponse responseDelegate = (image,
-                width, height, 
+            SkiaImageResponse responseDelegate = (image,
+                width, height,
                 contentType, filename) =>
             {
-                var response = new ImageSharpHttpResponse(image,
+                var response = new SkiaImageHttpResponse(image,
                     width, height, contentType,
                     request, this.StatusCode);
-                response.SetContentType(contentType);
+                // What is WRITTEN, which differs from the request for a type Skia cannot encode.
+                response.SetContentType(contentType.ParseImageEncoder().ToMimeType());
                 return UpdateResponse(parameterInfo, httpApp, request, response);
             };
             return onSuccess((object)responseDelegate);
         }
 
-        private class ImageSharpHttpResponse : EastFive.Api.HttpResponse
+        private class SkiaImageHttpResponse : EastFive.Api.HttpResponse
         {
-            private SixLabors.ImageSharp.Image image;
+            private SKBitmap image;
             private int? width;
             private int? height;
             private string contentType;
 
-            public ImageSharpHttpResponse(SixLabors.ImageSharp.Image image,
+            public SkiaImageHttpResponse(SKBitmap image,
                     int? width, int? height, string contentType,
                     IHttpRequest request, HttpStatusCode statusCode)
                 : base(request, statusCode)
@@ -426,7 +428,7 @@ namespace EastFive.Api
             public override async Task WriteResponseAsync(Stream responseStream)
             {
                 var newImage = image.ResizeImage(width, height);
-                IImageFormat x = await newImage.SaveAsync(responseStream,
+                await newImage.SaveAsync(responseStream,
                     this.contentType, encoderQuality: 80L);
                 await responseStream.FlushAsync();
                 newImage.Dispose();

@@ -3,7 +3,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 
-using SixLabors.ImageSharp;
+using SkiaSharp;
 
 using EastFive;
 using EastFive.Extensions;
@@ -14,7 +14,7 @@ namespace EastFive.Azure.Media
 {
 	public static class ImageExtensions
 	{
-        public static Task<IBlobRef> SaveImageAsync<TResource>(this Image image,
+        public static Task<IBlobRef> SaveImageAsync<TResource>(this SKBitmap image,
             Expression<Func<TResource, IBlobRef>> propertyExpr,
             string encoding = default, long? quality = default, string fileName = default)
         {

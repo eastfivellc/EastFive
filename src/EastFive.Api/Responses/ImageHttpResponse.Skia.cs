@@ -1,29 +1,30 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.IO;
 using System.Net;
-using System.Text;
 using System.Threading.Tasks;
 
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Processing;
-
-using EastFive.Extensions;
-using EastFive.Images;
 using Microsoft.AspNetCore.Http.Headers;
+
+using SkiaSharp;
+
+using EastFive.Images;
 
 namespace EastFive.Api
 {
-    public class ImageSharpHttpResponse : HttpResponse
+    /// <summary>
+    /// An image resized on construction and encoded on write. The encoding is
+    /// <c>contentType.ParseImageEncoder()</c>: PNG, JPEG or WEBP, with PNG for anything else, and
+    /// the Content-Type header names what is actually written.
+    /// </summary>
+    public class SkiaImageHttpResponse : HttpResponse
     {
-        protected Image newImage;
-        protected IImageFormat encoder;
+        protected SKBitmap newImage;
+        protected SKEncodedImageFormat encoder;
         private string fileName;
         private bool? inline;
 
-        public ImageSharpHttpResponse(IHttpRequest request, HttpStatusCode statusCode,
-            Image image,
+        public SkiaImageHttpResponse(IHttpRequest request, HttpStatusCode statusCode,
+            SKBitmap image,
             int? width = default(int?), int? height = default(int?), bool? fill = default,
             string fileName = default, string contentType = default, bool? inline = default)
             : base(request, statusCode)
@@ -32,7 +33,6 @@ namespace EastFive.Api
             this.inline = inline;
             this.encoder = contentType.ParseImageEncoder();
 
-            //var xForm = image.FixOrientation();
             var ratio = ((double)image.Width) / ((double)image.Height);
             var newWidth = (int)Math.Round(width.HasValue ?
                     width.Value
@@ -49,18 +49,17 @@ namespace EastFive.Api
                         :
                         image.Width);
 
-            image.Mutate(x => x.Resize(newWidth, newHeight));
-            this.newImage = image;
+            this.newImage = image.Scale(newWidth, newHeight);
         }
 
         public override void WriteHeaders(Microsoft.AspNetCore.Http.HttpContext context, ResponseHeaders headers)
         {
-            headers.SetFileHeaders(this.fileName, encoder.DefaultMimeType, this.inline);
+            headers.SetFileHeaders(this.fileName, encoder.ToMimeType(), this.inline);
         }
 
         public override async Task WriteResponseAsync(Stream responseStream)
         {
-            await this.newImage.SaveAsync(responseStream, this.encoder);
+            await this.newImage.SaveWithQualityAsync(responseStream, this.encoder);
             await responseStream.FlushAsync();
         }
 
