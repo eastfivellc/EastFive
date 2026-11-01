@@ -127,6 +127,53 @@ attribute-interface hooks for choices and live checks of a `ConfigurationDraft`.
 the ambient values and `SecretStore.Current` (names and sources, never values); the overloads
 taking a `readValue` function inspect explicit sources instead.
 
+### Generated values
+
+A member whose value can be generated says so with an attribute implementing
+`IGenerateConfigurationValue` (at most one per member; a second is a declaration error). The
+configuration type decides which members have one; there is no framework allowlist.
+
+```csharp
+[ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Engine secret")]
+[GenerateRandomBytes(32)]                       // 43 characters, base64url
+public Secret EngineSecret { get; init; } = default!;
+
+[ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Signing key")]
+[GenerateRsaKey(2048, Format = ConfigurationRsaKeyFormat.RsaXmlBase64, KeyIdMember = nameof(KeyId),
+    Instruction = "Upload the JWKS at the vendor's portal, then save.", InstructionLink = "https://…")]
+public Secret SigningKey { get; init; } = default!;
+```
+
+Generation is READ-ONLY. `ConfigurationGeneration.GenerateAsync(context, onGenerated, onNoGenerator,
+onRefused)` runs the member's generator over a `ConfigurationGenerationContext` (the type, the
+member, the type's current draft by property name, the environment, the account or instance, and
+injectable `Random` / `Clock` sources) and returns a `ConfigurationGenerationResult`:
+
+- `Values` — member → value, for members of the SAME type only. A result naming any other member,
+  or a value its member cannot hold, is refused (the reason names members, never values). A type's
+  own generator may fill several members, e.g. the empty slot of a two-key rotation.
+- `Outputs` — `{Label, Value, Kind: Text|Pem|Json}`, display-only and never stored: a public key, a
+  JWKS entry, a key id to paste elsewhere.
+- `Instructions` — `{Text, Link?}`, the steps to take outside configuration.
+
+An editor puts the values in its drafts; the user saves them through the ordinary write paths.
+The context carries draft secrets: never log it (its `ToString` names only the type and member).
+
+| Built-in | Member value | Outputs |
+| --- | --- | --- |
+| `GenerateRandomBytes(length = 32)` | random bytes; `Encoding` `Base64Url` (default), `Base64`, `Hex` | — |
+| `GenerateGuid` | a version 4 GUID; `Format` `D` (default), `N`, `B`, `P` | — |
+| `GenerateAesKey(size = 256)` | 128/192/256-bit key; `Encoding` `Base64` (default) | — |
+| `GenerateRsaKey(size = 2048)` | private key; `Format` `Pem` (PKCS#8, default), `Pkcs8Base64`, `RsaXmlBase64` (what `RSAFromSecret` reads) | public key PEM, JWKS (`Algorithm`, default RS256), key id |
+| `GenerateEcKey(curve = P256)` | private key; `Format` `Pem` (default), `Pkcs8Base64`, `EcPrivateKeyBase64` (what `ECDSA.FromPrivateKey` reads) | public key PEM, JWKS (ES256/384/512 by curve), key id |
+
+Every built-in takes `KeyIdMember` (a member of the same type that receives a dated id,
+`yyyy-MM-dd-xxxxxxxx`, which is also the JWK `kid`; without it the key id is an output) and
+`Instruction` / `InstructionLink`. `TokenSigningConfiguration.SigningKey` and
+`VoucherConfiguration.SigningKey` declare `GenerateRsaKey(Format = RsaXmlBase64)`. Pick the format
+the consuming code parses, and test the round trip. Rotation overlap (two active keys) belongs to
+the consuming code, expressed as members of its own type.
+
 ### Adopting library configuration
 
 An assembly that USES a configuration type declared in a library it references adopts it, so an

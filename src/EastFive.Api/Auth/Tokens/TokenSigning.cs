@@ -47,7 +47,9 @@ namespace EastFive.Security.Tokens
         public string Algorithm { get; set; } = default!;
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Signing key",
-            Description = "Base64 of the RSA key XML (private).", Location = "Generated: EastFive.Security.RSA.Generate")]
+            Description = "Base64 of the RSA key XML (private).", Location = "Generate it in the configuration editor")]
+        [GenerateRsaKey(2048, Format = ConfigurationRsaKeyFormat.RsaXmlBase64,
+            Instruction = "Tokens signed with the previous key stop validating once the new key is saved and the host restarts; signed-in users sign in again.")]
         public Secret SigningKey { get; set; } = default!;
 
         [ConfigurationMember(ScopeKey, Kind = ConfigurationMemberKind.Optional,

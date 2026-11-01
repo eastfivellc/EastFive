@@ -14,6 +14,8 @@ namespace EastFive.Security
         public const string ProviderIdKey = "EastFive.Security.CredentialProvider.Voucher.Provider";
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Description = "Base64 of the RSA key XML.", Label = "Signing key")]
+        [GenerateRsaKey(2048, Format = ConfigurationRsaKeyFormat.RsaXmlBase64,
+            Instruction = "Vouchers signed with the previous key stop validating once the new key is saved and the host restarts.")]
         public Secret SigningKey { get; set; } = default!;
 
         [ConfigurationMember(ProviderIdKey, Kind = ConfigurationMemberKind.Optional,
