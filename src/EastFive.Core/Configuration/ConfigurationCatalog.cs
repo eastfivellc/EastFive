@@ -16,7 +16,8 @@ namespace EastFive.Configuration
         ConfigurationMemberMetadata Metadata,
         string? SecretNameTemplate,
         bool HasLookup,
-        string? AccountSegmentTranslation = null);
+        string? AccountSegmentTranslation = null,
+        string? GeneratorLabel = null);
 
     /// <summary>One configuration type: its generated-name segment, metadata, members, and whether it
     /// can test a draft.</summary>
@@ -107,7 +108,8 @@ namespace EastFive.Configuration
                             : $"{declared.TypeName}-{AccountPlaceholder}-{member.Property.Name}"
                         : null,
                     member.Lookup != null,
-                    member.IsAccount ? member.AccountSegment?.GetType().Name : null))
+                    member.IsAccount ? member.AccountSegment?.GetType().Name : null,
+                    member.Generator?.Label))
                 .ToArray();
             return new ConfigurationTypeDescription(
                 configurationType,

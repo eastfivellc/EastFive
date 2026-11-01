@@ -51,6 +51,11 @@ namespace EastFive.Configuration
         /// <summary>The member's lookup hook, when an attribute on the property provides one.</summary>
         public IProvideConfigurationLookup? Lookup
             => Property.GetCustomAttributes(inherit: true).OfType<IProvideConfigurationLookup>().FirstOrDefault();
+
+        /// <summary>The member's generator, when an attribute on the property provides one (at most one;
+        /// a second is a declaration error).</summary>
+        public IGenerateConfigurationValue? Generator
+            => Property.GetCustomAttributes(inherit: true).OfType<IGenerateConfigurationValue>().FirstOrDefault();
     }
 
     /// <summary>
@@ -205,6 +210,11 @@ namespace EastFive.Configuration
             if (doubled != null)
                 throw new InvalidOperationException(
                     $"{configurationType.Name}.{doubled.Property.Name} declares more than one secret account segment.");
+
+            var generated = members.FirstOrDefault(member => member.Property.GetCustomAttributes(inherit: true).OfType<IGenerateConfigurationValue>().Count() > 1);
+            if (generated != null)
+                throw new InvalidOperationException(
+                    $"{configurationType.Name}.{generated.Property.Name} declares more than one generator.");
 
             var accounts = members.Where(member => member.IsAccount).ToArray();
             if (accounts.Length > 1)
