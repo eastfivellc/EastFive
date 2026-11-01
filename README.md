@@ -127,6 +127,27 @@ attribute-interface hooks for choices and live checks of a `ConfigurationDraft`.
 the ambient values and `SecretStore.Current` (names and sources, never values); the overloads
 taking a `readValue` function inspect explicit sources instead.
 
+### Adopting library configuration
+
+An assembly that USES a configuration type declared in a library it references adopts it, so an
+editor groups the type under the code that uses it instead of the library that declares it:
+
+```csharp
+[assembly: AdoptsConfiguration(typeof(StorageTablesConfiguration),
+    Description = "Workflow runs, their state and the dispatch queues.", Required = true)]
+```
+
+Adoption is presentation only. The adopter may set `Label`, `Description` (its usage text),
+`Location`, `MoreInfo` and `Required` (missing values make the type incomplete for that app, not
+merely unconfigured). Keys, secret names, defaults and validation stay the library's, because
+the library still reads its own keys; there is deliberately no way to override a default.
+`ConfigurationAdoptions.Of(assembly)` lists an assembly's adoptions and refuses a malformed one
+(not a concrete configuration type, declared by the adopter itself, from an assembly it does not
+reference, or adopted twice). `ConfigurationGraph.Of(roots)` walks a host's reference graph —
+roots first, then by distance, ties by root order — and `Place(type)` puts each type under the
+adopter closest to the roots, listing the other adopters as also using it; a type nobody in the
+graph adopts stays under its declaring assembly.
+
 ### Where secrets come from
 
 A host initializes `SecretStore.Current` next to `ConfigurationExtensions.Initialize`, typically:
