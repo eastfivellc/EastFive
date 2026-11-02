@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Linq;
 
 namespace EastFive.Configuration
 {
@@ -22,18 +23,23 @@ namespace EastFive.Configuration
     }
 
     /// <summary>
-    /// What went wrong loading one member: the configuration type, the key, the member's kind and
-    /// the category. Carries NO values and NO raw SDK messages, so it is safe to log, return in a
-    /// response reason, or surface to a doctor. <see cref="ToString"/> is ASCII-only for the same
-    /// reason (an <c>x-reason</c> header 500s on non-ASCII).
+    /// What went wrong loading one member: the configuration type, the key, the member's kind, the
+    /// category and, when a member's parser refused its value, the <see cref="Problem"/> it named.
+    /// Carries NO values and NO raw SDK messages, so it is safe to log, return in a response reason,
+    /// or surface to a doctor. <see cref="ToString"/> is ASCII-only for the same reason (an
+    /// <c>x-reason</c> header 500s on non-ASCII).
     /// </summary>
     public sealed record ConfigIssue(
         Type ConfigurationType,
         string Key,
         ConfigurationMemberKind Kind,
-        ConfigIssueCategory Category)
+        ConfigIssueCategory Category,
+        string? Problem = null)
     {
         public override string ToString()
-            => $"{ConfigurationType.Name}[{Key}] ({Kind}) {Category}";
+            => $"{ConfigurationType.Name}[{Key}] ({Kind}) {Category}" + (Problem == null ? string.Empty : $": {Ascii(Problem)}");
+
+        private static string Ascii(string text)
+            => new(text.Select(c => c is >= ' ' and <= '~' ? c : '?').ToArray());
     }
 }

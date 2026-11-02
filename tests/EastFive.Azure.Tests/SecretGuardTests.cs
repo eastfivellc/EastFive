@@ -118,7 +118,8 @@ public class SecretGuardTests
         var forged = EastFive.Api.Auth.JwtTools.CreateToken((Guid?)Guid.NewGuid(), new Uri("https://tests.eastfive.invalid/api"),
             TimeSpan.FromMinutes(5), new Dictionary<string, string>(), (jwt, _) => jwt, missing => throw new InvalidOperationException(missing),
             (_, why) => throw new InvalidOperationException(why),
-            signing: new EastFive.Security.Tokens.TokenSigning("https://tests.eastfive.invalid/", new Secret(foreign),
+            signing: new EastFive.Security.Tokens.TokenSigning("https://tests.eastfive.invalid/",
+                EastFive.Security.RsaPrivateKey.Parse(foreign, key => key, why => throw new InvalidOperationException(why)),
                 EastFive.Security.Tokens.TokenSigning.DefaultAlgorithm));
         Assert.False($"Bearer {forged}".GetClaimsJwtString(claims => true, why => false));
     }

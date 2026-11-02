@@ -39,7 +39,7 @@ namespace EastFive.Api.Azure.Modules
             return EastFive.Configuration.StartupConfiguration.Get<EastFive.Azure.TableInformationConfiguration, Task<IHttpResponse>>(
                 async configuration =>
                 {
-                    if (!string.Equals(request.Headers[HeaderKey].First(), configuration.TableInformationToken.Reveal(), StringComparison.Ordinal))
+                    if (!configuration.TableInformationToken.Matches(request.Headers[HeaderKey].First()))
                         return request.CreateResponse(System.Net.HttpStatusCode.Unauthorized);
 
                     if(request.Headers.ContainsKey("X-StorageTableInformation-List"))

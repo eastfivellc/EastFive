@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using Xunit;
 
 using EastFive.Configuration;
-using ECDSA = EastFive.Security.ECDSA;
 
 namespace EastFive.Api.Tests;
 
@@ -115,32 +114,8 @@ public class ConfigurationGeneratorTests
         [GenerateGuid(Format = "N")]
         public string? Name { get; set; }
 
-        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
-        [GenerateRsaKey(KeyIdMember = nameof(RsaKeyId))]
-        public Secret RsaPem { get; set; } = default!;
-
         [ConfigurationMember("Keys.RsaKeyId", Kind = ConfigurationMemberKind.Optional)]
         public string? RsaKeyId { get; set; }
-
-        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
-        [GenerateRsaKey(3072, Format = ConfigurationRsaKeyFormat.RsaXmlBase64, Algorithm = "RS384")]
-        public Secret RsaXml { get; set; } = default!;
-
-        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
-        [GenerateEcKey]
-        public Secret EcPem { get; set; } = default!;
-
-        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
-        [GenerateEcKey(ConfigurationEcCurve.P384, Format = ConfigurationEcKeyFormat.EcPrivateKeyBase64)]
-        public Secret EcSec1 { get; set; } = default!;
-
-        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
-        [GenerateAesKey]
-        public Secret Aes { get; set; } = default!;
-
-        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret)]
-        [GenerateAesKey(128, Encoding = ConfigurationRandomEncoding.Hex)]
-        public Secret Aes128 { get; set; } = default!;
     }
 
     [ConfigurationType("Doubled", Label = "Doubled", Description = "Two generators.")]
@@ -168,12 +143,6 @@ public class ConfigurationGeneratorTests
             why => throw new Xunit.Sdk.XunitException($"no generator: {why}"),
             why => throw new Xunit.Sdk.XunitException($"refused: {why}"));
 
-    private static JsonElement SingleJwk(ConfigurationGenerationResult result)
-    {
-        var jwks = result.Outputs.Single(output => output.Kind == ConfigurationOutputKind.Json);
-        return JsonDocument.Parse(jwks.Value).RootElement.GetProperty("keys").EnumerateArray().Single();
-    }
-
     // ---- catalog metadata ----
 
     [Fact]
@@ -185,8 +154,6 @@ public class ConfigurationGeneratorTests
 
         var described = ConfigurationCatalog.Describe(typeof(Keys)).Members;
         Assert.Equal("Random 32 bytes, base64url", described.Single(member => member.Property == nameof(Keys.Url)).GeneratorLabel);
-        Assert.Equal("RSA 2048 key pair (PEM)", described.Single(member => member.Property == nameof(Keys.RsaPem)).GeneratorLabel);
-        Assert.Equal("EC P-384 key pair (base64 EC private key)", described.Single(member => member.Property == nameof(Keys.EcSec1)).GeneratorLabel);
         Assert.Null(described.Single(member => member.Property == nameof(Keys.RsaKeyId)).GeneratorLabel);
     }
 
@@ -231,110 +198,10 @@ public class ConfigurationGeneratorTests
     }
 
     [Fact]
-    public async Task An_rsa_pem_key_round_trips_and_its_jwks_and_public_key_match_it()
-    {
-        var result = await GenerateAsync<Keys>(nameof(Keys.RsaPem));
-        using var rsa = RSA.Create();
-        rsa.ImportFromPem(result.Values[nameof(Keys.RsaPem)]);
-        Assert.Equal(2048, rsa.KeySize);
-        var parameters = rsa.ExportParameters(false);
-
-        using var published = RSA.Create();
-        published.ImportFromPem(result.Outputs.Single(output => output.Kind == ConfigurationOutputKind.Pem).Value);
-        Assert.Equal(parameters.Modulus, published.ExportParameters(false).Modulus);
-
-        var jwk = SingleJwk(result);
-        Assert.Equal("RSA", jwk.GetProperty("kty").GetString());
-        Assert.Equal("RS256", jwk.GetProperty("alg").GetString());
-        Assert.Equal("sig", jwk.GetProperty("use").GetString());
-        Assert.Equal(Base64Url(parameters.Modulus!), jwk.GetProperty("n").GetString());
-        Assert.Equal(Base64Url(parameters.Exponent!), jwk.GetProperty("e").GetString());
-
-        // The key id fills the named member, dated by the clock, and is the JWK's kid.
-        var keyId = result.Values[nameof(Keys.RsaKeyId)];
-        Assert.StartsWith("2026-11-01-", keyId);
-        Assert.Equal(keyId, jwk.GetProperty("kid").GetString());
-    }
-
-    [Fact]
-    public async Task An_rsa_xml_key_round_trips_through_the_eastfive_loader()
-    {
-        var result = await GenerateAsync<Keys>(nameof(Keys.RsaXml));
-        var size = EastFive.Security.RSA.RSAFromSecret(new Secret(result.Values[nameof(Keys.RsaXml)]),
-            rsa => { using (rsa) { return rsa.KeySize; } },
-            why => throw new Xunit.Sdk.XunitException(why));
-        Assert.Equal(3072, size);
-        Assert.Equal("RS384", SingleJwk(result).GetProperty("alg").GetString());
-        // No key-id member: the kid is an output to copy instead.
-        Assert.False(result.Values.ContainsKey(nameof(Keys.RsaKeyId)));
-        Assert.Contains(result.Outputs, output => output.Label == "Key id" && output.Value.StartsWith("2026-11-01-", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public async Task The_token_signing_and_voucher_keys_generate_what_their_loaders_read()
-    {
-        var tokens = await ConfigurationGeneration.GenerateAsync(
-            new ConfigurationGenerationContext(typeof(EastFive.Security.Tokens.TokenSigningConfiguration),
-                ConfigurationMembers.For<EastFive.Security.Tokens.TokenSigningConfiguration>().Members.Single(member => member.Property.Name == "SigningKey"),
-                new Dictionary<string, string?>()),
-            result => result, why => throw new Xunit.Sdk.XunitException(why), why => throw new Xunit.Sdk.XunitException(why));
-        var signing = new EastFive.Security.Tokens.TokenSigningConfiguration
-        {
-            Issuer = "https://issuer.example",
-            SigningKey = new Secret(tokens.Values["SigningKey"]),
-        };
-        Assert.Null(signing.Validate());
-        Assert.Equal(2048, signing.ToSigning().WithRsa(rsa => { using (rsa) { return rsa.KeySize; } }, why => throw new Xunit.Sdk.XunitException(why)));
-        Assert.Single(tokens.Instructions);
-
-        var vouchers = await ConfigurationGeneration.GenerateAsync(
-            new ConfigurationGenerationContext(typeof(EastFive.Security.VoucherConfiguration),
-                ConfigurationMembers.For<EastFive.Security.VoucherConfiguration>().Members.Single(member => member.Property.Name == "SigningKey"),
-                new Dictionary<string, string?>()),
-            result => result, why => throw new Xunit.Sdk.XunitException(why), why => throw new Xunit.Sdk.XunitException(why));
-        Assert.True(EastFive.Security.RSA.RSAFromSecret(new Secret(vouchers.Values["SigningKey"]),
-            rsa => { using (rsa) { return true; } }, _ => false));
-    }
-
-    [Fact]
-    public async Task An_ec_key_round_trips_in_each_format_and_its_jwk_names_the_curve()
-    {
-        var pem = await GenerateAsync<Keys>(nameof(Keys.EcPem));
-        using (var ecdsa = ECDsa.Create())
-        {
-            ecdsa.ImportFromPem(pem.Values[nameof(Keys.EcPem)]);
-            Assert.Equal(256, ecdsa.KeySize);
-        }
-        Assert.Equal("P-256", SingleJwk(pem).GetProperty("crv").GetString());
-        Assert.Equal("ES256", SingleJwk(pem).GetProperty("alg").GetString());
-
-        var sec1 = await GenerateAsync<Keys>(nameof(Keys.EcSec1));
-        var alg = ECDSA.FromPrivateKey(Convert.FromBase64String(sec1.Values[nameof(Keys.EcSec1)]),
-            (ecdsa, algorithm) => { using (ecdsa) { return algorithm; } },
-            why => throw new Xunit.Sdk.XunitException(why));
-        Assert.Equal("ES384", alg);
-        var jwk = SingleJwk(sec1);
-        Assert.Equal("EC", jwk.GetProperty("kty").GetString());
-        Assert.Equal("P-384", jwk.GetProperty("crv").GetString());
-        Assert.Equal(48, Base64UrlDecode(jwk.GetProperty("x").GetString()!).Length);
-    }
-
-    [Fact]
-    public async Task An_aes_key_is_the_declared_size()
-    {
-        var key = (await GenerateAsync<Keys>(nameof(Keys.Aes))).Values[nameof(Keys.Aes)];
-        using var aes = System.Security.Cryptography.Aes.Create();
-        aes.Key = Convert.FromBase64String(key);
-        Assert.Equal(256, aes.KeySize);
-
-        Assert.Equal(32, (await GenerateAsync<Keys>(nameof(Keys.Aes128))).Values[nameof(Keys.Aes128)].Length);
-    }
-
-    [Fact]
     public void A_built_in_refuses_an_impossible_size_when_declared()
     {
-        Assert.ThrowsAny<ArgumentException>(() => new GenerateAesKeyAttribute(100));
-        Assert.ThrowsAny<ArgumentException>(() => new GenerateRsaKeyAttribute(1024));
+        Assert.ThrowsAny<ArgumentException>(() => new EastFive.Security.SymmetricKeyAttribute(0));
+        Assert.ThrowsAny<ArgumentException>(() => new EastFive.Security.RsaKeyAttribute(1024));
         Assert.ThrowsAny<ArgumentException>(() => new GenerateRandomBytesAttribute(0));
     }
 

@@ -38,7 +38,7 @@ namespace EastFive.Security
                     using (trustedVoucherPrivateKey)
                     {
                         var signature = trustedVoucherPrivateKey.SignHash(
-                        hashedData, CryptoConfig.MapNameToOID("SHA256"));
+                        hashedData, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
                         var compactHash = signature.SHA256Hash();
                         var tokenBytes = signatureData.Concat(compactHash).ToArray();
@@ -51,29 +51,25 @@ namespace EastFive.Security
                     nameof(VoucherConfiguration), issue));
         }
 
+        /// <summary>A URL token signed with a caller-supplied key, in any encoding <see cref="RsaPrivateKey"/> reads.</summary>
         public static TResult GenerateUrlToken<TResult>(Guid authId, DateTime validUntilUtc,
-                string trustedVoucherPrivateKeyBase64,
+                string trustedVoucherPrivateKey,
             Func<string, TResult> success,
             Func<string, TResult> onInvalidKey)
+            => RsaPrivateKey.Parse(trustedVoucherPrivateKey,
+                key => success(GenerateUrlToken(authId, validUntilUtc, key)),
+                onInvalidKey);
+
+        public static string GenerateUrlToken(Guid authId, DateTime validUntilUtc, RsaPrivateKey trustedVoucherPrivateKey)
         {
             byte[] signatureData;
             var hashedData = ComputeHashData(authId, validUntilUtc, out signatureData);
 
-            return trustedVoucherPrivateKeyBase64.RSAFromBase64(
-                trustedVoucherPrivateKey =>
-                {
-                    using (trustedVoucherPrivateKey)
-                    {
-                        var signature = trustedVoucherPrivateKey.SignHash(
-                                    hashedData, CryptoConfig.MapNameToOID("SHA256"));
-
-                        var compactHash = signature.SHA256Hash();
-                        var tokenBytes = signatureData.Concat(compactHash).ToArray();
-                        var token = tokenBytes.Base64UrlEncode(); // System.Web.HttpServerUtility.UrlTokenEncode(tokenBytes);
-                        return success(token);
-                    }
-                },
-                (why) => onInvalidKey(why));
+            using var rsa = trustedVoucherPrivateKey.CreateRsa();
+            var signature = rsa.SignHash(hashedData, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            var compactHash = signature.SHA256Hash();
+            var tokenBytes = signatureData.Concat(compactHash).ToArray();
+            return tokenBytes.Base64UrlEncode(); // System.Web.HttpServerUtility.UrlTokenEncode(tokenBytes);
         }
 
         public static TResult GenerateBytes<TResult>(Guid authId, DateTime validUntilUtc,
@@ -89,7 +85,7 @@ namespace EastFive.Security
                 {
                     using (trustedVoucherPrivateKey)
                     {
-                        var signature = trustedVoucherPrivateKey.SignHash(hashedData, CryptoConfig.MapNameToOID("SHA256"));
+                        var signature = trustedVoucherPrivateKey.SignHash(hashedData, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
                         var tokenBytes = signatureData.Concat(signature).ToArray();
                         return success(tokenBytes);
@@ -146,7 +142,7 @@ namespace EastFive.Security
                 {
                     using (trustedVoucher)
                     {
-                        if (!trustedVoucher.VerifyHash(hashedData, CryptoConfig.MapNameToOID("SHA256"), providedSignature))
+                        if (!trustedVoucher.VerifyHash(hashedData, providedSignature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1))
                             return invalidSignature("Cannot verify hash - authId: " + authId +
                                "   validUntilUtc: " + validUntilUtc +
                                "   hashedData: " + hashedData +

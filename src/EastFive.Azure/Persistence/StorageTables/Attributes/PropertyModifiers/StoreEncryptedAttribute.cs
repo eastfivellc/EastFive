@@ -20,11 +20,11 @@ using EastFive.Web.Configuration;
 
 namespace EastFive.Azure.Persistence.StorageTables
 {
-    /// <summary>What encrypts a <see cref="StoreEncryptedAttribute"/> member: a key and a GUID salt,
-    /// both secrets. Implemented by a configuration type the host loads at startup.</summary>
+    /// <summary>What encrypts a <see cref="StoreEncryptedAttribute"/> member: a passphrase (PBKDF2
+    /// input) and a GUID salt, both secrets. Implemented by a configuration type the host loads at startup.</summary>
     public interface IProvideStorageEncryption
     {
-        EastFive.Configuration.Secret EncryptionKey { get; }
+        EastFive.Security.SharedSecret EncryptionKey { get; }
 
         /// <summary>A GUID.</summary>
         EastFive.Configuration.Secret EncryptionSalt { get; }
@@ -35,8 +35,9 @@ namespace EastFive.Azure.Persistence.StorageTables
     [EastFive.Configuration.ConfigurationType("StorageEncryption", Label = "Storage encryption", Description = "The key and salt that encrypt [StoreEncrypted] properties at rest.", Scope = EastFive.Configuration.ConfigurationScope.Environment)]
     public sealed class StorageEncryptionConfiguration : EastFive.Configuration.IProvideConfiguration, IProvideStorageEncryption
     {
-        [EastFive.Configuration.ConfigurationMember(Kind = EastFive.Configuration.ConfigurationMemberKind.Secret, Label = "Encryption key", Description = "Key that encrypts [StoreEncrypted] properties.")]
-        public EastFive.Configuration.Secret EncryptionKey { get; set; }
+        [EastFive.Configuration.ConfigurationMember(Kind = EastFive.Configuration.ConfigurationMemberKind.Secret, Label = "Encryption key", Description = "Passphrase the [StoreEncrypted] key is derived from (PBKDF2).")]
+        [EastFive.Security.SharedSecret]
+        public EastFive.Security.SharedSecret EncryptionKey { get; set; }
 
         [EastFive.Configuration.ConfigurationMember(Kind = EastFive.Configuration.ConfigurationMemberKind.Secret, Description = "A GUID.", Label = "Encryption salt")]
         public EastFive.Configuration.Secret EncryptionSalt { get; set; }

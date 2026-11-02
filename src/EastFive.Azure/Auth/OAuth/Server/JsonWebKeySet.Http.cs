@@ -25,18 +25,13 @@ namespace EastFive.Azure.OAuth.Server
             ConfigurationFailureResponse onConfigurationFailure)
         {
             return EastFive.Security.Tokens.TokenSigning.Current(
-                signing => signing.WithRsa(
-                rsaProvider =>
+                signing => signing.WithRsa(rsa =>
                 {
-                    using (rsaProvider)
-                    {
-                        var parameters = rsaProvider.ExportParameters(includePrivateParameters: false);
-                        var key = JwkKey.FromRsaParameters(parameters);
-                        var document = new JwksDocument { Keys = new[] { key } };
-                        return onFound(document, "application/json");
-                    }
-                },
-                (why) => onConfigurationFailure(nameof(EastFive.Security.Tokens.TokenSigningConfiguration), why)),
+                    var parameters = rsa.ExportParameters(includePrivateParameters: false);
+                    var key = JwkKey.FromRsaParameters(parameters, signing.JwsAlgorithm);
+                    var document = new JwksDocument { Keys = new[] { key } };
+                    return onFound(document, "application/json");
+                }),
                 issue => onConfigurationFailure(issue.Key, issue.ToString()));
         }
     }
@@ -67,7 +62,8 @@ namespace EastFive.Azure.OAuth.Server
         [JsonProperty("e")]
         public string Exponent { get; set; }
 
-        public static JwkKey FromRsaParameters(RSAParameters parameters)
+        /// <param name="algorithm">The JWS <c>alg</c> the key signs with.</param>
+        public static JwkKey FromRsaParameters(RSAParameters parameters, string algorithm = "RS256")
         {
             var modulus = OAuthServer.Base64UrlEncode(parameters.Modulus);
             var exponent = OAuthServer.Base64UrlEncode(parameters.Exponent);
@@ -76,7 +72,7 @@ namespace EastFive.Azure.OAuth.Server
             {
                 KeyType = "RSA",
                 Use = "sig",
-                Algorithm = "RS256",
+                Algorithm = algorithm,
                 KeyId = kid,
                 Modulus = modulus,
                 Exponent = exponent,

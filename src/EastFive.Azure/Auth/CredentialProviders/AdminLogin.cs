@@ -93,21 +93,17 @@ namespace EastFive.Azure.Auth.CredentialProviders
             GeneralFailureResponse onFailure)
         {
             return EastFive.Configuration.StartupConfiguration.Get<AdminLoginConfiguration, IHttpResponse>(
-                configuration => EastFive.Security.RSA.RSAFromSecret(configuration.SigningKey,
-                rsa =>
+                configuration =>
                 {
-                    using (rsa)
-                    {
-                        var authenticationIdBytes = authenticationId.ToByteArray();
-                        var signedBytes = rsa.SignData(authenticationIdBytes, CryptoConfig.MapNameToOID("SHA512"));
-                        var redirectUrl = urlHelper.GetLocation<AdminLoginRedirection>(
-                            adminLoginRedir => adminLoginRedir.authenticationId.AssignQueryValue(authenticationId),
-                            adminLoginRedir => adminLoginRedir.token.AssignQueryValue(signedBytes),
-                            application);
-                        return onRedirect(redirectUrl);
-                    }
+                    using var rsa = configuration.SigningKey.CreateRsa();
+                    var authenticationIdBytes = authenticationId.ToByteArray();
+                    var signedBytes = rsa.SignData(authenticationIdBytes, HashAlgorithmName.SHA512, RSASignaturePadding.Pkcs1);
+                    var redirectUrl = urlHelper.GetLocation<AdminLoginRedirection>(
+                        adminLoginRedir => adminLoginRedir.authenticationId.AssignQueryValue(authenticationId),
+                        adminLoginRedir => adminLoginRedir.token.AssignQueryValue(signedBytes),
+                        application);
+                    return onRedirect(redirectUrl);
                 },
-                (why) => onFailure(why)),
                 issue => onFailure(issue.ToString()));
         }
 
