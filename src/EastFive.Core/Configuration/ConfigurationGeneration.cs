@@ -22,8 +22,24 @@ namespace EastFive.Configuration
         /// <summary>What the generator produces, for an editor's tooltip (e.g. "Random 32 bytes, base64url").</summary>
         string Label { get; }
 
+        /// <summary>What the generator needs from the user beyond the draft (an admin credential, a
+        /// certificate's common name). An editor asks for them when Generate is clicked; the runner
+        /// refuses a generate that lacks a required one.</summary>
+        IReadOnlyList<ConfigurationGenerationInput> Inputs => Array.Empty<ConfigurationGenerationInput>();
+
         Task<ConfigurationGenerationResult> GenerateAsync(ConfigurationGenerationContext context);
     }
+
+    /// <summary>
+    /// One value a generator asks the user for. A <see cref="Secret"/> input (a credential) follows the
+    /// rules for secrets: never argv, logs, persisted editor state or an exception message.
+    /// </summary>
+    public sealed record ConfigurationGenerationInput(
+        string Name,
+        string Label,
+        bool Secret = false,
+        string? Description = null,
+        bool Optional = false);
 
     /// <summary>
     /// What a generator sees: the type and member being generated, the type's current draft values
@@ -45,6 +61,15 @@ namespace EastFive.Configuration
 
         /// <summary>The clock dated key ids are stamped from.</summary>
         public TimeProvider Clock { get; init; } = TimeProvider.System;
+
+        /// <summary>The user's answers to the generator's <see cref="IGenerateConfigurationValue.Inputs"/>, by name
+        /// (case-insensitive lookup through <see cref="InputValue"/>). May hold credentials: never log it.</summary>
+        public IReadOnlyDictionary<string, string?> Inputs { get; init; } = new Dictionary<string, string?>();
+
+        /// <summary>One input's answer (by name); null when blank or absent.</summary>
+        public string? InputValue(string name)
+            => Inputs.FirstOrDefault(entry => string.Equals(entry.Key, name, StringComparison.OrdinalIgnoreCase)).Value
+                is { } value && !string.IsNullOrWhiteSpace(value) ? value : null;
 
         /// <summary>The draft value of one member (by property name); null when blank or absent.</summary>
         public string? DraftValue(string member)
@@ -97,6 +122,13 @@ namespace EastFive.Configuration
 
         public IReadOnlyList<ConfigurationGenerationInstruction> Instructions { get; init; } = Array.Empty<ConfigurationGenerationInstruction>();
 
+        /// <summary>Why the generator could not produce a value (a registry refused, a check failed); the
+        /// runner reports it as a refusal. Names endpoints and statuses, never a credential or a value.</summary>
+        public string? Failure { get; init; }
+
+        /// <summary>A generator that could not produce a value, and why.</summary>
+        public static ConfigurationGenerationResult Failed(string reason) => new() { Failure = reason };
+
         public static ConfigurationGenerationResult Of(string member, string value) => Empty.WithValue(member, value);
 
         public ConfigurationGenerationResult WithValue(string member, string value)
@@ -110,7 +142,9 @@ namespace EastFive.Configuration
 
         /// <summary>Names the members and outputs only; never a value.</summary>
         public override string ToString()
-            => $"values [{string.Join(", ", Values.Keys)}], outputs [{string.Join(", ", Outputs.Select(output => output.Label))}]";
+            => Failure != null
+                ? "failed"
+                : $"values [{string.Join(", ", Values.Keys)}], outputs [{string.Join(", ", Outputs.Select(output => output.Label))}]";
     }
 
     /// <summary>Runs a member's generator and validates its result against the type's declaration.</summary>
@@ -118,8 +152,9 @@ namespace EastFive.Configuration
     {
         /// <param name="onGenerated">The result, its value keys normalized to property names.</param>
         /// <param name="onNoGenerator">The member declares no generator.</param>
-        /// <param name="onRefused">The result names a member the type does not declare, or a value the
-        /// member cannot hold. The reason names members, never values.</param>
+        /// <param name="onRefused">A required input is missing, the generator failed (its
+        /// <see cref="ConfigurationGenerationResult.Failure"/>), or the result names a member the type does
+        /// not declare or a value the member cannot hold. The reason names members, never values.</param>
         public static async Task<TResult> GenerateAsync<TResult>(ConfigurationGenerationContext context,
             Func<ConfigurationGenerationResult, TResult> onGenerated,
             Func<string, TResult> onNoGenerator,
@@ -129,7 +164,13 @@ namespace EastFive.Configuration
             if (context.Member.Generator is not { } generator)
                 return onNoGenerator($"{where} declares no generator.");
 
+            var missing = generator.Inputs.FirstOrDefault(input => !input.Optional && context.InputValue(input.Name) == null);
+            if (missing != null)
+                return onRefused($"{where}'s generator needs '{missing.Label}' (input '{missing.Name}').");
+
             var result = await generator.GenerateAsync(context);
+            if (result.Failure is { } failure)
+                return onRefused(failure);
             var members = ConfigurationMembers.For(context.ConfigurationType).Members;
             var values = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var (name, value) in result.Values)

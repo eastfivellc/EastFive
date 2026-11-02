@@ -40,7 +40,7 @@ namespace EastFive.Security
     /// <see cref="Algorithm"/>. Generates a <see cref="MinBits"/>-bit key as PKCS#8 PEM, with the
     /// public key, JWKS and thumbprint key id as outputs.
     /// </summary>
-    public sealed class RsaKeyAttribute : KeyValueAttribute
+    public class RsaKeyAttribute : KeyValueAttribute
     {
         private readonly string algorithm = RsaPrivateKey.DefaultAlgorithm;
 
@@ -150,7 +150,7 @@ namespace EastFive.Security
     /// A <see cref="SharedSecret"/> member of at least <see cref="MinLength"/> UTF-8 bytes (default 32).
     /// Generates 32 random bytes (more if the minimum needs them), base64url: safe in a URL and a header.
     /// </summary>
-    public sealed class SharedSecretAttribute : KeyValueAttribute
+    public class SharedSecretAttribute : KeyValueAttribute
     {
         private readonly int minLength = 32;
 

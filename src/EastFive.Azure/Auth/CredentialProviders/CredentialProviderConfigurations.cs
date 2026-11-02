@@ -8,7 +8,7 @@ namespace EastFive.Azure.Auth.CredentialProviders
     public sealed class AdminLoginConfiguration : IProvideConfiguration
     {
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Description = "The RSA private key admin-login redirections are signed with.", Label = "Signing key")]
-        [EastFive.Security.RsaKey]
+        [EastFive.Security.RsaKey(Instruction = "Admin-login redirections signed with the previous key stop validating once the new key is saved and the host restarts; every host that signs or verifies them needs the same key.")]
         public EastFive.Security.RsaPrivateKey SigningKey { get; set; } = default!;
     }
 }

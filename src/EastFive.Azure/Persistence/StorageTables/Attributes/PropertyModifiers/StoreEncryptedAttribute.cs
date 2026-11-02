@@ -36,7 +36,7 @@ namespace EastFive.Azure.Persistence.StorageTables
     public sealed class StorageEncryptionConfiguration : EastFive.Configuration.IProvideConfiguration, IProvideStorageEncryption
     {
         [EastFive.Configuration.ConfigurationMember(Kind = EastFive.Configuration.ConfigurationMemberKind.Secret, Label = "Encryption key", Description = "Passphrase the [StoreEncrypted] key is derived from (PBKDF2).")]
-        [EastFive.Security.SharedSecret]
+        [StorageEncryptionKey]
         public EastFive.Security.SharedSecret EncryptionKey { get; set; }
 
         [EastFive.Configuration.ConfigurationMember(Kind = EastFive.Configuration.ConfigurationMemberKind.Secret, Description = "A GUID.", Label = "Encryption salt")]
@@ -46,6 +46,36 @@ namespace EastFive.Azure.Persistence.StorageTables
             => EncryptionSalt == null || Guid.TryParse(EncryptionSalt.Reveal(), out _)
                 ? null
                 : ((EastFive.Configuration.IProvideConfiguration)this).SecretReference(nameof(EncryptionSalt)).Name;
+    }
+
+    /// <summary>
+    /// The storage passphrase's generator: 32 random bytes (base64url) for the passphrase and a new
+    /// GUID for <see cref="StorageEncryptionConfiguration.EncryptionSalt"/>, together, because rows
+    /// are encrypted with the pair.
+    /// </summary>
+    public sealed class StorageEncryptionKeyAttribute : EastFive.Security.SharedSecretAttribute
+    {
+        public const string PairInstruction =
+            "Every app that reads the same [StoreEncrypted] rows needs this exact passphrase AND salt. Rows encrypted "
+            + "with the previous pair become unreadable once the new pair is saved: generate it only for a new store, "
+            + "or after re-encrypting the existing rows.";
+
+        public StorageEncryptionKeyAttribute()
+        {
+            Instruction = PairInstruction;
+        }
+
+        public override string Label => "Random 32-byte passphrase, base64url, with a new GUID salt";
+
+        protected override EastFive.Configuration.ConfigurationGenerationResult Generate(
+            EastFive.Configuration.ConfigurationGenerationContext context, Lazy<string> keyId)
+        {
+            var salt = context.RandomBytes(16);
+            salt[7] = (byte)((salt[7] & 0x0F) | 0x40);
+            salt[8] = (byte)((salt[8] & 0x3F) | 0x80);
+            return base.Generate(context, keyId)
+                .WithValue(nameof(StorageEncryptionConfiguration.EncryptionSalt), new Guid(salt).ToString("D"));
+        }
     }
 
     public class StoreEncryptedAttribute : StorageAttribute
