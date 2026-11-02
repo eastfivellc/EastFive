@@ -115,28 +115,38 @@ namespace EastFive.Configuration
         IReadOnlyList<ConfigurationAdoption> AlsoUsedBy);
 
     /// <summary>
-    /// A host's assembly reference graph from its root assemblies, in a stable order — roots first
-    /// (in root order), then by distance from the nearest root, ties by the order of the root that
-    /// reaches the assembly, then by name — and the placement of each configuration type in it.
+    /// A host's assembly reference graph from its root assemblies, in dependency-depth order —
+    /// roots first (in root order), then every other assembly by its longest reference path from
+    /// the roots, so an assembly always comes before the assemblies it references; ties by the
+    /// order of the root that reaches the assembly, then by name — and the placement of each
+    /// configuration type in it. Placement is by distance (the closest adopter), not by this order.
     /// </summary>
     public sealed class ConfigurationGraph
     {
         private readonly Dictionary<Assembly, (int distance, int root)> rank;
+        private readonly IReadOnlyDictionary<Assembly, int> depth;
         private readonly Func<Assembly, IReadOnlyList<ConfigurationAdoption>> adoptionsOf;
 
         private ConfigurationGraph(IReadOnlyList<Assembly> roots, IReadOnlyList<Assembly> ordered,
-            Dictionary<Assembly, (int distance, int root)> rank, Func<Assembly, IReadOnlyList<ConfigurationAdoption>> adoptionsOf)
+            Dictionary<Assembly, (int distance, int root)> rank, IReadOnlyDictionary<Assembly, int> depth,
+            Func<Assembly, IReadOnlyList<ConfigurationAdoption>> adoptionsOf)
         {
             Roots = roots;
             Assemblies = ordered;
             this.rank = rank;
+            this.depth = depth;
             this.adoptionsOf = adoptionsOf;
         }
 
         /// <summary>The host's root assemblies, in the host's order.</summary>
         public IReadOnlyList<Assembly> Roots { get; }
 
-        /// <summary>Every assembly the roots reach (themselves included), in graph order.</summary>
+        /// <summary>
+        /// Every assembly the roots reach (themselves included): roots in root order, then by
+        /// <see cref="DepthOf"/> ascending — an assembly before every assembly it references — ties
+        /// by the lowest-ordered root that reaches it (what a root reaches belongs to that root, not
+        /// to a root that references it), then by name.
+        /// </summary>
         public IReadOnlyList<Assembly> Assemblies { get; }
 
         public bool IsRoot(Assembly assembly) => rank.TryGetValue(assembly, out var at) && at.distance == 0;
@@ -145,6 +155,12 @@ namespace EastFive.Configuration
 
         /// <summary>Reference hops from the nearest root; -1 when the roots do not reach it.</summary>
         public int DistanceOf(Assembly assembly) => rank.TryGetValue(assembly, out var at) ? at.distance : -1;
+
+        /// <summary>
+        /// The longest reference path from the roots (0 for a root, even one another root
+        /// references); -1 when the roots do not reach it.
+        /// </summary>
+        public int DepthOf(Assembly assembly) => depth.TryGetValue(assembly, out var at) ? at : -1;
 
         /// <summary>
         /// The graph of <paramref name="roots"/>. <paramref name="references"/> and
@@ -159,25 +175,94 @@ namespace EastFive.Configuration
             var rootList = roots.Distinct().ToArray();
             var referencesOf = references ?? Referenced;
             var rank = new Dictionary<Assembly, (int distance, int root)>();
-            var ordered = new List<Assembly>();
+            var edges = new Dictionary<Assembly, Assembly[]>();
             var frontier = rootList.Select((assembly, index) => (assembly, root: index)).ToList();
             foreach (var (assembly, root) in frontier)
                 rank[assembly] = (0, root);
             for (var distance = 0; frontier.Count > 0; distance++)
             {
-                frontier = frontier.OrderBy(entry => entry.root).ThenBy(entry => NameOf(entry.assembly), StringComparer.Ordinal).ToList();
-                ordered.AddRange(frontier.Select(entry => entry.assembly));
                 var next = new List<(Assembly assembly, int root)>();
-                foreach (var (assembly, root) in frontier)
-                    foreach (var reference in referencesOf(assembly))
+                foreach (var (assembly, root) in frontier.OrderBy(entry => entry.root).ThenBy(entry => NameOf(entry.assembly), StringComparer.Ordinal))
+                {
+                    edges[assembly] = referencesOf(assembly).Distinct().ToArray();
+                    foreach (var reference in edges[assembly])
                         if (!rank.ContainsKey(reference))
                         {
                             rank[reference] = (distance + 1, root);
                             next.Add((reference, root));
                         }
+                }
                 frontier = next;
             }
-            return new ConfigurationGraph(rootList, ordered, rank, adoptions ?? ConfigurationAdoptions.Of);
+
+            var (depth, reachedFrom) = Depths(rootList, edges);
+            var ordered = rootList
+                .Concat(depth.Keys
+                    .Where(assembly => depth[assembly] > 0)
+                    .OrderBy(assembly => depth[assembly])
+                    .ThenBy(assembly => reachedFrom[assembly])
+                    .ThenBy(NameOf, StringComparer.Ordinal))
+                .ToArray();
+            return new ConfigurationGraph(rootList, ordered, rank, depth, adoptions ?? ConfigurationAdoptions.Of);
+        }
+
+        /// <summary>
+        /// Each reached assembly's longest path from the roots, and the lowest-ordered root that
+        /// reaches it without passing through another root. A depth-first walk from each root in
+        /// order (references by name) drops the edges into roots — a root stays depth 0 — and any
+        /// back edge, so a cycle cannot loop; relaxing the remaining edges in reverse post-order
+        /// then yields the longest paths.
+        /// </summary>
+        private static (IReadOnlyDictionary<Assembly, int> depth, IReadOnlyDictionary<Assembly, int> reachedFrom) Depths(
+            IReadOnlyList<Assembly> roots, IReadOnlyDictionary<Assembly, Assembly[]> edges)
+        {
+            var isRoot = roots.ToHashSet();
+            var finished = new Dictionary<Assembly, bool>();
+            var forward = new Dictionary<Assembly, List<Assembly>>();
+            var reachedFrom = new Dictionary<Assembly, int>();
+            var postOrder = new List<Assembly>();
+            // An explicit stack rather than recursion, so a deep reference chain cannot overflow.
+            foreach (var (root, index) in roots.Select((root, index) => (root, index)))
+            {
+                var stack = new Stack<(Assembly assembly, Assembly[] references, int next)>();
+                Enter(root, index);
+                while (stack.Count > 0)
+                {
+                    var (assembly, references, next) = stack.Pop();
+                    if (next == references.Length)
+                    {
+                        finished[assembly] = true;
+                        postOrder.Add(assembly);
+                        continue;
+                    }
+                    stack.Push((assembly, references, next + 1));
+                    var reference = references[next];
+                    if (isRoot.Contains(reference))
+                        continue;
+                    if (!finished.TryGetValue(reference, out var done))
+                    {
+                        forward[assembly].Add(reference);
+                        Enter(reference, index);
+                    }
+                    else if (done)
+                        forward[assembly].Add(reference);
+                }
+
+                void Enter(Assembly assembly, int from)
+                {
+                    finished[assembly] = false;
+                    forward[assembly] = new List<Assembly>();
+                    reachedFrom[assembly] = from;
+                    var references = edges.TryGetValue(assembly, out var found) ? found : Array.Empty<Assembly>();
+                    stack.Push((assembly, references.OrderBy(NameOf, StringComparer.Ordinal).ToArray(), 0));
+                }
+            }
+
+            var depth = postOrder.ToDictionary(assembly => assembly, _ => 0);
+            foreach (var assembly in Enumerable.Reverse(postOrder))
+                foreach (var reference in forward[assembly])
+                    depth[reference] = Math.Max(depth[reference], depth[assembly] + 1);
+            return (depth, reachedFrom);
         }
 
         /// <summary>

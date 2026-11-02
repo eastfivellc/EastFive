@@ -102,7 +102,7 @@ public class ConfigurationAdoptionTests
             assembly => adoptions.Where(adoption => adoption.Adopter == assembly).ToArray());
 
     [Fact]
-    public void Order_IsRootsFirst_ThenByDistance_TiesByRootOrder()
+    public void Order_IsRootsFirst_ThenByDepth_TiesByRootOrder()
     {
         // Tests → A → Api ; Core → B ; A → C ; Api → Core.
         var graph = Graph(new[] { Tests, Core },
@@ -112,6 +112,110 @@ public class ConfigurationAdoptionTests
         Assert.Equal((0, 0, 1, 1, 2), (graph.DistanceOf(Tests), graph.DistanceOf(Core), graph.DistanceOf(A), graph.DistanceOf(B), graph.DistanceOf(Api)));
         Assert.True(graph.IsRoot(Core));
         Assert.False(graph.IsRoot(A));
+    }
+
+    // The layering graph: Tests → {X, Y, Z}; X → {Y, Z}; Y → {Z}. The names sort Z < Y < X
+    // (EastFive.Core < System.Linq < xunit.core), so ordering by distance then name — all three
+    // are one hop from the root — would put the foundation first.
+    private static readonly Assembly X = A;
+    private static readonly Assembly Y = C;
+    private static readonly Assembly Z = Core;
+
+    private static Dictionary<Assembly, Assembly[]> Layering() => new()
+    {
+        [Tests] = new[] { X, Y, Z },
+        [X] = new[] { Y, Z },
+        [Y] = new[] { Z },
+    };
+
+    [Fact]
+    public void Order_LayeringBeatsName_AnAssemblyComesBeforeWhatItReferences()
+    {
+        var graph = Graph(new[] { Tests }, Layering());
+
+        Assert.Equal(new[] { Tests, X, Y, Z }, graph.Assemblies);
+        Assert.Equal((0, 1, 2, 3), (graph.DepthOf(Tests), graph.DepthOf(X), graph.DepthOf(Y), graph.DepthOf(Z)));
+        Assert.Equal((1, 1, 1), (graph.DistanceOf(X), graph.DistanceOf(Y), graph.DistanceOf(Z)));
+    }
+
+    [Fact]
+    public void Order_Diamond_TheLongestPathWins()
+    {
+        // Tests → {A, Core}; A → B; B → Core. Core is one hop away, but three deep.
+        var graph = Graph(new[] { Tests },
+            new Dictionary<Assembly, Assembly[]> { [Tests] = new[] { A, Core }, [A] = new[] { B }, [B] = new[] { Core } });
+
+        Assert.Equal(new[] { Tests, A, B, Core }, graph.Assemblies);
+        Assert.Equal(3, graph.DepthOf(Core));
+        Assert.Equal(1, graph.DistanceOf(Core));
+    }
+
+    [Fact]
+    public void Order_RootsStayFirst_EvenWhenAnotherRootReachesThem()
+    {
+        // Tests → Api, and both are roots; Api → Core. "EastFive.Api" sorts before "EastFive.Api.Tests".
+        var graph = Graph(new[] { Tests, Api },
+            new Dictionary<Assembly, Assembly[]> { [Tests] = new[] { Api }, [Api] = new[] { Core } });
+
+        Assert.Equal(new[] { Tests, Api, Core }, graph.Assemblies);
+        Assert.Equal(0, graph.DepthOf(Api));
+        Assert.True(graph.IsRoot(Api));
+        Assert.Equal(1, graph.DepthOf(Core));
+    }
+
+    [Fact]
+    public void Order_EqualDepth_TiesByRootOrder_ThenName()
+    {
+        // A → {C, Tests}; B → {Core}. All three are depth 1; Core sorts first by name but its
+        // only root is the second one.
+        var graph = Graph(new[] { A, B },
+            new Dictionary<Assembly, Assembly[]> { [A] = new[] { C, Tests }, [B] = new[] { Core } });
+
+        Assert.Equal(new[] { A, B, Tests, C, Core }, graph.Assemblies);
+
+        // A → {B, C}; B → Core, and both A and B are roots. Core and C are both depth 1; A reaches
+        // Core only through B, so Core belongs to B and follows C despite its name.
+        var throughARoot = Graph(new[] { A, B },
+            new Dictionary<Assembly, Assembly[]> { [A] = new[] { B, C }, [B] = new[] { Core } });
+
+        Assert.Equal(new[] { A, B, C, Core }, throughARoot.Assemblies);
+    }
+
+    [Fact]
+    public void Order_ACycle_TerminatesDeterministically()
+    {
+        // Tests → A; A → B; B → A.
+        var edges = new Dictionary<Assembly, Assembly[]> { [Tests] = new[] { A }, [A] = new[] { B }, [B] = new[] { A } };
+
+        var first = Graph(new[] { Tests }, edges);
+        var second = Graph(new[] { Tests }, edges);
+
+        Assert.Equal(new[] { Tests, A, B }, first.Assemblies);
+        Assert.Equal(first.Assemblies, second.Assemblies);
+        Assert.Equal((0, 1, 2), (first.DepthOf(Tests), first.DepthOf(A), first.DepthOf(B)));
+    }
+
+    [Fact]
+    public void DepthOf_AnUnreachedAssembly_IsMinusOne()
+        => Assert.Equal(-1, Graph(new[] { Tests }, new Dictionary<Assembly, Assembly[]>()).DepthOf(Core));
+
+    [Fact]
+    public void Placement_IsStillByDistance_NotByDepthOrder()
+    {
+        // Layering: X and Y are both one hop from the root, so the name breaks the tie (Y,
+        // System.Linq) — even though depth order lists X first.
+        var layering = Graph(new[] { Tests }, Layering(), Adopt(X, "X's use"), Adopt(Y, "Y's use"));
+        Assert.Equal(new[] { Tests, X, Y, Z }, layering.Assemblies);
+        Assert.Same(Y, layering.Place(typeof(CorsConfiguration)).Group);
+
+        // Diamond: B is listed before Core, but Core is the closer adopter.
+        var diamond = Graph(new[] { Tests },
+            new Dictionary<Assembly, Assembly[]> { [Tests] = new[] { A, Core }, [A] = new[] { B }, [B] = new[] { Core } },
+            Adopt(B, "B's use"), Adopt(Core, "Core's use"));
+        Assert.Equal(new[] { Tests, A, B, Core }, diamond.Assemblies);
+        var placement = diamond.Place(typeof(CorsConfiguration));
+        Assert.Same(Core, placement.Group);
+        Assert.Equal(new[] { B }, placement.AlsoUsedBy.Select(adoption => adoption.Adopter));
     }
 
     [Fact]
