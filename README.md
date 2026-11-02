@@ -170,6 +170,35 @@ type that receives the new value's id; for these, a dated `yyyy-MM-dd-xxxxxxxx`)
 `InstructionLink`. Rotation overlap (two active keys) belongs to the consuming code, expressed as
 members of its own type.
 
+**Generation inputs.** A generator may need something from the user beyond the draft — an admin
+credential to provision a client at a registry, a certificate's common name. It declares them as
+`Inputs` (`ConfigurationGenerationInput(Name, Label, Secret, Description, Optional)`; a default
+interface member, empty unless overridden), the catalog describes them
+(`ConfigurationMemberDescription.GeneratorInputs`), and the caller passes the answers in
+`ConfigurationGenerationContext.Inputs` (read with `InputValue(name)`, case-insensitive). The runner
+refuses a generate that lacks a required input, naming the input, before the generator runs. A
+`Secret` input is a credential: never argv, logs, persisted editor state or an exception message.
+
+**A generator may fail cleanly.** `ConfigurationGenerationResult.Failed(reason)` (a registry refused,
+an endpoint did not answer) reaches the caller as a refusal with that reason; the reason names
+endpoints and statuses, never a credential or a value.
+
+What EastFive generates for its own members:
+
+| Member | Generator | Fills | Note |
+| --- | --- | --- | --- |
+| `EastFiveTokens-SigningKey`, `EastFiveVoucher-SigningKey`, `EastFiveAdminLogin-SigningKey` | `[RsaKey]` | the key (PKCS#8 PEM) | tokens / vouchers / admin-login links signed with the old key stop validating |
+| `EastFiveApi-ApiKey`, `EastFiveSiteAdmin-Authorization`, `StorageDiagnostics-TableInformationToken` | `[SharedSecret]` | the secret | callers presenting the old value are refused |
+| `StorageEncryption-EncryptionKey` + `-EncryptionSalt` | `[StorageEncryptionKey]` | the passphrase (32 random bytes, base64url) AND a new GUID salt | every app reading the same `[StoreEncrypted]` rows needs both; rows encrypted with the old pair become unreadable |
+| `EastFiveAccessTokens-SigningSecret` | `[GenerateGuid]` | a GUID | signed links issued with the old value stop verifying |
+| `SamlServiceProvider-PrivateKey` + the SP certificate | `[SamlServiceProviderKey]` (input: optional common name) | an RSA-2048 key AND a self-signed X.509 certificate (SHA-256, 2 years, random serial; base64 DER under `EastFive.Security.CredentialProvider.SAML.ServiceProviderCertificate`) | outputs the certificate PEM and fingerprint; re-register the SP at every IdP |
+
+The SAML key is its own type, `SamlServiceProviderConfiguration` (`SamlServiceProvider`), which
+declares the certificate under the SAME values key `SamlConfiguration` reads: a secret member on
+`SamlConfiguration` would move that value-only type to the startup load, and a host without the key
+would publish metadata without a certificate. Nothing signs with the key yet; it is kept so the
+certificate can be renewed. `Validate` refuses a certificate that does not belong to the key.
+
 ### Typed key values
 
 The configuration TYPE documents purpose (a key with its key id and client id); the member's VALUE
