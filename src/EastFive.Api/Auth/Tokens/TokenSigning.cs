@@ -7,11 +7,11 @@ using EastFive.Configuration;
 namespace EastFive.Security.Tokens
 {
     /// <summary>
-    /// What signs and validates the tokens EastFive issues: the issuer, the RSA key (base64 of the
-    /// RSA XML, private for signing) and the algorithm. Handed to <see cref="JwtTools"/> explicitly,
-    /// or resolved from <see cref="TokenSigningConfiguration"/> as the host loaded it at startup.
+    /// What signs and validates the tokens EastFive issues: the issuer, the RSA private key and the
+    /// algorithm. Handed to <see cref="JwtTools"/> explicitly, or resolved from
+    /// <see cref="TokenSigningConfiguration"/> as the host loaded it at startup.
     /// </summary>
-    public sealed record TokenSigning(string Issuer, Secret RsaKey, string Algorithm)
+    public sealed record TokenSigning(string Issuer, RsaPrivateKey Key, string Algorithm)
     {
         public const string DefaultAlgorithm = Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSha256Signature;
 
@@ -20,8 +20,22 @@ namespace EastFive.Security.Tokens
             => StartupConfiguration.Get<TokenSigningConfiguration, TResult>(
                 config => onLoaded(config.ToSigning()), onUnavailable);
 
-        public TResult WithRsa<TResult>(Func<RSACryptoServiceProvider, TResult> onKey, Func<string, TResult> onInvalidKey)
-            => RsaKey.RSAFromSecret(onKey, onInvalidKey);
+        /// <summary>The key's shared RSA instance; the callee must not dispose it.</summary>
+        public TResult WithRsa<TResult>(Func<System.Security.Cryptography.RSA, TResult> onKey) => onKey(Key.Rsa);
+
+        /// <summary>The JWS name (<c>alg</c>) of <see cref="Algorithm"/>, which may be configured as an
+        /// XML-DSig URI; the key's own algorithm when the configured one is not an RSA JWS algorithm.</summary>
+        public string JwsAlgorithm => Algorithm switch
+        {
+            Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSha256Signature => "RS256",
+            Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSha384Signature => "RS384",
+            Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSha512Signature => "RS512",
+            Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSsaPssSha256Signature => "PS256",
+            Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSsaPssSha384Signature => "PS384",
+            Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSsaPssSha512Signature => "PS512",
+            var jws when RsaPrivateKey.IsAlgorithm(jws) => jws,
+            _ => Key.Algorithm,
+        };
     }
 
     /// <summary>The token issuer and signing key: <c>EastFive.Security.Token.Issuer</c> /
@@ -47,10 +61,9 @@ namespace EastFive.Security.Tokens
         public string Algorithm { get; set; } = default!;
 
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Signing key",
-            Description = "Base64 of the RSA key XML (private).", Location = "Generate it in the configuration editor")]
-        [GenerateRsaKey(2048, Format = ConfigurationRsaKeyFormat.RsaXmlBase64,
-            Instruction = "Tokens signed with the previous key stop validating once the new key is saved and the host restarts; signed-in users sign in again.")]
-        public Secret SigningKey { get; set; } = default!;
+            Description = "The RSA private key tokens are signed with.", Location = "Generate it in the configuration editor")]
+        [RsaKey(Instruction = "Tokens signed with the previous key stop validating once the new key is saved and the host restarts; signed-in users sign in again.")]
+        public RsaPrivateKey SigningKey { get; set; } = default!;
 
         [ConfigurationMember(ScopeKey, Kind = ConfigurationMemberKind.Optional,
             Label = "Scope", Description = "The audience (aud) of tokens this host issues.")]
@@ -86,11 +99,6 @@ namespace EastFive.Security.Tokens
             => StartupConfiguration.Get<TokenSigningConfiguration, TResult>(
                 config => config.Scope is { } scope ? onScope(scope) : onUnavailable($"[{ScopeKey}] is not configured."),
                 issue => onUnavailable(issue.ToString()));
-
-        public string? Validate()
-            => SigningKey == null || SigningKey.RSAFromSecret(rsa => { rsa.Dispose(); return true; }, _ => false)
-                ? null
-                : ((IProvideConfiguration)this).SecretReference(nameof(SigningKey)).Name;
 
         public TokenSigning ToSigning() => new(Issuer, SigningKey, string.IsNullOrWhiteSpace(Algorithm) ? TokenSigning.DefaultAlgorithm : Algorithm);
     }

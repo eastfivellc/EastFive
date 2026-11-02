@@ -137,8 +137,10 @@ namespace EastFive.Configuration
                 var member = members.FirstOrDefault(candidate => string.Equals(candidate.Property.Name, name, StringComparison.OrdinalIgnoreCase));
                 if (member == null)
                     return onRefused($"{where}'s generator returned '{name}', which {context.ConfigurationType.Name} does not declare; a generator fills members of its own type only.");
-                if (value == null || !ConfigurationValueConverter.TryConvert(member.Property.PropertyType, value.Trim(), out _))
-                    return onRefused($"{where}'s generator returned a value {context.ConfigurationType.Name}.{member.Property.Name} cannot hold ({member.Property.PropertyType.Name}).");
+                string? problem = null;
+                if (value == null || !member.TryConvert(value.Trim(), out _, out problem))
+                    return onRefused($"{where}'s generator returned a value {context.ConfigurationType.Name}.{member.Property.Name} cannot hold ({member.Property.PropertyType.Name})."
+                        + (problem != null ? $" {problem}." : string.Empty));
                 values[member.Property.Name] = value;
             }
             return onGenerated(result with { Values = values });

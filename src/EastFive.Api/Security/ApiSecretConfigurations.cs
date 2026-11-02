@@ -2,6 +2,7 @@
 using System;
 
 using EastFive.Configuration;
+using EastFive.Security;
 
 namespace EastFive.Api
 {
@@ -11,10 +12,10 @@ namespace EastFive.Api
     public sealed class ApiKeyConfiguration : IProvideConfiguration
     {
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "API key", Description = "The key callers present to [ApiSecurity] endpoints; absent, API-key access is off.")]
-        public Secret ApiKey { get; set; } = default!;
+        [SharedSecret]
+        public SharedSecret ApiKey { get; set; } = default!;
 
-        public bool Accepts(string? presented)
-            => !string.IsNullOrEmpty(presented) && string.Equals(presented, ApiKey.Reveal(), StringComparison.Ordinal);
+        public bool Accepts(string? presented) => ApiKey.Matches(presented);
     }
 
     /// <summary>A static bearer value that authenticates as the site super-admin. Secret
@@ -24,10 +25,10 @@ namespace EastFive.Api
     public sealed class SiteAdminAuthorizationConfiguration : IProvideConfiguration
     {
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Authorization value", Description = "The Authorization header value granted the super-admin actor.")]
-        public Secret Authorization { get; set; } = default!;
+        [SharedSecret]
+        public SharedSecret Authorization { get; set; } = default!;
 
-        public bool Accepts(string? presented)
-            => !string.IsNullOrEmpty(presented) && string.Equals(presented, Authorization.Reveal(), StringComparison.Ordinal);
+        public bool Accepts(string? presented) => Authorization.Matches(presented);
     }
 
     /// <summary>The GUID mixed into signed access-token URLs. Secret <c>EastFiveAccessTokens-SigningSecret</c>.</summary>

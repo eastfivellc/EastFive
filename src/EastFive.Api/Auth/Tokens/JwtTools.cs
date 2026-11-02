@@ -29,8 +29,7 @@ namespace EastFive.Security.Tokens
             return WithSigning(validateAgainst,
                 (signing, rsaProvider) =>
                 {
-                    using (rsaProvider)
-                        return ValidateIssuedBy(signing.Issuer);
+                    return ValidateIssuedBy(signing.Issuer);
 
                     TResult ValidateIssuedBy(string issuer)
                             {
@@ -98,7 +97,7 @@ namespace EastFive.Security.Tokens
 
         /// <summary>The explicit signing, or the host's (<see cref="TokenSigning.Current{TResult}"/>), with its RSA key opened.</summary>
         private static TResult WithSigning<TResult>(TokenSigning signing,
-            Func<TokenSigning, System.Security.Cryptography.RSACryptoServiceProvider, TResult> onSigning,
+            Func<TokenSigning, System.Security.Cryptography.RSA, TResult> onSigning,
             Func<string, TResult> missingConfigurationSetting,
             Func<string, string, TResult> invalidConfigurationSetting)
         {
@@ -110,8 +109,7 @@ namespace EastFive.Security.Tokens
                         : missingConfigurationSetting(issue.ToString()));
 
             TResult Open(TokenSigning current)
-                => current.WithRsa(rsa => onSigning(current, rsa),
-                    why => invalidConfigurationSetting(nameof(TokenSigning.RsaKey), why));
+                => current.WithRsa(rsa => onSigning(current, rsa));
         }
 
         public static TResult CreateToken<TResult>(Uri scope,
@@ -323,29 +321,20 @@ namespace EastFive.Security.Tokens
         }
 
         public static TResult CreateToken<TResult>(
-            this string secretAsRSAXmlBase64,
+            this RsaPrivateKey key,
             string issuer,
             Uri scope,
             DateTime issued, TimeSpan duration,
             IEnumerable<Claim> claims,
-            Func<string, TResult> tokenCreated,
-            Func<string, TResult> onInvalidSecret)
+            Func<string, TResult> tokenCreated)
         {
-            return RSA.RSAFromBase64(secretAsRSAXmlBase64,
-                (rsaProvider) =>
-                {
-                    using (rsaProvider)
-                    {
-                        var token = rsaProvider.JwtToken(issuer, scope, claims,
-                            issued, duration,
-                            Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSha256Signature);
-                        return tokenCreated(token);
-                    }
-                },
-                onInvalidSecret);
+            var token = key.Rsa.JwtToken(issuer, scope, claims,
+                issued, duration,
+                Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSha256Signature);
+            return tokenCreated(token);
         }
 
-        public static string JwtToken(this System.Security.Cryptography.RSACryptoServiceProvider rsaProvider,
+        public static string JwtToken(this System.Security.Cryptography.RSA rsaProvider,
             string issuer, Uri scope,
             IEnumerable<Claim> claims,
             DateTime issued, TimeSpan duration,

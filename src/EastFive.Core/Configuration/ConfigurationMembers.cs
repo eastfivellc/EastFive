@@ -56,6 +56,28 @@ namespace EastFive.Configuration
         /// a second is a declaration error).</summary>
         public IGenerateConfigurationValue? Generator
             => Property.GetCustomAttributes(inherit: true).OfType<IGenerateConfigurationValue>().FirstOrDefault();
+
+        /// <summary>The member's parser, when an attribute on the property provides one (at most one).</summary>
+        public IParseConfigurationValue? Parser
+            => Property.GetCustomAttributes(inherit: true).OfType<IParseConfigurationValue>().FirstOrDefault();
+
+        /// <summary>
+        /// Text to the member's type: through its <see cref="Parser"/> when it declares one, else
+        /// <see cref="ConfigurationValueConverter"/>. <paramref name="problem"/> is the parser's message
+        /// (it names kinds, never the value); null for an ordinary conversion failure.
+        /// </summary>
+        public bool TryConvert(string text, out object? value, out string? problem)
+        {
+            if (Parser is not { } parser)
+            {
+                problem = null;
+                return ConfigurationValueConverter.TryConvert(Property.PropertyType, text, out value);
+            }
+            (value, problem) = parser.Parse(text,
+                parsed => ((object?)parsed, (string?)null),
+                why => (null, why));
+            return problem == null;
+        }
     }
 
     /// <summary>
@@ -245,13 +267,23 @@ namespace EastFive.Configuration
             var where = $"{configurationType.Name}.{property.Name} [{attribute.Key ?? "(secret)"}]";
             if (property.SetMethod == null)
                 throw new InvalidOperationException($"{where} needs a setter (init is fine) so the loader can populate it.");
-            if (!ConfigurationValueConverter.IsSupported(property.PropertyType))
-                throw new InvalidOperationException($"{where} is typed {property.PropertyType.Name}, which the loader cannot convert from a string.");
+            var parsers = property.GetCustomAttributes(inherit: true).OfType<IParseConfigurationValue>().ToArray();
+            if (parsers.Length > 1)
+                throw new InvalidOperationException($"{where} declares more than one parser.");
+            var parser = parsers.SingleOrDefault();
+            var memberType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+            if (parser == null && !ConfigurationValueConverter.IsSupported(property.PropertyType))
+                throw new InvalidOperationException($"{where} is typed {property.PropertyType.Name}, which the loader cannot convert from a string"
+                    + " (a typed value needs the attribute that parses it, e.g. [RsaKey] on an RsaPrivateKey).");
+            if (parser != null && !memberType.IsAssignableFrom(parser.ValueType))
+                throw new InvalidOperationException($"{where} is typed {property.PropertyType.Name}, but its parser produces {parser.ValueType.Name}.");
+            if (parser is { IsSecretMaterial: true } && attribute.Kind != ConfigurationMemberKind.Secret)
+                throw new InvalidOperationException($"{where} holds secret material ({parser.ValueKind}) and must be Secret, read from the secret store.");
 
             switch (attribute.Kind)
             {
-                case ConfigurationMemberKind.Secret when property.PropertyType != typeof(Secret):
-                    throw new InvalidOperationException($"{where} is Secret and must be typed {nameof(Secret)}, not {property.PropertyType.Name}.");
+                case ConfigurationMemberKind.Secret when property.PropertyType != typeof(Secret) && parser == null:
+                    throw new InvalidOperationException($"{where} is Secret and must be typed {nameof(Secret)} or carry a parser, not {property.PropertyType.Name}.");
                 case ConfigurationMemberKind.Secret when attribute.Default != null:
                     throw new InvalidOperationException($"{where} is Secret and cannot be Defaulted; the two are mutually exclusive.");
                 case ConfigurationMemberKind.Secret when attribute.Key != null:

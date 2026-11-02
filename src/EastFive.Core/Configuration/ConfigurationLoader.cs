@@ -32,14 +32,16 @@ namespace EastFive.Configuration
 
     /// <summary>
     /// One row of a doctor's view: the member, the key (values) or generated name (secrets) it is
-    /// read by, how it stood, and — for a secret that was found or resolved — where from.
+    /// read by, how it stood, and — for a secret that was found or resolved — where from. An
+    /// <see cref="ConfigurationMemberPresence.Invalid"/> member's parser names why in <see cref="Problem"/>.
     /// Carries no values.
     /// </summary>
     public sealed record ConfigurationMemberStatus(
         ConfigurationMember Member,
         string Name,
         ConfigurationMemberPresence Presence,
-        string? Source)
+        string? Source,
+        string? Problem = null)
     {
         public bool IsGap => Presence is ConfigurationMemberPresence.Missing
             or ConfigurationMemberPresence.Invalid or ConfigurationMemberPresence.Failed;
@@ -324,8 +326,8 @@ namespace EastFive.Configuration
                     }
                 }
 
-                if (!ConfigurationValueConverter.TryConvert(member.Property.PropertyType, text!.Trim(), out var converted))
-                    return onInvalid(Issue(ConfigIssueCategory.Invalid));
+                if (!member.TryConvert(text!.Trim(), out var converted, out var problem))
+                    return onInvalid(Issue(ConfigIssueCategory.Invalid) with { Problem = problem });
                 member.Property.SetValue(config, converted);
             }
 
@@ -413,8 +415,8 @@ namespace EastFive.Configuration
                     ConfigurationMemberKind.Defaulted => ConfigurationMemberPresence.Defaulted,
                     _ => ConfigurationMemberPresence.Missing,
                 }, null);
-            if (!ConfigurationValueConverter.TryConvert(member.Property.PropertyType, read.Text.Trim(), out var converted))
-                return new ConfigurationMemberStatus(member, name, ConfigurationMemberPresence.Invalid, read.Source);
+            if (!member.TryConvert(read.Text.Trim(), out var converted, out var problem))
+                return new ConfigurationMemberStatus(member, name, ConfigurationMemberPresence.Invalid, read.Source, problem);
             if (!member.IsSecret)
                 member.Property.SetValue(config, converted);
             return new ConfigurationMemberStatus(member, name, ConfigurationMemberPresence.Present, read.Source);

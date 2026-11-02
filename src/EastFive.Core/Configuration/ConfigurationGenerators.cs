@@ -17,28 +17,7 @@ namespace EastFive.Configuration
         Hex,
     }
 
-    /// <summary>How a generated RSA private key is written.</summary>
-    public enum ConfigurationRsaKeyFormat
-    {
-        /// <summary>PKCS#8 PEM (<c>-----BEGIN PRIVATE KEY-----</c>).</summary>
-        Pem,
-        /// <summary>Base64 of the PKCS#8 DER.</summary>
-        Pkcs8Base64,
-        /// <summary>Base64 of the .NET RSA key XML: what <c>EastFive.Security.RSA.RSAFromSecret</c> reads.</summary>
-        RsaXmlBase64,
-    }
-
-    /// <summary>How a generated EC private key is written.</summary>
-    public enum ConfigurationEcKeyFormat
-    {
-        /// <summary>PKCS#8 PEM (<c>-----BEGIN PRIVATE KEY-----</c>).</summary>
-        Pem,
-        /// <summary>Base64 of the PKCS#8 DER.</summary>
-        Pkcs8Base64,
-        /// <summary>Base64 of the SEC 1 ECPrivateKey DER: what <c>EastFive.Security.ECDSA.FromPrivateKey</c> reads.</summary>
-        EcPrivateKeyBase64,
-    }
-
+    /// <summary>A named curve an EC key is on (<c>EastFive.Security.EcKeyAttribute</c>).</summary>
     public enum ConfigurationEcCurve
     {
         P256,
@@ -56,7 +35,8 @@ namespace EastFive.Configuration
     {
         public abstract string Label { get; }
 
-        /// <summary>A member of the same type that receives the new key's dated id (<c>yyyy-MM-dd-xxxxxxxx</c>).</summary>
+        /// <summary>A member of the same type that receives the new value's id: a key pair's RFC 7638
+        /// thumbprint, otherwise a dated id (<c>yyyy-MM-dd-xxxxxxxx</c>).</summary>
         public string? KeyIdMember { get; init; }
 
         /// <summary>A step to take outside configuration once the value is generated.</summary>
@@ -73,7 +53,7 @@ namespace EastFive.Configuration
         {
             var keyId = new Lazy<string>(context.NewKeyId);
             var result = Generate(context, keyId);
-            if (KeyIdMember != null)
+            if (KeyIdMember != null && !result.Values.ContainsKey(KeyIdMember))
                 result = result.WithValue(KeyIdMember, keyId.Value);
             if (Instruction != null)
                 result = result.WithInstruction(Instruction, InstructionLink);
@@ -162,140 +142,6 @@ namespace EastFive.Configuration
             bytes[7] = (byte)((bytes[7] & 0x0F) | 0x40); // version 4 (Guid's little-endian layout)
             bytes[8] = (byte)((bytes[8] & 0x3F) | 0x80); // RFC 4122 variant
             return ConfigurationGenerationResult.Of(context.Member.Property.Name, new Guid(bytes).ToString(Format));
-        }
-    }
-
-    /// <summary>An AES key of <see cref="Size"/> bits (128, 192 or 256), written in <see cref="Encoding"/> (default base64).</summary>
-    public sealed class GenerateAesKeyAttribute : ConfigurationValueGeneratorAttribute
-    {
-        public GenerateAesKeyAttribute(int size = 256)
-        {
-            if (size is not (128 or 192 or 256))
-                throw new ArgumentOutOfRangeException(nameof(size), size, "An AES key is 128, 192 or 256 bits.");
-            Size = size;
-        }
-
-        public int Size { get; }
-
-        public ConfigurationRandomEncoding Encoding { get; init; } = ConfigurationRandomEncoding.Base64;
-
-        public override string Label => $"AES-{Size} key, {EncodingName(Encoding)}";
-
-        protected override ConfigurationGenerationResult Generate(ConfigurationGenerationContext context, Lazy<string> keyId)
-            => ConfigurationGenerationResult.Of(context.Member.Property.Name, Encode(context.RandomBytes(Size / 8), Encoding));
-    }
-
-    /// <summary>
-    /// An RSA key pair of <see cref="Size"/> bits: the private key in <see cref="Format"/> fills the
-    /// member; the public key (PEM) and a JWKS entry (<see cref="Algorithm"/>, default RS256) are outputs.
-    /// </summary>
-    public sealed class GenerateRsaKeyAttribute : ConfigurationValueGeneratorAttribute
-    {
-        public GenerateRsaKeyAttribute(int size = 2048)
-        {
-            if (size < 2048 || size > 16384 || size % 8 != 0)
-                throw new ArgumentOutOfRangeException(nameof(size), size, "An RSA key is 2048 to 16384 bits, in whole bytes.");
-            Size = size;
-        }
-
-        public int Size { get; }
-
-        public ConfigurationRsaKeyFormat Format { get; init; } = ConfigurationRsaKeyFormat.Pem;
-
-        /// <summary>The JWK's <c>alg</c>.</summary>
-        public string Algorithm { get; init; } = "RS256";
-
-        public override string Label => $"RSA {Size} key pair ({FormatName})";
-
-        private string FormatName => Format switch
-        {
-            ConfigurationRsaKeyFormat.Pkcs8Base64 => "base64 PKCS#8",
-            ConfigurationRsaKeyFormat.RsaXmlBase64 => "base64 RSA XML",
-            _ => "PEM",
-        };
-
-        protected override ConfigurationGenerationResult Generate(ConfigurationGenerationContext context, Lazy<string> keyId)
-        {
-            using var rsa = RSA.Create(Size);
-            var privateKey = Format switch
-            {
-                ConfigurationRsaKeyFormat.Pkcs8Base64 => Convert.ToBase64String(rsa.ExportPkcs8PrivateKey()),
-                ConfigurationRsaKeyFormat.RsaXmlBase64 => Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes(rsa.ToXmlString(true))),
-                _ => rsa.ExportPkcs8PrivateKeyPem(),
-            };
-            var parameters = rsa.ExportParameters(false);
-            return WithKeyPairOutputs(ConfigurationGenerationResult.Of(context.Member.Property.Name, privateKey),
-                rsa.ExportSubjectPublicKeyInfoPem(),
-                new Dictionary<string, string>
-                {
-                    ["kty"] = "RSA",
-                    ["use"] = "sig",
-                    ["alg"] = Algorithm,
-                    ["kid"] = keyId.Value,
-                    ["n"] = Base64Url(parameters.Modulus!),
-                    ["e"] = Base64Url(parameters.Exponent!),
-                },
-                keyId.Value);
-        }
-    }
-
-    /// <summary>
-    /// An EC key pair on <see cref="Curve"/>: the private key in <see cref="Format"/> fills the member;
-    /// the public key (PEM) and a JWKS entry (ES256/ES384/ES512 by curve) are outputs.
-    /// </summary>
-    public sealed class GenerateEcKeyAttribute : ConfigurationValueGeneratorAttribute
-    {
-        public GenerateEcKeyAttribute(ConfigurationEcCurve curve = ConfigurationEcCurve.P256) => Curve = curve;
-
-        public ConfigurationEcCurve Curve { get; }
-
-        public ConfigurationEcKeyFormat Format { get; init; } = ConfigurationEcKeyFormat.Pem;
-
-        private string CurveName => Curve switch
-        {
-            ConfigurationEcCurve.P384 => "P-384",
-            ConfigurationEcCurve.P521 => "P-521",
-            _ => "P-256",
-        };
-
-        private string FormatName => Format switch
-        {
-            ConfigurationEcKeyFormat.Pkcs8Base64 => "base64 PKCS#8",
-            ConfigurationEcKeyFormat.EcPrivateKeyBase64 => "base64 EC private key",
-            _ => "PEM",
-        };
-
-        public override string Label => $"EC {CurveName} key pair ({FormatName})";
-
-        protected override ConfigurationGenerationResult Generate(ConfigurationGenerationContext context, Lazy<string> keyId)
-        {
-            var (curve, algorithm) = Curve switch
-            {
-                ConfigurationEcCurve.P384 => (ECCurve.NamedCurves.nistP384, "ES384"),
-                ConfigurationEcCurve.P521 => (ECCurve.NamedCurves.nistP521, "ES512"),
-                _ => (ECCurve.NamedCurves.nistP256, "ES256"),
-            };
-            using var ecdsa = ECDsa.Create(curve);
-            var privateKey = Format switch
-            {
-                ConfigurationEcKeyFormat.Pkcs8Base64 => Convert.ToBase64String(ecdsa.ExportPkcs8PrivateKey()),
-                ConfigurationEcKeyFormat.EcPrivateKeyBase64 => Convert.ToBase64String(ecdsa.ExportECPrivateKey()),
-                _ => ecdsa.ExportPkcs8PrivateKeyPem(),
-            };
-            var point = ecdsa.ExportParameters(false).Q;
-            return WithKeyPairOutputs(ConfigurationGenerationResult.Of(context.Member.Property.Name, privateKey),
-                ecdsa.ExportSubjectPublicKeyInfoPem(),
-                new Dictionary<string, string>
-                {
-                    ["kty"] = "EC",
-                    ["use"] = "sig",
-                    ["alg"] = algorithm,
-                    ["kid"] = keyId.Value,
-                    ["crv"] = CurveName,
-                    ["x"] = Base64Url(point.X!),
-                    ["y"] = Base64Url(point.Y!),
-                },
-                keyId.Value);
         }
     }
 }

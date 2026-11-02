@@ -22,17 +22,13 @@ namespace EastFive.Azure.Auth.Voucher
             byte[] signatureData;
             var hashedData = ComputeHashData(authId, validUntilUtc, out signatureData);
             return EastFive.Configuration.StartupConfiguration.Get<EastFive.Security.VoucherConfiguration, string>(
-                configuration => configuration.SigningKey.RSAFromSecret(
-                (trustedVoucherPrivateKey) =>
+                configuration =>
                 {
-                    using (trustedVoucherPrivateKey)
-                    {
-                        var signature = trustedVoucherPrivateKey.SignHash(hashedData, CryptoConfig.MapNameToOID("SHA256"));
-                        var tokenBytes = signatureData.Concat(signature).ToArray();
-                        return Convert.ToBase64String(tokenBytes);
-                    }
+                    using var trustedVoucherPrivateKey = configuration.SigningKey.CreateRsa();
+                    var signature = trustedVoucherPrivateKey.SignHash(hashedData, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                    var tokenBytes = signatureData.Concat(signature).ToArray();
+                    return Convert.ToBase64String(tokenBytes);
                 },
-                (why) => throw new EastFive.Web.ConfigurationException(nameof(EastFive.Security.VoucherConfiguration.SigningKey), typeof(EastFive.Security.VoucherConfiguration), why)),
                 issue => throw new EastFive.Web.ConfigurationException(issue.Key, typeof(EastFive.Security.VoucherConfiguration), issue.ToString()));
         }
 
@@ -77,21 +73,17 @@ namespace EastFive.Azure.Auth.Voucher
             byte[] signatureData;
             var hashedData = ComputeHashData(authId, validUntilUtc, out signatureData);
             return EastFive.Configuration.StartupConfiguration.Get<EastFive.Security.VoucherConfiguration, T>(
-                configuration => configuration.SigningKey.RSAFromSecret(
-                (trustedVoucher) =>
+                configuration =>
                 {
-                    using (trustedVoucher)
-                    {
-                        if (!trustedVoucher.VerifyHash(hashedData, CryptoConfig.MapNameToOID("SHA256"), providedSignature))
-                            return invalidSignature("Cannot verify hash - authId: " + authId +
-                                "   validUntilUtc: " + validUntilUtc +
-                                "   hashedData: " + hashedData +
-                                "   providedSignature: " + providedSignature);
+                    using var trustedVoucher = configuration.SigningKey.CreateRsa();
+                    if (!trustedVoucher.VerifyHash(hashedData, providedSignature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1))
+                        return invalidSignature("Cannot verify hash - authId: " + authId +
+                            "   validUntilUtc: " + validUntilUtc +
+                            "   hashedData: " + hashedData +
+                            "   providedSignature: " + providedSignature);
 
-                        return success(authId);
-                    }
+                    return success(authId);
                 },
-                (why) => unspecifiedConfiguration($"{nameof(EastFive.Security.VoucherConfiguration)}: {why}")),
                 issue => unspecifiedConfiguration(issue.ToString()));
         }
 

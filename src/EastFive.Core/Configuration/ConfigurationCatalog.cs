@@ -17,7 +17,9 @@ namespace EastFive.Configuration
         string? SecretNameTemplate,
         bool HasLookup,
         string? AccountSegmentTranslation = null,
-        string? GeneratorLabel = null);
+        string? GeneratorLabel = null,
+        string? ValueKind = null,
+        IReadOnlyList<string>? AcceptedFormats = null);
 
     /// <summary>One configuration type: its generated-name segment, metadata, members, and whether it
     /// can test a draft.</summary>
@@ -109,7 +111,9 @@ namespace EastFive.Configuration
                         : null,
                     member.Lookup != null,
                     member.IsAccount ? member.AccountSegment?.GetType().Name : null,
-                    member.Generator?.Label))
+                    member.Generator?.Label,
+                    member.Parser?.ValueKind,
+                    member.Parser?.AcceptedFormats))
                 .ToArray();
             return new ConfigurationTypeDescription(
                 configurationType,
