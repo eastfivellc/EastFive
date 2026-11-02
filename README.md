@@ -222,10 +222,12 @@ merely unconfigured). Keys, secret names, defaults and validation stay the libra
 the library still reads its own keys; there is deliberately no way to override a default.
 `ConfigurationAdoptions.Of(assembly)` lists an assembly's adoptions and refuses a malformed one
 (not a concrete configuration type, declared by the adopter itself, from an assembly it does not
-reference, or adopted twice). `ConfigurationGraph.Of(roots)` walks a host's reference graph —
-roots first, then by distance, ties by root order — and `Place(type)` puts each type under the
-adopter closest to the roots, listing the other adopters as also using it; a type nobody in the
-graph adopts stays under its declaring assembly.
+reference, or adopted twice). `ConfigurationGraph.Of(roots)` walks a host's reference graph and
+orders it by dependency depth — roots first, then by the longest reference path from the roots,
+so an assembly always comes before the assemblies it references; ties by root order, then name.
+`Place(type)` is by distance, not that order: it puts each type under the adopter closest to the
+roots, listing the other adopters as also using it; a type nobody in the graph adopts stays under
+its declaring assembly.
 
 ### Where secrets come from
 
