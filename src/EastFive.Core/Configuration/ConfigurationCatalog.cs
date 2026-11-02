@@ -19,7 +19,8 @@ namespace EastFive.Configuration
         string? AccountSegmentTranslation = null,
         string? GeneratorLabel = null,
         string? ValueKind = null,
-        IReadOnlyList<string>? AcceptedFormats = null);
+        IReadOnlyList<string>? AcceptedFormats = null,
+        IReadOnlyList<ConfigurationGenerationInput>? GeneratorInputs = null);
 
     /// <summary>One configuration type: its generated-name segment, metadata, members, and whether it
     /// can test a draft.</summary>
@@ -113,7 +114,8 @@ namespace EastFive.Configuration
                     member.IsAccount ? member.AccountSegment?.GetType().Name : null,
                     member.Generator?.Label,
                     member.Parser?.ValueKind,
-                    member.Parser?.AcceptedFormats))
+                    member.Parser?.AcceptedFormats,
+                    member.Generator?.Inputs))
                 .ToArray();
             return new ConfigurationTypeDescription(
                 configurationType,

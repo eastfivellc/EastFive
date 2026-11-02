@@ -35,6 +35,9 @@ namespace EastFive.Configuration
     {
         public abstract string Label { get; }
 
+        /// <summary>What this generator asks the user for; none by default.</summary>
+        public virtual IReadOnlyList<ConfigurationGenerationInput> Inputs => Array.Empty<ConfigurationGenerationInput>();
+
         /// <summary>A member of the same type that receives the new value's id: a key pair's RFC 7638
         /// thumbprint, otherwise a dated id (<c>yyyy-MM-dd-xxxxxxxx</c>).</summary>
         public string? KeyIdMember { get; init; }
