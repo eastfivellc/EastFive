@@ -92,7 +92,7 @@ namespace EastFive.Azure
     public sealed class TableInformationConfiguration : IProvideConfiguration
     {
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Table information token", Description = "Token a caller presents to read table information; absent, the endpoint is closed.")]
-        [EastFive.Security.SharedSecret]
+        [EastFive.Security.SharedSecret(Instruction = "Give the new token to whoever reads table information (the StorageTableInformation header); the previous token is refused once it is saved.")]
         public EastFive.Security.SharedSecret TableInformationToken { get; set; } = default!;
     }
 }

@@ -121,4 +121,44 @@ public class GenerationInputsTests
         var (result, _) = await RunAsync(Context(nameof(WithInputs.Plain), new Dictionary<string, string?> { ["stray"] = "x" }));
         Assert.True(Guid.TryParse(result!.Values[nameof(WithInputs.Plain)], out _));
     }
+
+    // ---- the access-token signing GUID ----
+
+    [Fact]
+    public async Task TheAccessTokenSigningSecret_GeneratesAGuid_ThatSignsAndVerifiesAUrl()
+    {
+        var member = ConfigurationMembers.For<AccessTokenSecretConfiguration>().Members.Single();
+        var generated = await ConfigurationGeneration.GenerateAsync(
+            new ConfigurationGenerationContext(typeof(AccessTokenSecretConfiguration), member, new Dictionary<string, string?>()),
+            result => result, why => throw new Xunit.Sdk.XunitException(why), why => throw new Xunit.Sdk.XunitException(why));
+        var value = generated.Values[nameof(AccessTokenSecretConfiguration.SigningSecret)];
+        Assert.True(Guid.TryParseExact(value, "D", out _));
+        Assert.Contains(generated.Instructions, instruction => instruction.Text.Contains("stop verifying", StringComparison.Ordinal));
+
+        var configuration = new AccessTokenSecretConfiguration { SigningSecret = new Secret(value) };
+        Assert.Null(configuration.Validate());
+        var prior = StartupConfiguration.Get<AccessTokenSecretConfiguration, AccessTokenSecretConfiguration?>(loaded => loaded, _ => null);
+        StartupConfiguration.Set(configuration);
+        try
+        {
+            var original = new Uri("https://api.example.test/files/7?x=1");
+            var (session, account) = (Guid.NewGuid(), Guid.NewGuid());
+            var signed = original.SignWithAccessTokenAccount(session, account, DateTime.UtcNow.AddHours(1), url => url,
+                () => throw new Xunit.Sdk.XunitException("not configured"));
+            var token = System.Web.HttpUtility.ParseQueryString(signed.Query)[AccessTokenAccountExtensions.QueryParameter]!;
+            var bytes = Convert.FromBase64String(token.Replace('-', '+').Replace('_', '/').PadRight(token.Length + (4 - token.Length % 4) % 4, '='));
+            var seconds = BitConverter.ToUInt32(bytes, 32);
+            var claimsLength = (int)BitConverter.ToUInt32(bytes, 36);
+            var signature = bytes.Skip(40 + claimsLength).ToArray();
+            Assert.True(signature.VerifySignature(session, account, seconds, original, () => true, () => false));
+
+            StartupConfiguration.Set(new AccessTokenSecretConfiguration { SigningSecret = new Secret(Guid.NewGuid().ToString()) });
+            Assert.False(signature.VerifySignature(session, account, seconds, original, () => true, () => false));
+        }
+        finally
+        {
+            if (prior != null) StartupConfiguration.Set(prior);
+            else StartupConfiguration.Forget<AccessTokenSecretConfiguration>();
+        }
+    }
 }

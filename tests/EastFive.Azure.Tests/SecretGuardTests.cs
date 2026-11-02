@@ -72,6 +72,7 @@ public class SecretGuardTests
         "PingAthena-RestApiKey",
         "Postman-ApiKey",
         "Salesforce-ConsumerSecret",
+        "SamlServiceProvider-PrivateKey",
         "ServiceBus-ConnectionString",
         "StorageDiagnostics-TableInformationToken",
         "StorageEncryption-EncryptionKey",

@@ -12,7 +12,7 @@ namespace EastFive.Api
     public sealed class ApiKeyConfiguration : IProvideConfiguration
     {
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "API key", Description = "The key callers present to [ApiSecurity] endpoints; absent, API-key access is off.")]
-        [SharedSecret]
+        [SharedSecret(Instruction = "Give the new key to every caller of the [ApiSecurity] endpoints (query ApiSecurityKey or the Authorization header). Callers presenting the previous key are refused once it is saved.")]
         public SharedSecret ApiKey { get; set; } = default!;
 
         public bool Accepts(string? presented) => ApiKey.Matches(presented);
@@ -25,7 +25,7 @@ namespace EastFive.Api
     public sealed class SiteAdminAuthorizationConfiguration : IProvideConfiguration
     {
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Authorization value", Description = "The Authorization header value granted the super-admin actor.")]
-        [SharedSecret]
+        [SharedSecret(Instruction = "Anyone holding this value acts as the super-admin. Give it only to the operator tooling that needs it; the previous value is refused once the new one is saved.")]
         public SharedSecret Authorization { get; set; } = default!;
 
         public bool Accepts(string? presented) => Authorization.Matches(presented);
@@ -37,6 +37,7 @@ namespace EastFive.Api
     public sealed class AccessTokenSecretConfiguration : IProvideConfiguration
     {
         [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Description = "A GUID.", Label = "Signing secret")]
+        [GenerateGuid(Instruction = "Signed links issued with the previous value stop verifying once the new value is saved and the host restarts; every host that signs or verifies these links needs the same value.")]
         public Secret SigningSecret { get; set; } = default!;
 
         public Guid SigningGuid => Guid.Parse(SigningSecret.Reveal());
