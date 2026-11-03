@@ -288,6 +288,14 @@ On a deployed host `useAzureCli` is ignored with a warning and managed identity 
 `KeyVaultAccess.CreateCredential` is the one construction, public so a probe builds exactly what
 a read uses (`ResolveMode` answers the mode without building anything).
 
+A failure reaches the caller as a `SecretFailure`: a `Kind` (`auth_failed`, `forbidden`,
+`network`, `credential_unavailable`, `other`), the HTTP status, the AADSTS code parsed from an
+`AuthenticationFailedException` (7000222 expired secret, 7000215 invalid secret, 700016 unknown
+application, 90002 unknown tenant) and the service error code (`ForbiddenByRbac`). Its message is
+composed from those parts, never copied from the SDK, so it carries no ids or secrets.
+`KeyVaultFailures.Classify` is public for the same probe. A typed load keeps it: a
+`SourceFailure` `ConfigIssue` carries the `Failure`, and its message becomes the `Problem`.
+
 Until a host initializes it, `SecretStore.Current` is the local overrides alone.
 
 ### Synchronous readers: load at startup

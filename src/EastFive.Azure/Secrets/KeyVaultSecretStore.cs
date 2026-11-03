@@ -3,6 +3,8 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 using Azure;
@@ -125,6 +127,103 @@ namespace EastFive.Azure.Secrets
     }
 
     /// <summary>
+    /// Classifies what a vault read (or a token request for one) threw into a
+    /// <see cref="SecretFailure"/>: the kind, the HTTP status, the AADSTS code and the service
+    /// error code. The message is composed here from those parts, never copied from the SDK,
+    /// except a credential-unavailable reason, which is scrubbed and truncated.
+    /// </summary>
+    public static class KeyVaultFailures
+    {
+        private static readonly Regex AadstsCode = new(@"AADSTS(\d{5,7})", RegexOptions.Compiled);
+        private static readonly Regex SecretLike = new(
+            @"(?i)(client_secret|password|secret)\s*[=:]\s*\S+|(?<![\w~.\-])(?=[\w~.\-]*~)[\w~.\-]{24,}(?![\w~.\-])",
+            RegexOptions.Compiled);
+
+        /// <summary>A known AADSTS code's plain reason; unknown codes are reported by number only.</summary>
+        public static string? Explain(string aadsts)
+            => aadsts switch
+            {
+                "7000222" => "the client secret has expired",
+                "7000215" => "the client secret is invalid",
+                "700016" => "the application (client id) was not found in the tenant",
+                "90002" => "the tenant was not found",
+                "700024" => "the client assertion is not within its valid time range",
+                "50173" => "the sign-in grant has expired; sign in again",
+                _ => null,
+            };
+
+        /// <summary><c>null</c> when <paramref name="error"/> is not a vault/credential failure
+        /// (the caller lets it propagate).</summary>
+        public static SecretFailure? Classify(Exception error, string host, string? name = null)
+        {
+            var about = name == null ? string.Empty : $" for [{name}]";
+            switch (error)
+            {
+                case CredentialUnavailableException unavailable:
+                    return new SecretFailure(SecretFailureKind.CredentialUnavailable,
+                        $"Vault {host}: the credential is unavailable{about}: {Scrub(unavailable.Message)}");
+                case AuthenticationFailedException failed:
+                {
+                    var code = Aadsts(failed);
+                    var reason = code == null ? null : Explain(code);
+                    var detail = (reason, code) switch
+                    {
+                        ({ } plain, { } number) => $"{plain} (AADSTS{number})",
+                        (null, { } number) => $"AADSTS{number}",
+                        _ => "no reason was given",
+                    };
+                    return new SecretFailure(SecretFailureKind.AuthFailed,
+                        $"Vault {host}: sign-in was refused{about}: {detail}.", Aadsts: code);
+                }
+                case RequestFailedException { Status: 0 } request:
+                    return new SecretFailure(SecretFailureKind.Network,
+                        $"Vault {host} could not be reached{about} ({(request.InnerException ?? request).GetType().Name}).");
+                case RequestFailedException { Status: 401 } request:
+                    return new SecretFailure(SecretFailureKind.AuthFailed,
+                        $"Vault {host} did not accept the token{about} (401{CodeSuffix(request.ErrorCode)}).",
+                        Status: 401, Aadsts: Aadsts(request), Code: request.ErrorCode);
+                case RequestFailedException { Status: 403 } request:
+                    return new SecretFailure(SecretFailureKind.Forbidden,
+                        $"Vault {host} denied the read{about} (403{CodeSuffix(request.ErrorCode)}): the signed-in principal has no secret read access.",
+                        Status: 403, Code: request.ErrorCode);
+                case RequestFailedException request:
+                    return new SecretFailure(SecretFailureKind.Other,
+                        $"Vault {host} answered {request.Status}{about}{CodeSuffix(request.ErrorCode)}.",
+                        Status: request.Status, Code: request.ErrorCode);
+                case HttpRequestException or TaskCanceledException:
+                    return new SecretFailure(SecretFailureKind.Network,
+                        $"Vault {host} could not be reached{about} ({error.GetType().Name}).");
+                default:
+                    return null;
+            }
+        }
+
+        private static string CodeSuffix(string? code)
+            => string.IsNullOrEmpty(code) ? string.Empty : " " + code;
+
+        private static string? Aadsts(Exception error)
+            => Chain(error)
+                .Select(each => AadstsCode.Match(each.Message))
+                .Where(match => match.Success)
+                .Select(match => match.Groups[1].Value)
+                .FirstOrDefault();
+
+        private static IEnumerable<Exception> Chain(Exception error)
+        {
+            for (Exception? each = error; each != null; each = each.InnerException)
+                yield return each;
+        }
+
+        /// <summary>The first line, secret-looking tokens redacted, at most 240 characters.</summary>
+        public static string Scrub(string text)
+        {
+            var line = (text ?? string.Empty).Split('\n', 2)[0].Trim();
+            var clean = SecretLike.Replace(line, "[redacted]");
+            return clean.Length <= 240 ? clean : clean[..240] + "…";
+        }
+    }
+
+    /// <summary>
     /// The environment's vaults, in order, read by secret NAME through one <see cref="SecretClient"/>
     /// per vault (never as an <c>IConfiguration</c> provider, so no dot/dash mapping exists). The
     /// first vault holding the name wins; a 404 falls through to the next; any other error is a
@@ -189,10 +288,10 @@ namespace EastFive.Azure.Secrets
         public async Task<TResult> GetSecretAsync<TResult>(string name,
             Func<Secret, SecretSource, TResult> onFound,
             Func<TResult> onMissing,
-            Func<string, TResult> onFailure)
+            Func<SecretFailure, TResult> onFailure)
         {
             if (!SecretNames.IsValidName(name))
-                return onFailure($"[{name}] is not a valid secret name.");
+                return onFailure(SecretFailure.Other($"[{name}] is not a valid secret name."));
 
             if (cache.TryGetValue(name, out var cached) && time.GetUtcNow() - cached.FetchedAt < reloadInterval)
                 return Answer(cached);
@@ -210,14 +309,9 @@ namespace EastFive.Azure.Secrets
                 {
                     continue;
                 }
-                catch (RequestFailedException error)
+                catch (Exception error) when (KeyVaultFailures.Classify(error, vault.Host, name) is { } failure)
                 {
-                    return onFailure($"Vault {vault.Host} answered {error.Status} for [{name}].");
-                }
-                catch (Exception error) when (error is AuthenticationFailedException or CredentialUnavailableException
-                    or System.Net.Http.HttpRequestException or TaskCanceledException)
-                {
-                    return onFailure($"Vault {vault.Host} could not be reached for [{name}] ({error.GetType().Name}).");
+                    return onFailure(failure);
                 }
 
                 if (string.IsNullOrWhiteSpace(value))

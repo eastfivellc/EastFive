@@ -462,7 +462,7 @@ public class TypedKeyValueTests
         public IReadOnlyList<SecretSource> Sources { get; } = new[] { new SecretSource(SecretSource.Draft, "test") };
 
         public Task<TResult> GetSecretAsync<TResult>(string name, Func<Secret, SecretSource, TResult> onFound,
-            Func<TResult> onMissing, Func<string, TResult> onFailure)
+            Func<TResult> onMissing, Func<SecretFailure, TResult> onFailure)
             => Task.FromResult(values.TryGetValue(name, out var value) ? onFound(new Secret(value), Sources[0]) : onMissing());
     }
 

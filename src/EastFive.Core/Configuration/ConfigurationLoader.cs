@@ -251,7 +251,7 @@ namespace EastFive.Configuration
             public IReadOnlyList<SecretSource> Sources { get; } = new[] { new SecretSource(SecretSource.Draft, "draft") };
 
             public Task<TResult> GetSecretAsync<TResult>(string name, Func<Secret, SecretSource, TResult> onFound,
-                Func<TResult> onMissing, Func<string, TResult> onFailure)
+                Func<TResult> onMissing, Func<SecretFailure, TResult> onFailure)
             {
                 string? text;
                 try
@@ -260,7 +260,7 @@ namespace EastFive.Configuration
                 }
                 catch (Exception)
                 {
-                    return Task.FromResult(onFailure($"The draft could not be read for [{name}]."));
+                    return Task.FromResult(onFailure(SecretFailure.Other($"The draft could not be read for [{name}].")));
                 }
                 return Task.FromResult(string.IsNullOrWhiteSpace(text) ? onMissing() : onFound(new Secret(text.Trim()), Sources[0]));
             }
@@ -391,7 +391,7 @@ namespace EastFive.Configuration
             return await secrets.GetSecretAsync(name,
                 (secret, source) => Read.Answered(secret.Reveal(), source.ToString()),
                 () => Read.Answered(null),
-                _ => Read.Invalid(issue(ConfigIssueCategory.SourceFailure))).ConfigureAwait(false);
+                why => Read.Invalid(issue(ConfigIssueCategory.SourceFailure) with { Problem = why.Message, Failure = why })).ConfigureAwait(false);
         }
 
         private static async Task<ConfigurationMemberStatus> InspectMember(IProvideConfiguration config, ConfigurationMembers declared,
@@ -407,7 +407,7 @@ namespace EastFive.Configuration
             if (read.Issue is { } issue)
                 return new ConfigurationMemberStatus(member, name,
                     issue.Category == ConfigIssueCategory.SourceFailure ? ConfigurationMemberPresence.Failed : ConfigurationMemberPresence.Invalid,
-                    null);
+                    null, issue.Problem);
             if (string.IsNullOrWhiteSpace(read.Text))
                 return new ConfigurationMemberStatus(member, name, member.Kind switch
                 {

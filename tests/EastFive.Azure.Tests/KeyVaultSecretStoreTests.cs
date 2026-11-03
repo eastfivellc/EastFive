@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Azure;
+using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using Xunit;
 
@@ -24,10 +25,13 @@ public class KeyVaultSecretStoreTests
         public readonly Dictionary<string, string> Secrets = new(StringComparer.OrdinalIgnoreCase);
         public readonly List<string> Asked = new();
         public int? FailWith;
+        public Exception? Throw;
 
         public override Task<Response<KeyVaultSecret>> GetSecretAsync(string name, string? version = null, CancellationToken cancellationToken = default)
         {
             Asked.Add(name);
+            if (Throw != null)
+                throw Throw;
             if (FailWith is { } status)
                 throw new RequestFailedException(status, "denied: k-should-never-leak");
             if (!Secrets.TryGetValue(name, out var value))
@@ -78,13 +82,31 @@ public class KeyVaultSecretStoreTests
         var store = new KeyVaultSecretStore(new[] { (First, (SecretClient)first), (Second, (SecretClient)second) });
 
         var outcome = await Ask(store, "A-Key");
-        Assert.Equal("failure:Vault first.vault.azure.net answered 403 for [A-Key].", outcome);
+        Assert.Equal("failure:Vault first.vault.azure.net denied the read for [A-Key] (403): the signed-in principal has no secret read access.", outcome);
         Assert.DoesNotContain("k-should-never-leak", outcome);
         Assert.Empty(second.Asked);
 
         // Failures are not cached: the next read after recovery answers.
         first.FailWith = null;
         Assert.Equal("found:second@second.vault.azure.net", await Ask(store, "A-Key"));
+    }
+
+    [Fact]
+    public async Task Failures_ReachTheCaller_Classified()
+    {
+        var vault = new FakeVault
+        {
+            Throw = new AuthenticationFailedException(
+                "ClientSecretCredential authentication failed: AADSTS7000215: Invalid client secret provided for app '00000000-0000-0000-0000-000000000001'."),
+        };
+        var store = new KeyVaultSecretStore(new[] { (First, (SecretClient)vault) });
+
+        var failure = await store.GetSecretAsync("A-Key", (_, _) => null, () => null, why => (SecretFailure?)why);
+
+        Assert.Equal(SecretFailureKind.AuthFailed, failure!.Kind);
+        Assert.Equal("7000215", failure.Aadsts);
+        Assert.Equal("Vault first.vault.azure.net: sign-in was refused for [A-Key]: the client secret is invalid (AADSTS7000215).", failure.Message);
+        Assert.DoesNotContain("00000000-0000-0000-0000-000000000001", failure.Message);
     }
 
     [Fact]
