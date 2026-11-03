@@ -159,6 +159,9 @@ namespace EastFive.Azure.Secrets
             var about = name == null ? string.Empty : $" for [{name}]";
             switch (error)
             {
+                // Azure.Core's retry policy gives up with every attempt's failure; the first says why.
+                case AggregateException { InnerExceptions.Count: > 0 } exhausted:
+                    return Classify(exhausted.InnerExceptions[0], host, name);
                 case CredentialUnavailableException unavailable:
                     return new SecretFailure(SecretFailureKind.CredentialUnavailable,
                         $"Vault {host}: the credential is unavailable{about}: {Scrub(unavailable.Message)}");

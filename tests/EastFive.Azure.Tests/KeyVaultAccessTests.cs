@@ -163,6 +163,19 @@ public class KeyVaultAccessTests
     }
 
     [Fact]
+    public void TheRetryPolicysAggregate_IsClassifiedByItsFirstFailure()
+    {
+        // Azure.Core's retry policy gives up with an AggregateException of every attempt's failure.
+        var exhausted = new AggregateException("Retry failed after 4 tries.",
+            new RequestFailedException(0, "No such host", null, new HttpRequestException("No such host")),
+            new RequestFailedException(0, "No such host", null, new HttpRequestException("No such host")));
+        var failure = KeyVaultFailures.Classify(exhausted, "unit.vault.azure.net", "A-Key")!;
+        Assert.Equal(SecretFailureKind.Network, failure.Kind);
+        Assert.Equal("Vault unit.vault.azure.net could not be reached for [A-Key] (HttpRequestException).", failure.Message);
+        Assert.Null(KeyVaultFailures.Classify(new AggregateException(new InvalidOperationException("bug")), "unit.vault.azure.net"));
+    }
+
+    [Fact]
     public void OtherStatuses_AreOther_AndUnknownExceptionsAreNotClassified()
     {
         var failure = KeyVaultFailures.Classify(new RequestFailedException(429, "Too many requests", "Throttled", null), "unit.vault.azure.net")!;
