@@ -270,10 +270,23 @@ SecretStore.Initialize(new CompositeSecretStore(
 
 1. **Local override**: `Secrets:{generated-name}` in the values store — written only in
    `appsettings.local*.json` or the environment (`Secrets__AzureStorage-dev-ConnectionString`).
-2. **The environment's vaults**, in order: one `SecretClient` per vault, managed identity when
-   deployed, a service principal (`KeyVaultAccess`) locally. 404 falls through to the next vault;
-   any other error is a failure, so an outage is never read as "unset". Found and missing answers
-   are cached per name for 30 minutes.
+2. **The environment's vaults**, in order: one `SecretClient` per vault. 404 falls through to the
+   next vault; any other error is a failure, so an outage is never read as "unset". Found and
+   missing answers are cached per name for 30 minutes.
+
+Each `KeyVaultAccess` entry declares exactly ONE access mode, and mixing them is an error naming
+the vault (the entry is skipped and `From`'s `onWarning` says why):
+
+| Entry | Credential |
+| --- | --- |
+| `tenantId` + `clientId` + `clientSecret` | `ClientSecretCredential` (a service principal) |
+| `managedIdentity: true` | `ManagedIdentityCredential` |
+| `useAzureCli: true` (optional `tenantId`) | `AzureCliCredential`: the developer's `az login`, no secret on disk |
+| nothing | managed identity when deployed (`WEBSITE_SITE_NAME`), otherwise unusable |
+
+On a deployed host `useAzureCli` is ignored with a warning and managed identity applies.
+`KeyVaultAccess.CreateCredential` is the one construction, public so a probe builds exactly what
+a read uses (`ResolveMode` answers the mode without building anything).
 
 Until a host initializes it, `SecretStore.Current` is the local overrides alone.
 

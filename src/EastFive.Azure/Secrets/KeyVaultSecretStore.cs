@@ -14,14 +14,33 @@ using EastFive.Configuration;
 
 namespace EastFive.Azure.Secrets
 {
+    /// <summary>How a <see cref="KeyVaultAccess"/> entry reaches its vault.</summary>
+    public enum KeyVaultAccessMode
+    {
+        /// <summary>No usable access: the caller owns the warning.</summary>
+        None,
+        /// <summary>A service principal: tenant, client id and client secret.</summary>
+        ClientSecret,
+        /// <summary>The host's managed identity.</summary>
+        ManagedIdentity,
+        /// <summary>The developer's Azure CLI sign-in (<c>az login</c>).</summary>
+        AzureCli,
+    }
+
     /// <summary>
-    /// One vault and how to reach it: ACCESS MATERIAL, deliberately not configuration. Locally a
-    /// service principal (tenant/client/secret from a gitignored manifest); deployed, managed
-    /// identity (no material at all).
+    /// One vault and how to reach it: ACCESS MATERIAL, deliberately not configuration. An entry
+    /// declares exactly ONE access mode: a service principal (tenant/client/secret from a
+    /// gitignored manifest), <see cref="ManagedIdentity"/>, or <see cref="UseAzureCli"/> (the
+    /// developer's <c>az login</c>, so no secret sits on disk). Deployed to App Service
+    /// (<c>WEBSITE_SITE_NAME</c>), managed identity applies unless a service principal is given,
+    /// and Azure CLI sign-in is ignored with a warning.
     /// </summary>
     public sealed class KeyVaultAccess
     {
         public string? Url { get; set; }
+
+        /// <summary>The service principal's tenant; with <see cref="UseAzureCli"/>, the tenant
+        /// the CLI token is requested for (optional).</summary>
         public string? TenantId { get; set; }
         public string? ClientId { get; set; }
         public string? ClientSecret { get; set; }
@@ -29,23 +48,80 @@ namespace EastFive.Azure.Secrets
         /// <summary>Set to use the host's managed identity even off App Service.</summary>
         public bool ManagedIdentity { get; set; }
 
-        /// <summary>
-        /// A service principal when all three of tenant/client/secret are set; otherwise managed
-        /// identity when asked for or when deployed to App Service (<c>WEBSITE_SITE_NAME</c>);
-        /// otherwise <c>null</c> (unusable: the caller owns the warning).
-        /// </summary>
-        public TokenCredential? ResolveCredential()
-            => (TenantId, ClientId, ClientSecret) switch
-            {
-                ({ Length: > 0 } tenantId, { Length: > 0 } clientId, { Length: > 0 } clientSecret) =>
-                    new ClientSecretCredential(tenantId, clientId, clientSecret),
-                _ => ManagedIdentity || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME"))
-                    ? new ManagedIdentityCredential()
-                    : null,
-            };
+        /// <summary>Set to use the developer's Azure CLI sign-in. Never applies on a deployed host.</summary>
+        public bool UseAzureCli { get; set; }
 
         public bool TryGetUri(out Uri vault)
             => Uri.TryCreate(Url, UriKind.Absolute, out vault!) && vault.Scheme == Uri.UriSchemeHttps;
+
+        /// <summary>
+        /// The access mode this entry resolves to, with a warning when a declared mode does not
+        /// apply here; <paramref name="onInvalid"/> when the entry declares more than one mode.
+        /// <paramref name="deployed"/> defaults to whether <c>WEBSITE_SITE_NAME</c> is set.
+        /// </summary>
+        public TResult ResolveMode<TResult>(
+            Func<KeyVaultAccessMode, string?, TResult> onMode,
+            Func<string, TResult> onInvalid,
+            bool? deployed = null)
+        {
+            var servicePrincipal = !string.IsNullOrEmpty(ClientId) || !string.IsNullOrEmpty(ClientSecret);
+            var declared = new[]
+                {
+                    (servicePrincipal, "a client secret"),
+                    (ManagedIdentity, "managedIdentity"),
+                    (UseAzureCli, "useAzureCli"),
+                }
+                .Where(mode => mode.Item1)
+                .Select(mode => mode.Item2)
+                .ToArray();
+            if (declared.Length > 1)
+                return onInvalid($"Vault {Url ?? "(no url)"} declares more than one access mode ({string.Join(", ", declared)}); keep exactly one.");
+
+            var onAppService = deployed ?? IsDeployed();
+            var complete = !string.IsNullOrEmpty(TenantId) && !string.IsNullOrEmpty(ClientId) && !string.IsNullOrEmpty(ClientSecret);
+            if (complete)
+                return onMode(KeyVaultAccessMode.ClientSecret, null);
+            if (UseAzureCli && onAppService)
+                return onMode(KeyVaultAccessMode.ManagedIdentity,
+                    $"Vault {Url ?? "(no url)"} asks for Azure CLI sign-in, which never applies on a deployed host; using managed identity.");
+            if (UseAzureCli)
+                return onMode(KeyVaultAccessMode.AzureCli, null);
+            if (ManagedIdentity || onAppService)
+                return onMode(KeyVaultAccessMode.ManagedIdentity, null);
+            return onMode(KeyVaultAccessMode.None, null);
+        }
+
+        /// <summary>
+        /// The credential the store uses for this entry: the ONE construction, so a probe builds
+        /// exactly what a read does. <paramref name="onNoAccess"/> when nothing is declared (and
+        /// not deployed); <paramref name="onInvalid"/> for a mixed-mode entry.
+        /// </summary>
+        public TResult CreateCredential<TResult>(
+            Func<TokenCredential, KeyVaultAccessMode, TResult> onCredential,
+            Func<TResult> onNoAccess,
+            Func<string, TResult> onInvalid,
+            Action<string>? onWarning = null,
+            bool? deployed = null)
+            => ResolveMode(
+                (mode, warning) =>
+                {
+                    if (warning != null)
+                        onWarning?.Invoke(warning);
+                    return mode switch
+                    {
+                        KeyVaultAccessMode.ClientSecret => onCredential(new ClientSecretCredential(TenantId, ClientId, ClientSecret), mode),
+                        KeyVaultAccessMode.ManagedIdentity => onCredential(new ManagedIdentityCredential(), mode),
+                        KeyVaultAccessMode.AzureCli => onCredential(new AzureCliCredential(new AzureCliCredentialOptions
+                        {
+                            TenantId = string.IsNullOrEmpty(TenantId) ? null : TenantId,
+                        }), mode),
+                        _ => onNoAccess(),
+                    };
+                },
+                onInvalid,
+                deployed);
+
+        private static bool IsDeployed() => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME"));
     }
 
     /// <summary>
@@ -77,14 +153,24 @@ namespace EastFive.Azure.Secrets
 
         /// <summary>
         /// One client per USABLE access entry, in order. <paramref name="onUnusable"/> receives the
-        /// url (never credentials) of each entry with no https url or no credential path.
+        /// url (never credentials) of each entry with no https url, no credential path, or more
+        /// than one declared mode; <paramref name="onWarning"/> receives why (a mixed-mode entry,
+        /// Azure CLI sign-in ignored on a deployed host), naming the vault and never a credential.
         /// </summary>
         public static KeyVaultSecretStore From(IEnumerable<KeyVaultAccess> accesses,
-            Action<string>? onUnusable = null, TimeSpan? reloadInterval = null)
+            Action<string>? onUnusable = null, TimeSpan? reloadInterval = null, Action<string>? onWarning = null)
         {
             var usable = accesses
                 .Select(access => (access, vault: access.TryGetUri(out var vault) ? vault : null,
-                    credential: access.ResolveCredential()))
+                    credential: access.CreateCredential(
+                        (credential, _) => credential,
+                        () => (TokenCredential?)null,
+                        problem =>
+                        {
+                            onWarning?.Invoke(problem);
+                            return null;
+                        },
+                        onWarning)))
                 .Where(entry =>
                 {
                     if (entry.vault != null && entry.credential != null)
