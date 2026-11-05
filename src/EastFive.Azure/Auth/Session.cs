@@ -361,20 +361,7 @@ namespace EastFive.Azure.Auth
                                         (missingConfig) => onConfigurationFailure("Missing", missingConfig),
                                         (configName, issue) => onConfigurationFailure(configName, issue));
                                 },
-                                () =>
-                                {
-                                    return Api.Auth.JwtTools.CreateToken(sessionId.id,
-                                        scope, duration, claims,
-                                        (tokenNew, whenIssued) =>
-                                        {
-                                            session.token = tokenNew;
-                                            session.expires = whenIssued + duration;
-                                            return onCreated(session);
-                                        },
-                                        (missingConfig) => onConfigurationFailure("Missing", missingConfig),
-                                        (configName, issue) => onConfigurationFailure(configName, issue));
-                                    // onAlreadyExists()
-                                });
+                                () => onAlreadyExists());
                         },
                         (why) => onFailure(why).AsTask());
                 },
