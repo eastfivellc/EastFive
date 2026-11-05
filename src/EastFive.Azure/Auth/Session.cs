@@ -301,6 +301,31 @@ namespace EastFive.Azure.Auth
             ConfigurationFailureResponse onConfigurationFailure,
             GeneralConflictResponse onFailure)
         {
+            return await CreateSessionAsync(sessionId, authorizationRefMaybe, session, application,
+                    rebind: false,
+                onCreated,
+                onAlreadyExists,
+                onConfigurationFailure,
+                onFailure);
+        }
+
+        /// <summary>
+        /// Creates <paramref name="session"/> bound to <paramref name="authorizationRefMaybe"/>.
+        /// A client exchange (<paramref name="rebind"/> false) is refused when the authorization
+        /// was already redeemed by another consumer; a trusted server-side caller that minted
+        /// or re-verified the authorization rebinds it instead.
+        /// </summary>
+        internal static async Task<IHttpResponse> CreateSessionAsync(
+                IRef<Session> sessionId,
+                IRefOptional<Authorization> authorizationRefMaybe,
+                Session session,
+                IApplication application,
+                bool rebind,
+            CreatedBodyResponse<Session> onCreated,
+            AlreadyExistsResponse onAlreadyExists,
+            ConfigurationFailureResponse onConfigurationFailure,
+            GeneralConflictResponse onFailure)
+        {
             session.refreshToken = Security.SecureGuid.Generate().ToString("N");
 
             return await EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(

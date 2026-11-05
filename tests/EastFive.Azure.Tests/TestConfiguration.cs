@@ -26,6 +26,9 @@ public static class TestConfiguration
     /// <summary>Access-token lifetime pinned for tests (asserted by the expires_in test).</summary>
     public const int AccessTokenExpirationInMinutes = 17;
 
+    /// <summary>Session-token lifetime for the <c>XSession</c> endpoints.</summary>
+    public const int SessionTokenExpirationInMinutes = 60;
+
     public const string SigningKeyName = "EastFiveTokens-SigningKey";
 
     public const string SearchEndPoint = "https://fake-search.test/";
@@ -87,6 +90,8 @@ public static class TestConfiguration
 
         Set(EastFive.Azure.OAuth.Server.OAuthServerConfiguration.AccessTokenExpirationInMinutesKey,
             AccessTokenExpirationInMinutes.ToString());
+        Set(EastFive.Azure.Auth.SessionServerConfiguration.TokenExpirationInMinutesKey,
+            SessionTokenExpirationInMinutes.ToString());
 
         Set(EastFive.Azure.SearchConfiguration.EndPointKey, SearchEndPoint);
         Set("Secrets__AzureSearch-AdminApiKey", SearchAdminApiKey);
