@@ -328,7 +328,16 @@ namespace EastFive.Azure.Auth
         {
             session.refreshToken = Security.SecureGuid.Generate().ToString("N");
 
-            return await EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(
+            if (!authorizationRefMaybe.HasValueNotNull())
+                return await BindAsync();
+
+            // Redeem BEFORE resolving claims: GetClaimsAsync falls open to an anonymous session.
+            return await await AuthorizationRedemption.RedeemAsync(authorizationRefMaybe.Ref,
+                    AuthorizationRedemption.ConsumerKindSession, sessionId.id, rebind,
+                () => BindAsync(),
+                why => onFailure(why).AsTask());
+
+            Task<IHttpResponse> BindAsync() => EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(
                 async (scope) =>
                 {
                     return await await GetClaimsAsync(application, authorizationRefMaybe,
@@ -388,9 +397,17 @@ namespace EastFive.Azure.Auth
                 return onUnauthorized();
 
             return await sessionRef.StorageUpdateAsync(
-                (sessionStorage, saveSessionAsync) =>
+                async (sessionStorage, saveSessionAsync) =>
                 {
-                    return EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(
+                    if (!authorizationRefMaybe.HasValueNotNull())
+                        return await BindAsync();
+
+                    return await await AuthorizationRedemption.RedeemAsync(authorizationRefMaybe.Ref,
+                            AuthorizationRedemption.ConsumerKindSession, sessionRef.id, rebind: false,
+                        () => BindAsync(),
+                        why => onFailure(why).AsTask());
+
+                    Task<IHttpResponse> BindAsync() => EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(
                         async (scope) =>
                         {
                             return await await GetClaimsAsync(application, authorizationRefMaybe,
@@ -455,6 +472,14 @@ namespace EastFive.Azure.Auth
                 refreshToken = Security.SecureGuid.Generate().ToString("N"),
                 authorization = authorizationRefMaybe,
             };
+
+            // Trusted: the caller minted or re-verified this authorization, so it rebinds rather
+            // than being refused; recording it refuses any later client exchange of the same id.
+            if (authorizationRefMaybe.HasValueNotNull())
+                await AuthorizationRedemption.RedeemAsync(authorizationRefMaybe.Ref,
+                        AuthorizationRedemption.ConsumerKindSession, sessionId.id, rebind: true,
+                    () => true,
+                    why => false);
 
             return await EastFive.Security.Tokens.TokenSigningConfiguration.WithScope(
                 async (scope) =>
