@@ -11,6 +11,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="EastFive.Azure.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Azure.Communication.CallAutomation" Version="1.6.0-beta.1" />
     <PackageReference Include="Azure.Communication.PhoneNumbers" Version="1.3.0" />
     <PackageReference Include="Azure.Identity" Version="1.14.2" />

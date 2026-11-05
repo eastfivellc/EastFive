@@ -32,6 +32,12 @@ namespace EastFive.Azure.Auth
     [InstigateAuthorization]
     public struct Authorization : IReferenceable
     {
+        /// <summary>
+        /// How long after the login completes (the authorize write, <see cref="lastModified"/>)
+        /// an authorization id may be exchanged for a session.
+        /// </summary>
+        public static readonly TimeSpan RedemptionWindow = TimeSpan.FromMinutes(15);
+
         #region Properties
 
         #region Base
@@ -475,17 +481,17 @@ namespace EastFive.Azure.Auth
                                         account = accountIdMaybe,
                                         authorization = authorizationRef.Optional(),
                                     };
-                                    var responseCreated = await Session.CreateAsync(sessionRef, authorizationRef.Optional(),
+                                    var responseCreated = await Session.CreateSessionAsync(sessionRef, authorizationRef.Optional(),
                                         session,
                                         application,
+                                        rebind: true,
                                         (sessionCreated, contentType) =>
                                         {
                                             var response = onReplayed(sessionCreated, contentType: contentType);
                                             response.SetLocation(redirect);
                                             return response;
                                         },
-                                        onAlreadyExists: default,
-                                        onAuthorizationFailed,
+                                        onAlreadyExists: () => onFailure("Session already exists."),
                                         (why1, why2) => onServericeUnavailable(),
                                         onFailure);
                                     var modifiedResponse = modifier(responseCreated);

@@ -179,7 +179,16 @@ namespace EastFive.Azure.OAuth.Server
                         return ErrorPage(onPage, "invalid_request",
                             "This authorization request has expired. Return to the application and retry.");
 
-                    return await await Session.GetClaimsAsync(application, loginAuthorizationRef.Optional(),
+                    // Redeem BEFORE resolving claims: the login authorization belongs to this
+                    // request only, and GetClaimsAsync would fall open for a refused one.
+                    return await await AuthorizationRedemption.RedeemAsync(loginAuthorizationRef,
+                            AuthorizationRedemption.ConsumerKindOAuthAuthorize, requestRef.id, rebind: false,
+                        () => ResumeWithLoginAsync(),
+                        why => ErrorPage(onPage, "access_denied",
+                            $"Sign-in could not be verified: {why}").AsTask());
+
+                    async Task<IHttpResponse> ResumeWithLoginAsync() =>
+                        await await Session.GetClaimsAsync(application, loginAuthorizationRef.Optional(),
                         async (claims, accountIdMaybe, authorized, sessionExpiresOnMaybe) =>
                         {
                             if (!accountIdMaybe.HasValue || !authorized)
