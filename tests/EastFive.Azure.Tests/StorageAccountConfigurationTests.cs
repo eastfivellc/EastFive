@@ -48,10 +48,10 @@ public class StorageAccountConfigurationTests
         IReadOnlyList<SecretSource> ISecretStore.Sources => Sources_;
 
         public Task<TResult> GetSecretAsync<TResult>(string name, Func<Secret, SecretSource, TResult> onFound,
-            Func<TResult> onMissing, Func<string, TResult> onFailure)
+            Func<TResult> onMissing, Func<SecretFailure, TResult> onFailure)
         {
             SecretReads.Add(name);
-            return Task.FromResult(SecretStoreDown ? onFailure("Vault test.vault answered 503.")
+            return Task.FromResult(SecretStoreDown ? onFailure(SecretFailure.Other("Vault test.vault answered 503."))
                 : Secrets.TryGetValue(name, out var value) ? onFound(new Secret(value), Sources_[0]) : onMissing());
         }
     }

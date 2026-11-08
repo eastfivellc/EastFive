@@ -62,7 +62,7 @@ public static class ConfigurationReadGuard
     /// Keyed by "{project-relative path}:{trimmed line}" so a moved line is a new decision.</summary>
     public static readonly IReadOnlyDictionary<string, string> Bootstrap = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["Azure/Secrets/KeyVaultSecretStore.cs:_ => ManagedIdentity || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(\"WEBSITE_SITE_NAME\"))"] =
+        ["Azure/Secrets/KeyVaultSecretStore.cs:private static bool IsDeployed() => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(\"WEBSITE_SITE_NAME\"));"] =
             "the secret store chooses its vault credential before configuration is initialized; App Service's own variable is the only signal there",
     };
 

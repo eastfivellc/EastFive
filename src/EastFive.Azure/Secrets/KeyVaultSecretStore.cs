@@ -3,6 +3,8 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 using Azure;
@@ -14,14 +16,33 @@ using EastFive.Configuration;
 
 namespace EastFive.Azure.Secrets
 {
+    /// <summary>How a <see cref="KeyVaultAccess"/> entry reaches its vault.</summary>
+    public enum KeyVaultAccessMode
+    {
+        /// <summary>No usable access: the caller owns the warning.</summary>
+        None,
+        /// <summary>A service principal: tenant, client id and client secret.</summary>
+        ClientSecret,
+        /// <summary>The host's managed identity.</summary>
+        ManagedIdentity,
+        /// <summary>The developer's Azure CLI sign-in (<c>az login</c>).</summary>
+        AzureCli,
+    }
+
     /// <summary>
-    /// One vault and how to reach it: ACCESS MATERIAL, deliberately not configuration. Locally a
-    /// service principal (tenant/client/secret from a gitignored manifest); deployed, managed
-    /// identity (no material at all).
+    /// One vault and how to reach it: ACCESS MATERIAL, deliberately not configuration. An entry
+    /// declares exactly ONE access mode: a service principal (tenant/client/secret from a
+    /// gitignored manifest), <see cref="ManagedIdentity"/>, or <see cref="UseAzureCli"/> (the
+    /// developer's <c>az login</c>, so no secret sits on disk). Deployed to App Service
+    /// (<c>WEBSITE_SITE_NAME</c>), managed identity applies unless a service principal is given,
+    /// and Azure CLI sign-in is ignored with a warning.
     /// </summary>
     public sealed class KeyVaultAccess
     {
         public string? Url { get; set; }
+
+        /// <summary>The service principal's tenant; with <see cref="UseAzureCli"/>, the tenant
+        /// the CLI token is requested for (optional).</summary>
         public string? TenantId { get; set; }
         public string? ClientId { get; set; }
         public string? ClientSecret { get; set; }
@@ -29,23 +50,180 @@ namespace EastFive.Azure.Secrets
         /// <summary>Set to use the host's managed identity even off App Service.</summary>
         public bool ManagedIdentity { get; set; }
 
-        /// <summary>
-        /// A service principal when all three of tenant/client/secret are set; otherwise managed
-        /// identity when asked for or when deployed to App Service (<c>WEBSITE_SITE_NAME</c>);
-        /// otherwise <c>null</c> (unusable: the caller owns the warning).
-        /// </summary>
-        public TokenCredential? ResolveCredential()
-            => (TenantId, ClientId, ClientSecret) switch
-            {
-                ({ Length: > 0 } tenantId, { Length: > 0 } clientId, { Length: > 0 } clientSecret) =>
-                    new ClientSecretCredential(tenantId, clientId, clientSecret),
-                _ => ManagedIdentity || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME"))
-                    ? new ManagedIdentityCredential()
-                    : null,
-            };
+        /// <summary>Set to use the developer's Azure CLI sign-in. Never applies on a deployed host.</summary>
+        public bool UseAzureCli { get; set; }
 
         public bool TryGetUri(out Uri vault)
             => Uri.TryCreate(Url, UriKind.Absolute, out vault!) && vault.Scheme == Uri.UriSchemeHttps;
+
+        /// <summary>
+        /// The access mode this entry resolves to, with a warning when a declared mode does not
+        /// apply here; <paramref name="onInvalid"/> when the entry declares more than one mode.
+        /// <paramref name="deployed"/> defaults to whether <c>WEBSITE_SITE_NAME</c> is set.
+        /// </summary>
+        public TResult ResolveMode<TResult>(
+            Func<KeyVaultAccessMode, string?, TResult> onMode,
+            Func<string, TResult> onInvalid,
+            bool? deployed = null)
+        {
+            var servicePrincipal = !string.IsNullOrEmpty(ClientId) || !string.IsNullOrEmpty(ClientSecret);
+            var declared = new[]
+                {
+                    (servicePrincipal, "a client secret"),
+                    (ManagedIdentity, "managedIdentity"),
+                    (UseAzureCli, "useAzureCli"),
+                }
+                .Where(mode => mode.Item1)
+                .Select(mode => mode.Item2)
+                .ToArray();
+            if (declared.Length > 1)
+                return onInvalid($"Vault {Url ?? "(no url)"} declares more than one access mode ({string.Join(", ", declared)}); keep exactly one.");
+
+            var onAppService = deployed ?? IsDeployed();
+            var complete = !string.IsNullOrEmpty(TenantId) && !string.IsNullOrEmpty(ClientId) && !string.IsNullOrEmpty(ClientSecret);
+            if (complete)
+                return onMode(KeyVaultAccessMode.ClientSecret, null);
+            if (UseAzureCli && onAppService)
+                return onMode(KeyVaultAccessMode.ManagedIdentity,
+                    $"Vault {Url ?? "(no url)"} asks for Azure CLI sign-in, which never applies on a deployed host; using managed identity.");
+            if (UseAzureCli)
+                return onMode(KeyVaultAccessMode.AzureCli, null);
+            if (ManagedIdentity || onAppService)
+                return onMode(KeyVaultAccessMode.ManagedIdentity, null);
+            return onMode(KeyVaultAccessMode.None, null);
+        }
+
+        /// <summary>
+        /// The credential the store uses for this entry: the ONE construction, so a probe builds
+        /// exactly what a read does. <paramref name="onNoAccess"/> when nothing is declared (and
+        /// not deployed); <paramref name="onInvalid"/> for a mixed-mode entry.
+        /// </summary>
+        public TResult CreateCredential<TResult>(
+            Func<TokenCredential, KeyVaultAccessMode, TResult> onCredential,
+            Func<TResult> onNoAccess,
+            Func<string, TResult> onInvalid,
+            Action<string>? onWarning = null,
+            bool? deployed = null)
+            => ResolveMode(
+                (mode, warning) =>
+                {
+                    if (warning != null)
+                        onWarning?.Invoke(warning);
+                    return mode switch
+                    {
+                        KeyVaultAccessMode.ClientSecret => onCredential(new ClientSecretCredential(TenantId, ClientId, ClientSecret), mode),
+                        KeyVaultAccessMode.ManagedIdentity => onCredential(new ManagedIdentityCredential(), mode),
+                        KeyVaultAccessMode.AzureCli => onCredential(new AzureCliCredential(new AzureCliCredentialOptions
+                        {
+                            TenantId = string.IsNullOrEmpty(TenantId) ? null : TenantId,
+                        }), mode),
+                        _ => onNoAccess(),
+                    };
+                },
+                onInvalid,
+                deployed);
+
+        private static bool IsDeployed() => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME"));
+    }
+
+    /// <summary>
+    /// Classifies what a vault read (or a token request for one) threw into a
+    /// <see cref="SecretFailure"/>: the kind, the HTTP status, the AADSTS code and the service
+    /// error code. The message is composed here from those parts, never copied from the SDK,
+    /// except a credential-unavailable reason, which is scrubbed and truncated.
+    /// </summary>
+    public static class KeyVaultFailures
+    {
+        private static readonly Regex AadstsCode = new(@"AADSTS(\d{5,7})", RegexOptions.Compiled);
+        private static readonly Regex SecretLike = new(
+            @"(?i)(client_secret|password|secret)\s*[=:]\s*\S+|(?<![\w~.\-])(?=[\w~.\-]*~)[\w~.\-]{24,}(?![\w~.\-])",
+            RegexOptions.Compiled);
+
+        /// <summary>A known AADSTS code's plain reason; unknown codes are reported by number only.</summary>
+        public static string? Explain(string aadsts)
+            => aadsts switch
+            {
+                "7000222" => "the client secret has expired",
+                "7000215" => "the client secret is invalid",
+                "700016" => "the application (client id) was not found in the tenant",
+                "90002" => "the tenant was not found",
+                "700024" => "the client assertion is not within its valid time range",
+                "50173" => "the sign-in grant has expired; sign in again",
+                _ => null,
+            };
+
+        /// <summary><c>null</c> when <paramref name="error"/> is not a vault/credential failure
+        /// (the caller lets it propagate).</summary>
+        public static SecretFailure? Classify(Exception error, string host, string? name = null)
+        {
+            var about = name == null ? string.Empty : $" for [{name}]";
+            switch (error)
+            {
+                // Azure.Core's retry policy gives up with every attempt's failure; the first says why.
+                case AggregateException { InnerExceptions.Count: > 0 } exhausted:
+                    return Classify(exhausted.InnerExceptions[0], host, name);
+                case CredentialUnavailableException unavailable:
+                    return new SecretFailure(SecretFailureKind.CredentialUnavailable,
+                        $"Vault {host}: the credential is unavailable{about}: {Scrub(unavailable.Message)}");
+                case AuthenticationFailedException failed:
+                {
+                    var code = Aadsts(failed);
+                    var reason = code == null ? null : Explain(code);
+                    var detail = (reason, code) switch
+                    {
+                        ({ } plain, { } number) => $"{plain} (AADSTS{number})",
+                        (null, { } number) => $"AADSTS{number}",
+                        _ => "no reason was given",
+                    };
+                    return new SecretFailure(SecretFailureKind.AuthFailed,
+                        $"Vault {host}: sign-in was refused{about}: {detail}.", Aadsts: code);
+                }
+                case RequestFailedException { Status: 0 } request:
+                    return new SecretFailure(SecretFailureKind.Network,
+                        $"Vault {host} could not be reached{about} ({(request.InnerException ?? request).GetType().Name}).");
+                case RequestFailedException { Status: 401 } request:
+                    return new SecretFailure(SecretFailureKind.AuthFailed,
+                        $"Vault {host} did not accept the token{about} (401{CodeSuffix(request.ErrorCode)}).",
+                        Status: 401, Aadsts: Aadsts(request), Code: request.ErrorCode);
+                case RequestFailedException { Status: 403 } request:
+                    return new SecretFailure(SecretFailureKind.Forbidden,
+                        $"Vault {host} denied the read{about} (403{CodeSuffix(request.ErrorCode)}): the signed-in principal has no secret read access.",
+                        Status: 403, Code: request.ErrorCode);
+                case RequestFailedException request:
+                    return new SecretFailure(SecretFailureKind.Other,
+                        $"Vault {host} answered {request.Status}{about}{CodeSuffix(request.ErrorCode)}.",
+                        Status: request.Status, Code: request.ErrorCode);
+                case HttpRequestException or TaskCanceledException:
+                    return new SecretFailure(SecretFailureKind.Network,
+                        $"Vault {host} could not be reached{about} ({error.GetType().Name}).");
+                default:
+                    return null;
+            }
+        }
+
+        private static string CodeSuffix(string? code)
+            => string.IsNullOrEmpty(code) ? string.Empty : " " + code;
+
+        private static string? Aadsts(Exception error)
+            => Chain(error)
+                .Select(each => AadstsCode.Match(each.Message))
+                .Where(match => match.Success)
+                .Select(match => match.Groups[1].Value)
+                .FirstOrDefault();
+
+        private static IEnumerable<Exception> Chain(Exception error)
+        {
+            for (Exception? each = error; each != null; each = each.InnerException)
+                yield return each;
+        }
+
+        /// <summary>The first line, secret-looking tokens redacted, at most 240 characters.</summary>
+        public static string Scrub(string text)
+        {
+            var line = (text ?? string.Empty).Split('\n', 2)[0].Trim();
+            var clean = SecretLike.Replace(line, "[redacted]");
+            return clean.Length <= 240 ? clean : clean[..240] + "…";
+        }
     }
 
     /// <summary>
@@ -77,14 +255,24 @@ namespace EastFive.Azure.Secrets
 
         /// <summary>
         /// One client per USABLE access entry, in order. <paramref name="onUnusable"/> receives the
-        /// url (never credentials) of each entry with no https url or no credential path.
+        /// url (never credentials) of each entry with no https url, no credential path, or more
+        /// than one declared mode; <paramref name="onWarning"/> receives why (a mixed-mode entry,
+        /// Azure CLI sign-in ignored on a deployed host), naming the vault and never a credential.
         /// </summary>
         public static KeyVaultSecretStore From(IEnumerable<KeyVaultAccess> accesses,
-            Action<string>? onUnusable = null, TimeSpan? reloadInterval = null)
+            Action<string>? onUnusable = null, TimeSpan? reloadInterval = null, Action<string>? onWarning = null)
         {
             var usable = accesses
                 .Select(access => (access, vault: access.TryGetUri(out var vault) ? vault : null,
-                    credential: access.ResolveCredential()))
+                    credential: access.CreateCredential(
+                        (credential, _) => credential,
+                        () => (TokenCredential?)null,
+                        problem =>
+                        {
+                            onWarning?.Invoke(problem);
+                            return null;
+                        },
+                        onWarning)))
                 .Where(entry =>
                 {
                     if (entry.vault != null && entry.credential != null)
@@ -103,10 +291,10 @@ namespace EastFive.Azure.Secrets
         public async Task<TResult> GetSecretAsync<TResult>(string name,
             Func<Secret, SecretSource, TResult> onFound,
             Func<TResult> onMissing,
-            Func<string, TResult> onFailure)
+            Func<SecretFailure, TResult> onFailure)
         {
             if (!SecretNames.IsValidName(name))
-                return onFailure($"[{name}] is not a valid secret name.");
+                return onFailure(SecretFailure.Other($"[{name}] is not a valid secret name."));
 
             if (cache.TryGetValue(name, out var cached) && time.GetUtcNow() - cached.FetchedAt < reloadInterval)
                 return Answer(cached);
@@ -124,14 +312,9 @@ namespace EastFive.Azure.Secrets
                 {
                     continue;
                 }
-                catch (RequestFailedException error)
+                catch (Exception error) when (KeyVaultFailures.Classify(error, vault.Host, name) is { } failure)
                 {
-                    return onFailure($"Vault {vault.Host} answered {error.Status} for [{name}].");
-                }
-                catch (Exception error) when (error is AuthenticationFailedException or CredentialUnavailableException
-                    or System.Net.Http.HttpRequestException or TaskCanceledException)
-                {
-                    return onFailure($"Vault {vault.Host} could not be reached for [{name}] ({error.GetType().Name}).");
+                    return onFailure(failure);
                 }
 
                 if (string.IsNullOrWhiteSpace(value))

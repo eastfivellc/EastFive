@@ -25,10 +25,10 @@ public class SecretStoreTests
         public int Asked;
         public IReadOnlyList<SecretSource> Sources => new[] { new SecretSource(SecretSource.Vault, "down.vault.azure.net") };
         public Task<TResult> GetSecretAsync<TResult>(string name, Func<Secret, SecretSource, TResult> onFound,
-            Func<TResult> onMissing, Func<string, TResult> onFailure)
+            Func<TResult> onMissing, Func<SecretFailure, TResult> onFailure)
         {
             Asked++;
-            return Task.FromResult(onFailure("Vault down.vault.azure.net answered 503."));
+            return Task.FromResult(onFailure(SecretFailure.Other("Vault down.vault.azure.net answered 503.")));
         }
     }
 

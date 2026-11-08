@@ -25,6 +25,8 @@ namespace EastFive.Configuration
     /// <summary>
     /// What went wrong loading one member: the configuration type, the key, the member's kind, the
     /// category and, when a member's parser refused its value, the <see cref="Problem"/> it named.
+    /// A <see cref="ConfigIssueCategory.SourceFailure"/> from the secret store also carries the
+    /// store's structured <see cref="Failure"/> (its message becomes the <see cref="Problem"/>).
     /// Carries NO values and NO raw SDK messages, so it is safe to log, return in a response reason,
     /// or surface to a doctor. <see cref="ToString"/> is ASCII-only for the same reason (an
     /// <c>x-reason</c> header 500s on non-ASCII).
@@ -34,7 +36,8 @@ namespace EastFive.Configuration
         string Key,
         ConfigurationMemberKind Kind,
         ConfigIssueCategory Category,
-        string? Problem = null)
+        string? Problem = null,
+        SecretFailure? Failure = null)
     {
         public override string ToString()
             => $"{ConfigurationType.Name}[{Key}] ({Kind}) {Category}" + (Problem == null ? string.Empty : $": {Ascii(Problem)}");

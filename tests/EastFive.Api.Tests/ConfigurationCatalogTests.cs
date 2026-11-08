@@ -22,7 +22,7 @@ public class ConfigurationCatalogTests
             => await draft.Secrets.GetSecretAsync("Phone-acme-ApiKey",
                 (_, _) => onChoices(new[] { new ConfigurationChoice("+15550100", "Main line") }),
                 () => onUnavailable("Enter the API key first."),
-                why => onUnavailable(why));
+                why => onUnavailable(why.Message));
     }
 
     private sealed class PhoneTest : Attribute, ITestConfiguration

@@ -54,7 +54,7 @@ public class ConfigurationLoaderAsyncTests
         public Recording(ISecretStore inner) => this.inner = inner;
         public IReadOnlyList<SecretSource> Sources => inner.Sources;
         public Task<TResult> GetSecretAsync<TResult>(string name, Func<Secret, SecretSource, TResult> onFound,
-            Func<TResult> onMissing, Func<string, TResult> onFailure)
+            Func<TResult> onMissing, Func<SecretFailure, TResult> onFailure)
         {
             Asked.Add(name);
             return inner.GetSecretAsync(name, onFound, onMissing, onFailure);
@@ -65,8 +65,9 @@ public class ConfigurationLoaderAsyncTests
     {
         public IReadOnlyList<SecretSource> Sources => new[] { new SecretSource(SecretSource.Vault, "down") };
         public Task<TResult> GetSecretAsync<TResult>(string name, Func<Secret, SecretSource, TResult> onFound,
-            Func<TResult> onMissing, Func<string, TResult> onFailure)
-            => Task.FromResult(onFailure("Vault down answered 503."));
+            Func<TResult> onMissing, Func<SecretFailure, TResult> onFailure)
+            => Task.FromResult(onFailure(new SecretFailure(SecretFailureKind.AuthFailed,
+                "Vault down: sign-in was refused: the client secret has expired (AADSTS7000222).", Aadsts: "7000222")));
     }
 
     private static readonly Dictionary<string, string> Values = new()
@@ -99,6 +100,19 @@ public class ConfigurationLoaderAsyncTests
     [Fact]
     public async Task StoreFailure_IsSourceFailure_NeverMissing()
         => Assert.Equal("source:Mail-acme-ApiKey", await LoadMail(new Down()));
+
+    [Fact]
+    public async Task StoreFailure_KeepsTheStoresReason()
+    {
+        var issue = await ConfigurationLoader.LoadAsync<Mail, ConfigIssue?>(Read(Values), new Down(),
+            _ => null, _ => null, _ => null, issue => issue);
+        Assert.Equal(ConfigIssueCategory.SourceFailure, issue!.Category);
+        Assert.Equal(SecretFailureKind.AuthFailed, issue.Failure!.Kind);
+        Assert.Equal("auth_failed", issue.Failure.KindName);
+        Assert.Equal("7000222", issue.Failure.Aadsts);
+        Assert.Contains("client secret has expired (AADSTS7000222)", issue.Problem);
+        Assert.Contains("client secret has expired", issue.ToString());
+    }
 
     [Fact]
     public async Task MissingAccount_StopsBeforeAnySecretRead()
@@ -156,6 +170,7 @@ public class ConfigurationLoaderAsyncTests
 
         var down = await ConfigurationLoader.InspectAsync<Mail>(Read(Values), new Down());
         Assert.Equal(ConfigurationMemberPresence.Failed, down[2].Presence);
+        Assert.Contains("AADSTS7000222", down[2].Problem);
         Assert.Equal(new[] { "Mail-acme-ApiKey" }, await ConfigurationLoader.MissingAsync<Mail>(Read(Values), new Down()));
         Assert.Equal(new[] { "Mail.Account", "Mail.Sender" },
             await ConfigurationLoader.MissingAsync<Mail>(Read(new Dictionary<string, string>()), store));
@@ -210,7 +225,7 @@ public class ConfigurationLoaderContextTests
     {
         public IReadOnlyList<SecretSource> Sources => new[] { new SecretSource(SecretSource.Vault, "slow") };
         public async Task<TResult> GetSecretAsync<TResult>(string name, Func<Secret, SecretSource, TResult> onFound,
-            Func<TResult> onMissing, Func<string, TResult> onFailure)
+            Func<TResult> onMissing, Func<SecretFailure, TResult> onFailure)
         {
             await Task.Delay(20).ConfigureAwait(false);
             return onFound(new Secret("k-slow"), Sources[0]);
