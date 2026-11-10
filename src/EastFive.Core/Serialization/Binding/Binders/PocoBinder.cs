@@ -24,13 +24,51 @@ namespace EastFive.Serialization.Binding.Binders
                 ? targetType.GetConstructor(Type.EmptyTypes) is not null
                 : targetType.IsValueType && !targetType.IsGenericTypeDefinition);
 
-        public async ValueTask<TResult> Read<TResult>(
+        public ValueTask<TResult> Read<TResult>(
             Type targetType,
             IBindingSource source,
             IBindingContext context,
             Func<object, TResult> onBound,
             Func<BindFailure, TResult> onFailure,
+            Func<TResult> onNull = null) =>
+            ReadMembers(targetType, () => Activator.CreateInstance(targetType), seeded: false,
+                source, context, onBound, onFailure, onNull);
+
+        /// <summary>
+        /// Populate an existing instance instead of a new one: members present in
+        /// the source overwrite, members absent from it keep <paramref name="existing"/>'s
+        /// values. <paramref name="existing"/> must be an instance of
+        /// <paramref name="targetType"/>; a struct is updated through its box, so
+        /// <c>onBound</c> receives that same box. An explicit null at the source
+        /// path calls <paramref name="onNull"/> (or fails with <see cref="NullValue"/>).
+        /// </summary>
+        public ValueTask<TResult> ReadInto<TResult>(
+            Type targetType,
+            object existing,
+            IBindingSource source,
+            IBindingContext context,
+            Func<object, TResult> onBound,
+            Func<BindFailure, TResult> onFailure,
             Func<TResult> onNull = null)
+        {
+            if (targetType is null) throw new ArgumentNullException(nameof(targetType));
+            if (existing is null) throw new ArgumentNullException(nameof(existing));
+            if (!targetType.IsInstanceOfType(existing))
+                throw new ArgumentException(
+                    $"Cannot populate a {existing.GetType().FullName} as {targetType.FullName}.", nameof(existing));
+            return ReadMembers(targetType, () => existing, seeded: true,
+                source, context, onBound, onFailure, onNull);
+        }
+
+        private async ValueTask<TResult> ReadMembers<TResult>(
+            Type targetType,
+            Func<object> createInstance,
+            bool seeded,
+            IBindingSource source,
+            IBindingContext context,
+            Func<object, TResult> onBound,
+            Func<BindFailure, TResult> onFailure,
+            Func<TResult> onNull)
         {
             var path = context?.KeyPath ?? string.Empty;
 
@@ -71,7 +109,7 @@ namespace EastFive.Serialization.Binding.Binders
                     $"PocoBinder requires a MemberScope on the context to bind type {targetType.FullName}. " +
                     "The binding driver must call IBindingContext.WithMemberScope before invoking a complex-type bind.");
 
-            var instance = Activator.CreateInstance(targetType);
+            var instance = createInstance();
 
             // Reset the key-path on the context we hand to ScopeInto: childSource
             // is already rooted at the parent path, and ScopeInto appends — we
@@ -85,6 +123,10 @@ namespace EastFive.Serialization.Binding.Binders
                 aggr: async (inst, member, next) =>
                 {
                     var memberContext = member.ScopeInto(memberRoot);
+                    // A seeded read keeps the existing value of an absent member even
+                    // when the member's binder turns "absent" into a value of its own.
+                    if (seeded && !await IsPresent(childSource, memberContext.KeyPath))
+                        return await next(inst);
                     var memberBindings = memberContext.TypeBindings.ForSlot(memberContext.Slot);
                     return await await memberBindings.Bind(
                         member.MemberType,
@@ -107,6 +149,21 @@ namespace EastFive.Serialization.Binding.Binders
                 },
                 onComplete: inst => onBound(inst).AsTask());
         }
+
+        private static ValueTask<bool> IsPresent(IBindingSource source, string path) =>
+            source.GetValue<bool>(
+                path: path,
+                onNull: () => true,
+                onString: _ => true,
+                onGuid: _ => true,
+                onBool: _ => true,
+                onInt64: _ => true,
+                onDouble: _ => true,
+                onDateTime: _ => true,
+                onBytes: _ => true,
+                onObject: _ => true,
+                onArray: _ => true,
+                onFailure: f => f.Reason is not NotPresent);
 
         public void Write(Type sourceType, object value, IBindingSink sink, IBindingContext context)
         {
