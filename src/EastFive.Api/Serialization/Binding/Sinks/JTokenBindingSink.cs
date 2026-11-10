@@ -34,7 +34,7 @@ namespace EastFive.Api.Serialization.Binding.Sinks
     /// <see cref="AppendItem"/> on a slot that holds a scalar or an object.
     /// </para>
     /// </summary>
-    public sealed class JTokenBindingSink : IBindingSink
+    public sealed class JTokenBindingSink : IShapedBindingSink
     {
         private enum Shape { Empty, Scalar, Null, Object, Array }
 
@@ -134,6 +134,22 @@ namespace EastFive.Api.Serialization.Binding.Sinks
             var child = new JTokenBindingSink(omitNulls, keepNull: true, $"{name}[{items.Count}]");
             items.Add(child);
             return child;
+        }
+
+        /// <summary>Make this slot an object; it is written as <c>{}</c> even if no member follows.</summary>
+        public void BeginObject()
+        {
+            if (shape == Shape.Empty) BeginObjectCore();
+            if (shape != Shape.Object)
+                throw new InvalidOperationException($"Cannot make '{name}' an object: it already holds {Describe(shape)}.");
+        }
+
+        /// <summary>Make this slot an array; it is written as <c>[]</c> even if no item follows.</summary>
+        public void BeginArray()
+        {
+            if (shape == Shape.Empty) BeginArrayCore();
+            if (shape != Shape.Array)
+                throw new InvalidOperationException($"Cannot make '{name}' an array: it already holds {Describe(shape)}.");
         }
 
         /// <summary>

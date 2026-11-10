@@ -4,8 +4,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.Serialization;
 
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 using EastFive.Api.Serialization.Json;
 using EastFive.Linq;
@@ -77,8 +79,10 @@ namespace EastFive.Api.Serialization.Binding
         private IMemberPlan[] BuildPlan(Type targetType, Type scope)
         {
             var includeInterface = typeof(IIncludeInMemberScope<>).MakeGenericType(scope);
-            var optIn = FirstAttribute<JsonObjectAttribute>(targetType)?.MemberSerialization
-                == MemberSerialization.OptIn;
+            RefuseConverter(targetType, targetType, FirstAttribute<JsonConverterAttribute>(targetType));
+            var dataContract = HasDataContract(targetType);
+            var optIn = dataContract ||
+                FirstAttribute<JsonObjectAttribute>(targetType)?.MemberSerialization == MemberSerialization.OptIn;
 
             const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
             var candidates = targetType.GetFields(flags).Cast<MemberInfo>()
@@ -91,8 +95,9 @@ namespace EastFive.Api.Serialization.Binding
             foreach (var member in candidates)
             {
                 var jsonProperty = FirstAttribute<JsonPropertyAttribute>(member);
+                var dataMember = dataContract ? FirstAttribute<DataMemberAttribute>(member) : null;
                 var isPublic = IsPublic(member);
-                if (!isPublic && jsonProperty is null) continue;
+                if (!isPublic && jsonProperty is null && dataMember is null) continue;
 
                 string wireName;
                 if (IsGoverned(member.DeclaringType, scope, includeInterface))
@@ -103,12 +108,17 @@ namespace EastFive.Api.Serialization.Binding
                 }
                 else
                 {
-                    if (optIn && jsonProperty is null) continue;
+                    if (optIn && jsonProperty is null && dataMember is null) continue;
                     if (member.IsDefined(typeof(JsonIgnoreAttribute), inherit: true)) continue;
-                    wireName = string.IsNullOrEmpty(jsonProperty?.PropertyName) ? member.Name : jsonProperty.PropertyName;
+                    if (member is FieldInfo { IsNotSerialized: true }) continue;
+                    if (!optIn && member.IsDefined(typeof(IgnoreDataMemberAttribute), inherit: true)) continue;
+                    wireName = !string.IsNullOrEmpty(jsonProperty?.PropertyName) ? jsonProperty.PropertyName
+                        : !string.IsNullOrEmpty(dataMember?.Name) ? dataMember.Name
+                        : member.Name;
                 }
 
                 if (!TryCreate(member, wireName, out var memberPlan)) continue;
+                RefuseNewtonsoftOnlyBehaviour(targetType, member, memberPlan.MemberType);
                 plan.Add(memberPlan);
             }
             return plan.ToArray();
@@ -118,6 +128,45 @@ namespace EastFive.Api.Serialization.Binding
         // (and throws when absent); this is the null-when-absent lookup.
         private static T FirstAttribute<T>(MemberInfo member) where T : Attribute =>
             (T)member.GetCustomAttributes(typeof(T), inherit: true).FirstOrDefault();
+
+        /// <summary>
+        /// JsonBinding does not run Newtonsoft converters or extension-data
+        /// members; silently ignoring one would change the wire without notice.
+        /// The one accepted converter is <see cref="StringEnumConverter"/> on an
+        /// enum member, which the enum binder's name-based output already matches.
+        /// </summary>
+        private static void RefuseNewtonsoftOnlyBehaviour(Type targetType, MemberInfo member, Type memberType)
+        {
+            if (member.IsDefined(typeof(JsonExtensionDataAttribute), inherit: true))
+                throw new NotSupportedException(
+                    $"{targetType.FullName}.{member.Name} is [JsonExtensionData]; JsonBinding does not support extension data.");
+            RefuseConverter(targetType, memberType, FirstAttribute<JsonConverterAttribute>(member), member);
+            var underlying = Nullable.GetUnderlyingType(memberType) ?? memberType;
+            RefuseConverter(targetType, underlying, FirstAttribute<JsonConverterAttribute>(underlying), member, declaredOnType: true);
+        }
+
+        private static void RefuseConverter(Type targetType, Type convertedType, JsonConverterAttribute converter,
+            MemberInfo member = null, bool declaredOnType = false)
+        {
+            if (converter is null) return;
+            var underlying = Nullable.GetUnderlyingType(convertedType) ?? convertedType;
+            if (typeof(StringEnumConverter).IsAssignableFrom(converter.ConverterType) && underlying.IsEnum) return;
+            var where = member is null ? targetType.FullName : $"{targetType.FullName}.{member.Name}";
+            throw new NotSupportedException(
+                $"{where} uses [JsonConverter(typeof({converter.ConverterType.Name}))]" +
+                (declaredOnType ? $" (declared on {underlying.FullName}); " : "; ") +
+                "JsonBinding does not run Newtonsoft converters. Only StringEnumConverter on an enum is accepted " +
+                "(enums already bind by name). Bind the value with a type the binders support, or register an ITypeBinder for it.");
+        }
+
+        // Newtonsoft honours [DataContract] declared on the type or any base type.
+        private static bool HasDataContract(Type type)
+        {
+            for (var t = type; t is not null; t = t.BaseType)
+                if (t.IsDefined(typeof(DataContractAttribute), inherit: false))
+                    return true;
+            return false;
+        }
 
         private static bool IsPublic(MemberInfo member) => member switch
         {

@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 using EastFive.Api.Binding.Scopes;
+using EastFive.Api.Serialization.Binding.Binders;
 using EastFive.Api.Serialization.Binding.Sinks;
 using EastFive.Api.Serialization.Binding.Sources;
 using EastFive.Serialization.Binding;
@@ -22,32 +23,103 @@ namespace EastFive.Api.Serialization.Binding
         public static Type DefaultMemberScope => typeof(ResponseBody);
 
         /// <summary>The binder table every <see cref="JsonBinding"/> call uses.</summary>
-        public static ITypeBindings TypeBindings { get; } = EastFive.Serialization.Binding.TypeBindings.Default;
+        public static ITypeBindings TypeBindings { get; } = BuildTypeBindings();
 
         /// <summary>The member selector every <see cref="JsonBinding"/> call uses.</summary>
         public static IMemberPlanProvider MemberPlanProvider { get; } = JsonMemberPlanProvider.Instance;
 
         private static readonly PocoBinder populator = new PocoBinder();
 
+        private static ITypeBindings BuildTypeBindings()
+        {
+            // With() prepends, so these JSON-specific binders win over the defaults
+            // for their shapes; every other shape keeps its default binder.
+            ITypeBindings bindings = EastFive.Serialization.Binding.TypeBindings.Default;
+            foreach (var binder in new ITypeBinder[]
+            {
+                new JsonArrayBinder(),
+                new JsonConstructorBinder(),
+                new JsonObjectBinder(),
+                new JsonCollectionBinder(),
+                new JsonDictionaryBinder(),
+                new JsonRefBinder(),
+                new JsonDateTimeOffsetBinder(),
+                new JsonNumberBinder(),
+                new JsonStringBinder(),
+                new JsonUriBinder(),
+                new JsonTokenBinder(),
+            })
+                bindings = bindings.With(binder);
+            return bindings.With(new JsonRuntimeTypeBinder(bindings));
+        }
+
         /// <summary>
-        /// Parse JSON text for <see cref="Read{T}"/> without Newtonsoft's date
-        /// sniffing, so a string that merely looks like a date stays the exact
-        /// text that was written.
+        /// Parse JSON text for <see cref="Read{T}"/> without Newtonsoft's lossy
+        /// defaults: a string that merely looks like a date stays the exact text
+        /// that was written (no date sniffing), and each non-integer number reads as
+        /// an exact <see cref="decimal"/> when its text fits one and means the same
+        /// <see cref="double"/>; any other number stays a double.
         /// </summary>
         public static JToken Parse(string json)
         {
             if (json is null) throw new ArgumentNullException(nameof(json));
-            using var reader = new JsonTextReader(new System.IO.StringReader(json))
+            JToken token;
+            using (var reader = new JsonTextReader(new System.IO.StringReader(json))
             {
                 DateParseHandling = DateParseHandling.None,
-            };
-            var token = JToken.ReadFrom(reader);
-            while (reader.Read())
+            })
             {
-                if (reader.TokenType != JsonToken.Comment)
-                    throw new JsonReaderException($"Additional text after the JSON value at {reader.Path}.");
+                token = JToken.ReadFrom(reader);
+                while (reader.Read())
+                {
+                    if (reader.TokenType != JsonToken.Comment)
+                        throw new JsonReaderException($"Additional text after the JSON value at {reader.Path}.");
+                }
+            }
+
+            // Newtonsoft keeps no number text, so read the raw text of each number
+            // from System.Text.Json and upgrade the doubles a decimal states exactly.
+            try
+            {
+                using var document = System.Text.Json.JsonDocument.Parse(json, new System.Text.Json.JsonDocumentOptions
+                {
+                    CommentHandling = System.Text.Json.JsonCommentHandling.Skip,
+                    AllowTrailingCommas = true,
+                });
+                PreferExactDecimals(token, document.RootElement);
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                // Lenient JSON Newtonsoft accepts but System.Text.Json does not: keep doubles.
             }
             return token;
+        }
+
+        private static void PreferExactDecimals(JToken token, System.Text.Json.JsonElement element)
+        {
+            switch (token)
+            {
+                case JObject obj when element.ValueKind == System.Text.Json.JsonValueKind.Object:
+                    foreach (var property in obj.Properties())
+                    {
+                        if (element.TryGetProperty(property.Name, out var child))
+                            PreferExactDecimals(property.Value, child);
+                    }
+                    return;
+                case JArray array when element.ValueKind == System.Text.Json.JsonValueKind.Array:
+                    var index = 0;
+                    foreach (var child in element.EnumerateArray())
+                    {
+                        if (index >= array.Count) return;
+                        PreferExactDecimals(array[index++], child);
+                    }
+                    return;
+                case JValue { Type: JTokenType.Float, Value: double approximate } value
+                    when element.ValueKind == System.Text.Json.JsonValueKind.Number:
+                    if (element.TryGetDecimal(out var exact) && (double)exact == approximate)
+                        value.Value = exact;
+                    return;
+            }
         }
 
         /// <summary>
@@ -90,7 +162,7 @@ namespace EastFive.Api.Serialization.Binding
             JsonBindingOptions options = null)
         {
             if (type is null) throw new ArgumentNullException(nameof(type));
-            var source = new JTokenBindingSource(json ?? JValue.CreateNull());
+            var source = new JTokenBindingSource(json ?? JValue.CreateNull(), literalKeys: true);
             var outcome = Complete(TypeBindings.Bind<Outcome>(
                 type,
                 source,
@@ -118,7 +190,7 @@ namespace EastFive.Api.Serialization.Binding
             object boxed = existing;
             if (boxed is null) return Read<T>(json, memberScope, options);
             var type = boxed.GetType();
-            var source = new JTokenBindingSource(json ?? JValue.CreateNull());
+            var source = new JTokenBindingSource(json ?? JValue.CreateNull(), literalKeys: true);
             var outcome = Complete(populator.ReadInto<Outcome>(
                 type,
                 boxed,

@@ -69,6 +69,7 @@ namespace EastFive.Serialization.Binding.Binders
         public void Write(Type sourceType, object value, IBindingSink sink, IBindingContext context)
         {
             if (value is null) { sink.WriteNull(); return; }
+            (sink as IShapedBindingSink)?.BeginArray();
             var idsProp = value.GetType().GetProperty("ids");
             var ids = (IEnumerable<Guid>)idsProp.GetValue(value);
             foreach (var g in ids)

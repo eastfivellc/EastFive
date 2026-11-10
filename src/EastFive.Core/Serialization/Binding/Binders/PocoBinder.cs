@@ -168,6 +168,7 @@ namespace EastFive.Serialization.Binding.Binders
         public void Write(Type sourceType, object value, IBindingSink sink, IBindingContext context)
         {
             if (value is null) { sink.WriteNull(); return; }
+            (sink as IShapedBindingSink)?.BeginObject();
             var provider = context.MemberPlanProvider
                 ?? throw new InvalidOperationException("PocoBinder requires an IMemberPlanProvider on the context.");
             var scope = context.MemberScope
