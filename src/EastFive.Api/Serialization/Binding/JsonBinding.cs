@@ -14,8 +14,53 @@ using EastFive.Serialization.Binding.Binders;
 namespace EastFive.Api.Serialization.Binding
 {
     /// <summary>
-    /// Write and read entity JSON through the V3 binding framework, with no
-    /// <c>IHttpRequest</c> and no <c>IApplication</c>.
+    /// Write and read entity JSON through the V3 binding framework
+    /// (<see cref="ITypeBindings"/>, <see cref="IMemberPlanProvider"/>,
+    /// <see cref="JTokenBindingSink"/> / <see cref="JTokenBindingSource"/>) with no
+    /// <c>IHttpRequest</c> and no <c>IApplication</c>: snapshots, exports, hashes,
+    /// documents stored as JSON — anything that serialized entities offline with
+    /// its own Newtonsoft settings.
+    /// <para>
+    /// <b>Member scope.</b> Every call walks complex types under a member scope,
+    /// <see cref="ResponseBody"/> unless one is passed — the scope V3
+    /// <c>[ApiProperty]</c> tags and <see cref="Json.ApiPropertyContractResolver"/>
+    /// uses, so output matches what the API would send for the same value.
+    /// </para>
+    /// <para>
+    /// <b>Governed and ungoverned types.</b> <see cref="JsonMemberPlanProvider"/>
+    /// applies the resolver's gate: a type whose assembly was
+    /// <see cref="Json.ApiPropertyContractResolver.RegisterManagedAssembly"/>'d
+    /// and which tags a member for the scope writes only its tagged members, under
+    /// their tagged names; any other type falls back to Newtonsoft's default
+    /// member set and names (<c>[JsonProperty]</c>, <c>[JsonIgnore]</c>,
+    /// <c>[DataContract]</c>). Register managed assemblies at startup, before the
+    /// first call.
+    /// </para>
+    /// <para>
+    /// <b>The wire</b> is Newtonsoft + <see cref="Json.ApiPropertyContractResolver"/>'s,
+    /// member for member and in the same order (fields, then properties), except:
+    /// refs are ids, null or id arrays (never ref objects, and an object where an
+    /// id belongs is refused on read); enums are names (integers still read);
+    /// get-only and computed members are neither written nor read; and a Newtonsoft
+    /// <c>[JsonConverter]</c> other than <c>StringEnumConverter</c> on an enum (or a
+    /// <c>[JsonExtensionData]</c> member) throws <see cref="NotSupportedException"/>
+    /// instead of being run or ignored. Decimals are exact.
+    /// <see cref="JsonBindingOptions.OmitNulls"/> drops null members the way
+    /// <c>NullValueHandling.Ignore</c> does.
+    /// </para>
+    /// <para>
+    /// <b>Synchronous.</b> The binding framework is <see cref="ValueTask{TResult}"/>-shaped,
+    /// but <see cref="JTokenBindingSource"/> answers inline, so every call here
+    /// completes on the calling thread and returns a value, like the
+    /// <c>JToken.ToObject&lt;T&gt;</c> / <c>JsonConvert.PopulateObject</c> calls it
+    /// replaces. Blocking on the task is only a fallback for a custom binder that
+    /// genuinely awaits.
+    /// </para>
+    /// <para>
+    /// <b>Not the API response path (yet).</b> HTTP responses and request bodies
+    /// still go through <c>ExtrudeConvert</c> / <c>CastExtrudeConvertJsonAttribute</c>
+    /// and the request-bound dispatcher; this façade does not change them.
+    /// </para>
     /// </summary>
     public static class JsonBinding
     {

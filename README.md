@@ -317,3 +317,22 @@ A store is named by its `StorageAccountConfiguration` type (`StorageAccount.Tabl
 `StorageAccount.Of<T>()`); its account comes from `<Store>.Account` and its credential from
 `AzureStorage-{account}-ConnectionString`. The emulator account `devstoreaccount1` is fabricated
 from `Azure.Storage.Emulator.Port` and never read from the secret store.
+
+## Entity JSON without a request
+
+`JsonBinding` (EastFive.Api) writes and reads entity JSON through the V3 binding framework with
+no `IHttpRequest` or `IApplication` — for snapshots, exports, hashes and documents stored as JSON:
+
+```csharp
+JToken json = JsonBinding.Write(entity, options: new JsonBindingOptions { OmitNulls = true });
+var copy = JsonBinding.Read<Entity>(JsonBinding.Parse(text));   // Parse keeps date-like strings and exact decimals
+var merged = JsonBinding.Populate(patch, existing);              // present members overwrite, absent keep
+```
+
+Members are chosen as `ApiPropertyContractResolver` chooses them under the `ResponseBody` scope
+(pass another `memberScope` to change it): a type in a `RegisterManagedAssembly`'d assembly that
+tags members with V3 `[ApiProperty]` writes only those; any other type gets Newtonsoft's default
+members. The output matches Newtonsoft with that resolver, except that refs are ids, enums are
+names, get-only members are skipped, and a `[JsonConverter]` other than `StringEnumConverter` on an
+enum throws. A read failure throws `JsonBindingException` naming the key path. Calls complete
+synchronously. HTTP responses do not go through `JsonBinding` yet.

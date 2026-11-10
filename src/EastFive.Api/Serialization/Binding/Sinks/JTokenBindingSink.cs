@@ -28,6 +28,15 @@ namespace EastFive.Api.Serialization.Binding.Sinks
     /// and dictionary entries opened with <see cref="ScopeEntry"/> keep their nulls).
     /// </para>
     /// <para>
+    /// It also implements <see cref="IShapedBindingSink"/>, so composite binders
+    /// write an empty object or array as <c>{}</c> / <c>[]</c>.
+    /// </para>
+    /// <para>
+    /// <c>JsonBinding</c> is the entry point that drives this sink with the JSON
+    /// binder set and member plan. HTTP responses do not use it yet; they still
+    /// serialize through Newtonsoft and <c>ExtrudeConvert</c>.
+    /// </para>
+    /// <para>
     /// Shape errors are programmer errors and throw
     /// <see cref="InvalidOperationException"/>: a second scalar write on one slot,
     /// <see cref="Scope"/> on a slot that holds a scalar or an array, or
