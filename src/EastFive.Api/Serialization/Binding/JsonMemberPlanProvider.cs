@@ -110,7 +110,7 @@ namespace EastFive.Api.Serialization.Binding
                 {
                     if (optIn && jsonProperty is null && dataMember is null) continue;
                     if (member.IsDefined(typeof(JsonIgnoreAttribute), inherit: true)) continue;
-                    if (member is FieldInfo { IsNotSerialized: true }) continue;
+                    if (member is FieldInfo && member.IsDefined(typeof(NonSerializedAttribute), inherit: false)) continue;
                     if (!optIn && member.IsDefined(typeof(IgnoreDataMemberAttribute), inherit: true)) continue;
                     wireName = !string.IsNullOrEmpty(jsonProperty?.PropertyName) ? jsonProperty.PropertyName
                         : !string.IsNullOrEmpty(dataMember?.Name) ? dataMember.Name

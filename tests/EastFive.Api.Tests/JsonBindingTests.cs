@@ -462,7 +462,7 @@ public class JsonBindingTests
     public void JTokenMembersPassThroughVerbatimAndAreClonedBothWays()
     {
         var obj = JObject.Parse("""{"a":[1,{"b":"2026-11-09T05:51:33Z"}],"c":1.10}""");
-        var holder = new TokenHolder { Obj = obj, Arr = new JArray(1, "two", null), Any = new JValue("x") };
+        var holder = new TokenHolder { Obj = obj, Arr = new JArray(1, "two", JValue.CreateNull()), Any = new JValue("x") };
         AssertParity(holder);
 
         var json = JsonBinding.Write(holder);
