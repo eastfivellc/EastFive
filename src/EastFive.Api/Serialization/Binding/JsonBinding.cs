@@ -25,7 +25,7 @@ namespace EastFive.Api.Serialization.Binding
         public static ITypeBindings TypeBindings { get; } = EastFive.Serialization.Binding.TypeBindings.Default;
 
         /// <summary>The member selector every <see cref="JsonBinding"/> call uses.</summary>
-        public static IMemberPlanProvider MemberPlanProvider { get; } = ScopedMemberPlanProvider.Instance;
+        public static IMemberPlanProvider MemberPlanProvider { get; } = JsonMemberPlanProvider.Instance;
 
         private static readonly PocoBinder populator = new PocoBinder();
 
