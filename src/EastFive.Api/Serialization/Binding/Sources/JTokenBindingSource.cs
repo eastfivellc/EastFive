@@ -19,10 +19,21 @@ namespace EastFive.Api.Serialization.Binding.Sources
     public sealed class JTokenBindingSource : IBindingSource, IKeyedBindingSource
     {
         private readonly JToken token;
+        private readonly bool literalKeys;
 
         public JTokenBindingSource(JToken token)
+            : this(token, literalKeys: false)
+        { }
+
+        /// <param name="literalKeys">When true, a path that names an existing
+        /// property of an object verbatim (<c>odata.metadata</c>, <c>value[0]</c>)
+        /// resolves to that property before being parsed as a dotted/bracketed
+        /// path. Used by <c>JsonBinding</c>, whose member paths are always one
+        /// wire name relative to the object; child sources inherit it.</param>
+        public JTokenBindingSource(JToken token, bool literalKeys)
         {
             this.token = token;
+            this.literalKeys = literalKeys;
         }
 
         /// <summary>
@@ -33,6 +44,28 @@ namespace EastFive.Api.Serialization.Binding.Sources
         /// </summary>
         public IEnumerable<string> Keys =>
             token is JObject obj ? obj.Properties().Select(p => p.Name) : Enumerable.Empty<string>();
+
+        /// <summary>
+        /// The raw token at <paramref name="path"/>, for JSON-specific binders that
+        /// need what the format-neutral callbacks cannot carry (a whole
+        /// <see cref="JObject"/>, a <see cref="decimal"/>, a
+        /// <see cref="DateTimeOffset"/>'s offset). Returns false with a
+        /// <see cref="NotPresent"/> (or path) failure when nothing is there; a JSON
+        /// null is returned as its <see cref="JTokenType.Null"/> token.
+        /// </summary>
+        public bool TryGetToken(string path, out JToken token, out BindFailure failure)
+        {
+            var (resolved, navFailure) = Navigate(this.token, path, literalKeys);
+            if (navFailure is { } nf)
+            {
+                token = null;
+                failure = nf;
+                return false;
+            }
+            token = resolved ?? JValue.CreateNull();
+            failure = default;
+            return true;
+        }
 
         public ValueTask<TResult> GetValue<TResult>(
             string path = null,
@@ -49,7 +82,7 @@ namespace EastFive.Api.Serialization.Binding.Sources
             Type elementTypeHint = null,
             Func<BindFailure, TResult> onFailure = null)
         {
-            var (resolved, navFailure) = Navigate(token, path);
+            var (resolved, navFailure) = Navigate(token, path, literalKeys);
             if (navFailure is { } nf)
                 return BindingSourceDispatch.FailTask(nf, onFailure);
 
@@ -98,14 +131,14 @@ namespace EastFive.Api.Serialization.Binding.Sources
 
                 case JTokenType.Object:
                     if (onObject is not null)
-                        return new ValueTask<TResult>(onObject(new JTokenBindingSource(resolved)));
+                        return new ValueTask<TResult>(onObject(new JTokenBindingSource(resolved, literalKeys)));
                     return BindingSourceDispatch.WrongType<TResult>("object", resolved.Type.ToString(), typeof(object), path, onFailure);
 
                 case JTokenType.Array:
                     if (onArray is not null)
                     {
                         var arr = (JArray)resolved;
-                        var elements = arr.Select(t => (IBindingSource)new JTokenBindingSource(t));
+                        var elements = arr.Select(t => (IBindingSource)new JTokenBindingSource(t, literalKeys));
                         var enumerable = new EnumerableBindingSource(elements, elementTypeHint);
                         return new ValueTask<TResult>(onArray(enumerable));
                     }
@@ -116,10 +149,12 @@ namespace EastFive.Api.Serialization.Binding.Sources
             }
         }
 
-        private static (JToken resolved, BindFailure? failure) Navigate(JToken start, string path)
+        private static (JToken resolved, BindFailure? failure) Navigate(JToken start, string path, bool literalKeys)
         {
             if (string.IsNullOrEmpty(path))
                 return (start, null);
+            if (literalKeys && start is JObject literal && TryGetMember(literal, path, out var named))
+                return (named, null);
             var current = start;
             var remaining = path;
             while (!string.IsNullOrEmpty(remaining))

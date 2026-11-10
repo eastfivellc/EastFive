@@ -96,6 +96,7 @@ namespace EastFive.Serialization.Binding.Binders
         public void Write(Type sourceType, object value, IBindingSink sink, IBindingContext context)
         {
             if (value is null) { sink.WriteNull(); return; }
+            (sink as IShapedBindingSink)?.BeginObject();
             var dictInterface = FindDictionaryInterface(sourceType);
             var valueType = dictInterface.GetGenericArguments()[1];
             foreach (DictionaryEntry entry in (IDictionary)value)

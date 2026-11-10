@@ -49,6 +49,12 @@ namespace EastFive.Api.Serialization.Json
             managedAssemblies[assembly] = true;
         }
 
+        /// <summary>True when <paramref name="assembly"/> was opted in via
+        /// <see cref="RegisterManagedAssembly"/>. Shared with
+        /// <c>JsonMemberPlanProvider</c> so both apply the same gate.</summary>
+        internal static bool IsManagedAssembly(Assembly assembly) =>
+            assembly is not null && managedAssemblies.ContainsKey(assembly);
+
         protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
         {
             var property = base.CreateProperty(member, memberSerialization);
