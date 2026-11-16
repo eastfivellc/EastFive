@@ -91,7 +91,9 @@ value-only type instead (`ApplicationInsightsTelemetryConfiguration` beside
 **Keyed families** — one instance per name, such as a Ping redirect or a SAML provider per tag —
 implement `IProvideConfigurationInstanceKey`. Member keys carry a `{key}` placeholder, a
 `FallbackKey` may name a former spelling, and `ConfigurationCatalog.InstanceKeys(type)` lists
-the instances the configuration names.
+the instances the configuration names. A keyed type may declare secrets too: each instance reads
+its own, named by its instance key (see *Generated secret names*), and is loaded on first use
+rather than at startup (see *Keyed instances: load on first use*).
 
 A member that holds JSON accepts both a JSON string and a structured `appsettings.json` section
 at its key.
@@ -107,9 +109,46 @@ Secret names are never hand-written. `{Type}-{Account}-{Property}` for a type wi
 member, `{Type}-{Property}` otherwise: `Type` is the `[ConfigurationType]` name, `Account` the
 account member's value, `Property` the secret member's property name. Names are valid Azure Key
 Vault secret names (`[A-Za-z0-9-]`); an account id that would not be is refused, never mapped —
-unless the account member declares an exact, type-specific translation with an attribute
-implementing `IProvideSecretAccountSegment` (Google client ids drop their constant
+unless the account member declares an injective translation with an attribute implementing
+`IProvideSecretAccountSegment` (Google client ids drop their constant
 `.apps.googleusercontent.com` domain). The translated segment is still validated.
+
+**A keyed type's instance key is the account of its secrets.** A keyed type with secret members
+and no account member reads `{Type}-{InstanceKey}-{Property}`, so every instance has its own
+secret:
+
+```csharp
+[ConfigurationType("VendorWebhook")]
+public sealed class VendorWebhookConfiguration : IProvideConfiguration, IProvideConfigurationInstanceKey
+{
+    public VendorWebhookConfiguration(string webhookId) => InstanceKey = webhookId;
+
+    [EncodedSecretAccountSegment]                 // only if the id may not be a valid segment
+    public string InstanceKey { get; }
+
+    [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Signing secret")]
+    public Secret SigningSecret { get; set; }     // VendorWebhook-{webhookId}-SigningSecret
+}
+```
+
+A declared account member still names the secrets, and a type that overrides `SecretReference`
+names its own; neither is affected. The translation goes on the `InstanceKey` property, with the
+same attribute an account member uses. An instance key that cannot name a secret is an `Invalid`
+issue (key `InstanceKey`) reported before any secret is read, exactly as an invalid account is.
+
+**The general translation is `[EncodedSecretAccountSegment]`**, for an id whose format is not
+ours to choose. It is opt-in, on an account member or an `InstanceKey`:
+
+- a plain segment — letters and digits in groups joined by single dashes — is unchanged, so ids
+  that never needed it keep their names;
+- anything else becomes `e` followed by each character: an ASCII letter or digit as itself, every
+  other character (each dash included) as `--` and two lowercase hex digits per UTF-8 byte.
+  `wh_abc` is `ewh--5fabc`; `_a` is `e--5fa`.
+
+A plain segment never contains `--` and an escaped one always does, so the two cannot meet.
+`EncodedSecretAccountSegmentAttribute.TryDecode` reads a segment back. Vault names ignore letter
+case, so the only ids that share a name are ones that differ by letter case alone. The empty
+string is still refused.
 
 **The account rule:** an account member used for secret naming must be vault-safe by FORMAT or
 declare its translation. The catalog checks a draft value (`ConfigurationTypeDescription.
@@ -121,11 +160,18 @@ Types that share a `[ConfigurationType]` and an account share one secret — eve
 
 `ConfigurationCatalog.For(assemblies)` lists every configuration type with its members,
 metadata (label, description, location, scope, field kind) and generated names; editors and
-doctors render from it. `IProvideConfigurationLookup` and `ITestConfiguration` are the
-attribute-interface hooks for choices and live checks of a `ConfigurationDraft`.
+doctors render from it. For a keyed type whose instance key names its secrets
+(`NamesSecretsByInstanceKey`), the template keeps the `{account}` placeholder,
+`SecretNames(instanceKey)` names one instance's secrets and `AccountProblem(instanceKey)` judges
+a draft instance key. `IProvideConfigurationLookup` and `ITestConfiguration` are the
+attribute-interface hooks for choices and live checks of a `ConfigurationDraft`;
+`IProvideConfigurationInstanceLookup`, on a keyed TYPE, offers the instances an editor can add
+(an instance key and a label each, never secret material) — the catalog can list only the
+instances a configured value key already names.
 `ConfigurationLoader.InspectAsync(construct)` reports how each member of one type stands against
-the ambient values and `SecretStore.Current` (names and sources, never values); the overloads
-taking a `readValue` function inspect explicit sources instead.
+the ambient values and `SecretStore.Current` (names and sources, never values), a keyed instance's
+secret under its real name; the overloads taking a `readValue` function inspect explicit sources
+instead.
 
 ### Generated values
 
@@ -310,6 +356,35 @@ StartupConfiguration.Get<TokenSigningConfiguration, TResult>(onLoaded, onUnavail
 
 A type the host did not load answers `ConfigIssueCategory.NotLoaded`. `RefreshEveryAsync` re-reads
 the loaded types on an interval to pick up rotated secrets.
+
+### Keyed instances: load on first use
+
+A keyed type is never part of the startup load: it has no parameterless constructor, and its
+instances are not known until something names one. An instance with secrets is loaded where it is
+used, from the ambient values and `SecretStore.Current`, and cached:
+
+```csharp
+await Configured.GetAsync(() => new VendorWebhookConfiguration(webhookId), onConfigured, onUnavailable);
+Configured.Get(() => new VendorWebhookConfiguration(webhookId), onConfigured, onUnavailable);   // the cache only
+```
+
+- The cache is `StartupConfiguration.Instances` (a `ConfigurationInstanceCache`), keyed by
+  (type, instance key), ignoring the key's case. Callers that arrive while an instance is loading
+  share that one load.
+- A **loaded** configuration is kept until `StartupConfiguration.RefreshAsync` /
+  `RefreshEveryAsync` re-reads it or `StartupConfiguration.Forget<T>(instanceKey)` drops it. A
+  refresh that meets a `SourceFailure` keeps the loaded configuration.
+- An **issue** is kept for 60 seconds (`ConfigurationInstanceCache.DefaultIssueLifetime`) and then
+  re-read on the next use: a secret added to the vault is picked up without a restart, and a
+  missing one does not reach the vault on every request. Stale issues nobody asks about again are
+  dropped.
+- The synchronous `Configured.Get(construct, …)` never loads. An instance nothing has loaded yet
+  answers `NotLoaded` — it no longer throws for a keyed type with secrets. A value-only keyed
+  type is still read live, by either call.
+
+`ConfigurationLoader.LoadAsync(construct, onConfigured, onMissing, onInvalid, onSourceFailure)`
+is the uncached load of one instance over the same ambient sources. A
+`ConfigurationInstanceCache` built over explicit sources (and a clock) serves an editor or a test.
 
 ### Storage
 
