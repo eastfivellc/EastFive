@@ -119,6 +119,22 @@ namespace EastFive.Configuration
                 onConfigured, onMissing, onInvalid, onSourceFailure);
 
         /// <summary>
+        /// One instance built by <paramref name="construct"/> — a KEYED type's instance, typically —
+        /// loaded from the ambient values and <see cref="SecretStore.Current"/>, so a host never
+        /// rebuilds a value reader to load it. Uncached: <see cref="Configured.GetAsync"/> is the
+        /// cached read at the point of use.
+        /// </summary>
+        public static Task<TResult> LoadAsync<TConfig, TResult>(
+            Func<TConfig> construct,
+            Func<TConfig, TResult> onConfigured,
+            Func<ConfigIssue, TResult> onMissing,
+            Func<ConfigIssue, TResult> onInvalid,
+            Func<ConfigIssue, TResult> onSourceFailure)
+            where TConfig : IProvideConfiguration
+            => LoadAsync(construct, ReadAmbient, SecretStore.Current, onConfigured,
+                (issue, _) => Task.FromResult(onMissing(issue)), onInvalid, onSourceFailure);
+
+        /// <summary>
         /// The doctor's view: every member with the key or generated secret name it is read by
         /// and how it stood, in declaration order, without running validation. Unlike a load it
         /// does not stop at the first gap. Members that ARE present are populated as it goes, so
@@ -290,11 +306,10 @@ namespace EastFive.Configuration
 
             foreach (var member in declared.Members)
             {
-                // A secret's name embeds the account; an account that cannot be a name segment
-                // is the ACCOUNT member's problem, reported before any secret read.
+                // A secret's name embeds the account (the account member's value, or a keyed type's
+                // instance key); one that cannot be a name segment is reported before any secret read.
                 if (member.IsSecret && declared.HasInvalidAccount(config))
-                    return onInvalid(new ConfigIssue(configurationType, declared.AccountMember!.Key!,
-                        declared.AccountMember.Kind, ConfigIssueCategory.Invalid));
+                    return onInvalid(InvalidAccount(configurationType, declared));
 
                 var key = NameOf(config, member);
                 ConfigIssue Issue(ConfigIssueCategory category) => new(configurationType, key, member.Kind, category);
@@ -346,6 +361,17 @@ namespace EastFive.Configuration
         /// <summary>The key a values member is read by; the secret NAME a secret member is read by.</summary>
         private static string NameOf(IProvideConfiguration config, ConfigurationMember member)
             => member.IsSecret ? config.SecretReference(member.Purpose!).Name : member.KeyFor(config)!;
+
+        /// <summary>The issue for an account that cannot name a secret: the ACCOUNT member's, by its
+        /// key — or, for a keyed type whose instance key names its secrets, the instance key's (it has
+        /// no values key, so the issue names the property and says why; never the key's value).</summary>
+        private static ConfigIssue InvalidAccount(Type configurationType, ConfigurationMembers declared)
+            => declared.AccountMember is { } account
+                ? new ConfigIssue(configurationType, account.Key!, account.Kind, ConfigIssueCategory.Invalid)
+                : new ConfigIssue(configurationType, nameof(IProvideConfigurationInstanceKey.InstanceKey),
+                    ConfigurationMemberKind.Required, ConfigIssueCategory.Invalid,
+                    "The instance key names this type's secrets and is not a secret-name segment: letters, digits and inner dashes only"
+                        + (declared.InstanceKeySegment is { } translation ? $" (after {translation.GetType().Name})." : "."));
 
         private readonly record struct Read(string? Text, string? Source, ConfigIssue? Issue)
         {

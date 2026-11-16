@@ -31,6 +31,21 @@ namespace EastFive.Configuration
     }
 
     /// <summary>
+    /// Implemented by an attribute on a KEYED configuration TYPE
+    /// (<see cref="IProvideConfigurationInstanceKey"/>): the instances an editor can offer to add,
+    /// computed from the draft so far (the webhooks an API key can see). Each choice's value is an
+    /// instance key and its label is for people. The catalog lists the instances that configured
+    /// value keys already name (<see cref="ConfigurationCatalog.InstanceKeys(Type)"/>); a lookup
+    /// offers the ones nothing names yet. Never returns secret material.
+    /// </summary>
+    public interface IProvideConfigurationInstanceLookup
+    {
+        Task<TResult> LookupInstancesAsync<TResult>(Type configurationType, ConfigurationDraft draft,
+            Func<IReadOnlyList<ConfigurationChoice>, TResult> onChoices,
+            Func<string, TResult> onUnavailable);
+    }
+
+    /// <summary>
     /// Implemented by an attribute on a configuration TYPE: a live check of a draft (does the key
     /// authenticate, does the endpoint answer). The reason strings carry no secret material.
     /// </summary>

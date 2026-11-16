@@ -212,6 +212,7 @@ public class EncodedSecretAccountSegmentTests
     [InlineData("é", "e--c3--a9")]
     [InlineData("😀", "e--f0--9f--98--80")]
     [InlineData("1000.ABC", "e1000--2eABC")]
+    [InlineData("abc\n", "eabc--0a")]
     public void AValueThatIsNotASegment_IsEscaped(string value, string segment)
     {
         Assert.Equal(segment, EncodedSecretAccountSegmentAttribute.Encode(value));

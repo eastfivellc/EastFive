@@ -201,6 +201,24 @@ public class ConfigurationInstanceCacheTests
     }
 
     [Fact]
+    public async Task Forget_DuringALoad_LeavesNothingCached()
+    {
+        var (cache, vault, _) = Cache();
+        vault.Secrets["Tenant-east-ApiKey"] = "k-east";
+        vault.Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var caller = Use(cache, "east");
+        while (vault.Asked == 0)
+            await Task.Delay(5);
+        Assert.False(cache.Forget(typeof(Tenant), "east"));
+        vault.Gate.SetResult();
+
+        // The caller that was already waiting gets its answer; the forgotten instance stays forgotten.
+        Assert.Equal("east:us:k-east", await caller);
+        Assert.Equal("NotLoaded:Tenant", Read(cache, "east"));
+    }
+
+    [Fact]
     public async Task Refresh_ReReadsEveryInstance_AndKeepsAGoodOutcomeWhenTheSourceFails()
     {
         var (cache, vault, _) = Cache();
@@ -246,7 +264,8 @@ public class ConfigurationInstanceCacheTests
         var (cache, vault, _) = Cache();
         vault.Secrets["Tenant-east-ApiKey"] = "k-east";
         var attempts = 0;
-        Tenant Construct() => ++attempts == 1 ? throw new InvalidOperationException("constructor failed") : new Tenant("east");
+        // The second construction is the load's own (the first names the instance).
+        Tenant Construct() => ++attempts == 2 ? throw new InvalidOperationException("constructor failed") : new Tenant("east");
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             cache.GetOrLoadAsync(Construct, tenant => tenant.ApiKey.Reveal(), issue => issue.ToString()));

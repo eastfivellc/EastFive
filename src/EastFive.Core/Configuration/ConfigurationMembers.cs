@@ -103,12 +103,35 @@ namespace EastFive.Configuration
         /// <summary>The member whose value scopes generated secret names, if any.</summary>
         public ConfigurationMember? AccountMember { get; }
 
-        private ConfigurationMembers(Type configurationType, ConfigurationMember[] members, string? typeName)
+        /// <summary>One instance per name (<see cref="IProvideConfigurationInstanceKey"/>).</summary>
+        public bool IsKeyed { get; }
+
+        /// <summary>
+        /// A keyed type whose INSTANCE KEY is the account of its generated secret names
+        /// (<c>{Type}-{InstanceKey}-{Property}</c>): it declares secret members and no account member,
+        /// and does not name its own secrets. A declared account member wins, and a type that overrides
+        /// <see cref="IProvideConfiguration.SecretReference"/> is left to it.
+        /// </summary>
+        public bool NamesSecretsByInstanceKey { get; }
+
+        /// <summary>The translation a keyed type declares on its
+        /// <see cref="IProvideConfigurationInstanceKey.InstanceKey"/> property, if any.</summary>
+        public IProvideSecretAccountSegment? InstanceKeySegment { get; }
+
+        /// <summary>The type's instance lookup hook, when an attribute on the type provides one.</summary>
+        public IProvideConfigurationInstanceLookup? InstanceLookup { get; }
+
+        private ConfigurationMembers(Type configurationType, ConfigurationMember[] members, string? typeName,
+            bool isKeyed, bool namesItsOwnSecrets, IProvideSecretAccountSegment? instanceKeySegment, IProvideConfigurationInstanceLookup? instanceLookup)
         {
             ConfigurationType = configurationType;
             Members = members;
             TypeName = typeName;
             AccountMember = members.SingleOrDefault(member => member.IsAccount);
+            IsKeyed = isKeyed;
+            NamesSecretsByInstanceKey = isKeyed && AccountMember == null && !namesItsOwnSecrets && members.Any(member => member.IsSecret);
+            InstanceKeySegment = instanceKeySegment;
+            InstanceLookup = instanceLookup;
         }
 
         public static ConfigurationMembers For<TConfig>() where TConfig : IProvideConfiguration
@@ -141,41 +164,55 @@ namespace EastFive.Configuration
                     $"{ConfigurationType.Name} declares no secret member with purpose '{purpose}'.");
 
         /// <summary>The account segment an instance scopes its secret names by: the trimmed value of the
-        /// account member, translated by its <see cref="IProvideSecretAccountSegment"/> when it declares
-        /// one; <c>null</c> when the type declares no account member.</summary>
+        /// account member — or, for a keyed type that <see cref="NamesSecretsByInstanceKey"/>, its
+        /// instance key — translated by the <see cref="IProvideSecretAccountSegment"/> declared on it,
+        /// if any; <c>null</c> when the type's secret names carry no account.</summary>
         public string? AccountOf(object configuration)
-            => AccountMember == null ? null : AccountSegmentOf((AccountMember.Property.GetValue(configuration) as string)?.Trim());
+            => AccountMember != null ? AccountSegmentOf((AccountMember.Property.GetValue(configuration) as string)?.Trim())
+                : NamesSecretsByInstanceKey ? AccountSegmentOf((configuration as IProvideConfigurationInstanceKey)?.InstanceKey?.Trim())
+                : null;
 
-        /// <summary>An account VALUE as the secret-name segment this type would use (unvalidated).</summary>
+        /// <summary>The translation applied to whatever names this type's secrets: the account member's,
+        /// or the instance key's for a keyed type that <see cref="NamesSecretsByInstanceKey"/>.</summary>
+        public IProvideSecretAccountSegment? AccountSegmentTranslation
+            => AccountMember != null ? AccountMember.AccountSegment
+                : NamesSecretsByInstanceKey ? InstanceKeySegment
+                : null;
+
+        /// <summary>An account VALUE (or instance key) as the secret-name segment this type would use
+        /// (unvalidated).</summary>
         public string? AccountSegmentOf(string? account)
-            => account == null || AccountMember?.AccountSegment is not { } translation
+            => account == null || AccountSegmentTranslation is not { } translation
                 ? account
                 : translation.SecretAccountSegment(account);
 
-        /// <summary>Null when <paramref name="account"/>, translated as the account member declares, is a
-        /// valid secret-name segment (or the type has no account member); otherwise the reason, naming
-        /// the member's key. What load-time validation and an editor's draft check both apply.</summary>
+        /// <summary>Null when <paramref name="account"/> — an account value, or an instance key for a
+        /// keyed type that <see cref="NamesSecretsByInstanceKey"/> — translated as the type declares, is
+        /// a valid secret-name segment (or the type's secret names carry no account); otherwise the
+        /// reason, naming the account member's key or the instance key. What load-time validation and
+        /// an editor's draft check both apply.</summary>
         public string? AccountProblem(string? account)
         {
-            if (AccountMember == null)
+            if (AccountMember == null && !NamesSecretsByInstanceKey)
                 return null;
             var segment = AccountSegmentOf(account?.Trim());
             return SecretNames.IsValidAccount(segment)
                 ? null
-                : $"[{AccountMember.Key}] '{account}' cannot name a secret"
-                    + (AccountMember.AccountSegment is { } translation ? $" (translated by {translation.GetType().Name} to '{segment}')" : string.Empty)
+                : (AccountMember != null ? $"[{AccountMember.Key}] '{account}'" : $"The instance key '{account}'") + " cannot name a secret"
+                    + (AccountSegmentTranslation is { } translation ? $" (translated by {translation.GetType().Name} to '{segment}')" : string.Empty)
                     + ": an account segment is letters, digits and inner dashes only.";
         }
 
-        /// <summary>The account member's value cannot be one segment of a secret name.</summary>
+        /// <summary>The account member's value — or the instance key of a keyed type that
+        /// <see cref="NamesSecretsByInstanceKey"/> — cannot be one segment of a secret name.</summary>
         public bool HasInvalidAccount(object configuration)
-            => AccountMember != null && !SecretNames.IsValidAccount(AccountOf(configuration));
+            => (AccountMember != null || NamesSecretsByInstanceKey) && !SecretNames.IsValidAccount(AccountOf(configuration));
 
         /// <summary>
-        /// The GENERATED reference for a secret purpose: <c>{Type}-{Account}-{Property}</c>, or
-        /// <c>{Type}-{Property}</c> for a type without an account member. Throws when the type
-        /// declares no <see cref="ConfigurationTypeAttribute"/> or the account value cannot be a
-        /// name segment; the loader checks the account first and reports it as invalid.
+        /// The GENERATED reference for a secret purpose: <c>{Type}-{Account}-{Property}</c> (the account
+        /// member's value, or a keyed type's instance key), or <c>{Type}-{Property}</c> for a type with
+        /// neither. Throws when the type declares no <see cref="ConfigurationTypeAttribute"/> or the
+        /// account cannot be a name segment; the loader checks the account first and reports it as invalid.
         /// </summary>
         public SecretReference GeneratedSecretReference(object configuration, string purpose)
         {
@@ -184,8 +221,9 @@ namespace EastFive.Configuration
                 throw new InvalidOperationException(
                     $"{ConfigurationType.Name} declares secret members without [{nameof(ConfigurationTypeAttribute)}]; secret names are generated from it.");
             if (HasInvalidAccount(configuration))
-                throw new InvalidOperationException(
-                    $"{ConfigurationType.Name}'s account [{AccountMember!.Key}] cannot name a secret (letters, digits and inner dashes only).");
+                throw new InvalidOperationException(AccountMember != null
+                    ? $"{ConfigurationType.Name}'s account [{AccountMember.Key}] cannot name a secret (letters, digits and inner dashes only)."
+                    : $"{ConfigurationType.Name}'s instance key cannot name a secret (letters, digits and inner dashes only).");
             return new SecretReference(SecretNames.Generate(TypeName, AccountOf(configuration), member.Property.Name), purpose);
         }
 
@@ -223,22 +261,40 @@ namespace EastFive.Configuration
                 throw new InvalidOperationException(
                     $"{configurationType.Name}.{placeholder.Property.Name} uses {IProvideConfigurationInstanceKey.Placeholder} but the type does not implement {nameof(IProvideConfigurationInstanceKey)}.");
 
-            var misplaced = members.FirstOrDefault(member => !member.IsAccount
-                && member.Property.GetCustomAttributes(inherit: true).OfType<IProvideSecretAccountSegment>().Any());
+            var properties = configurationType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            var instanceKeyProperty = keyed
+                ? properties.FirstOrDefault(property => property.Name == nameof(IProvideConfigurationInstanceKey.InstanceKey))
+                : null;
+            var accounts = members.Where(member => member.IsAccount).ToArray();
+            var translated = properties
+                .Where(property => property.GetCustomAttributes(inherit: true).OfType<IProvideSecretAccountSegment>().Any())
+                .ToArray();
+            var misplaced = translated.FirstOrDefault(property =>
+                property.Name != instanceKeyProperty?.Name && accounts.All(account => account.Property.Name != property.Name));
             if (misplaced != null)
                 throw new InvalidOperationException(
-                    $"{configurationType.Name}.{misplaced.Property.Name} declares a secret account segment but is not the account member.");
-            var doubled = members.FirstOrDefault(member => member.Property.GetCustomAttributes(inherit: true).OfType<IProvideSecretAccountSegment>().Count() > 1);
+                    $"{configurationType.Name}.{misplaced.Name} declares a secret account segment but is neither the account member nor a keyed type's {nameof(IProvideConfigurationInstanceKey.InstanceKey)}.");
+            var doubled = translated.FirstOrDefault(property => property.GetCustomAttributes(inherit: true).OfType<IProvideSecretAccountSegment>().Count() > 1);
             if (doubled != null)
                 throw new InvalidOperationException(
-                    $"{configurationType.Name}.{doubled.Property.Name} declares more than one secret account segment.");
+                    $"{configurationType.Name}.{doubled.Name} declares more than one secret account segment.");
+            var instanceKeySegment = instanceKeyProperty?.GetCustomAttributes(inherit: true).OfType<IProvideSecretAccountSegment>().FirstOrDefault();
+            if (instanceKeySegment != null && accounts.Length > 0 && accounts.All(account => account.Property.Name != instanceKeyProperty!.Name))
+                throw new InvalidOperationException(
+                    $"{configurationType.Name}.{instanceKeyProperty!.Name} declares a secret account segment, but the type's account member [{accounts[0].Key}] names its secrets.");
+
+            var instanceLookups = configurationType.GetCustomAttributes(inherit: true).OfType<IProvideConfigurationInstanceLookup>().ToArray();
+            if (instanceLookups.Length > 1)
+                throw new InvalidOperationException($"{configurationType.Name} declares more than one instance lookup.");
+            if (instanceLookups.Length == 1 && !keyed)
+                throw new InvalidOperationException(
+                    $"{configurationType.Name} declares an instance lookup but does not implement {nameof(IProvideConfigurationInstanceKey)}.");
 
             var generated = members.FirstOrDefault(member => member.Property.GetCustomAttributes(inherit: true).OfType<IGenerateConfigurationValue>().Count() > 1);
             if (generated != null)
                 throw new InvalidOperationException(
                     $"{configurationType.Name}.{generated.Property.Name} declares more than one generator.");
 
-            var accounts = members.Where(member => member.IsAccount).ToArray();
             if (accounts.Length > 1)
                 throw new InvalidOperationException($"{configurationType.Name} declares more than one account member.");
             if (accounts.Length == 1)
@@ -259,7 +315,9 @@ namespace EastFive.Configuration
 
             var typeName = System.Reflection.CustomAttributeExtensions
                 .GetCustomAttribute<ConfigurationTypeAttribute>(configurationType, inherit: true)?.Name;
-            return new ConfigurationMembers(configurationType, members, typeName);
+            return new ConfigurationMembers(configurationType, members, typeName, keyed,
+                namesItsOwnSecrets: !configurationType.IsInterface && ConfigurationCatalog.OverridesSecretReference(configurationType),
+                instanceKeySegment, instanceLookups.SingleOrDefault());
         }
 
         private static ConfigurationMember Declare(Type configurationType, PropertyInfo property, ConfigurationMemberAttribute attribute)
