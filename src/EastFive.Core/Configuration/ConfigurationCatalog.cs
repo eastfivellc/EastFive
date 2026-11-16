@@ -39,17 +39,41 @@ namespace EastFive.Configuration
         /// lists the instances.</summary>
         public bool IsKeyed => typeof(IProvideConfigurationInstanceKey).IsAssignableFrom(Type);
 
-        /// <summary>The secret names this type reads for an account (or globally, when it has no
-        /// account member). Only meaningful when <see cref="GeneratesSecretNames"/>.</summary>
+        /// <summary>A keyed type whose INSTANCE KEY is the account of its generated secret names: each
+        /// instance reads <c>{Type}-{InstanceKey}-{Property}</c>, <see cref="SecretNames(string?)"/> takes
+        /// an instance key, and <see cref="AccountProblem(string?)"/> judges one. False for a keyed type
+        /// with an account member (it names the secrets) or one that names its own.</summary>
+        public bool NamesSecretsByInstanceKey => GeneratesSecretNames && ConfigurationMembers.For(Type).NamesSecretsByInstanceKey;
+
+        /// <summary>How an instance key becomes the secret-name segment, when the type declares a
+        /// translation on its <see cref="IProvideConfigurationInstanceKey.InstanceKey"/>; null when
+        /// the key is used as it is.</summary>
+        public string? InstanceKeySegmentTranslation => ConfigurationMembers.For(Type).InstanceKeySegment?.GetType().Name;
+
+        /// <summary>The type offers instances to add (<see cref="IProvideConfigurationInstanceLookup"/>).</summary>
+        public bool HasInstanceLookup => InstanceLookup != null;
+
+        public IProvideConfigurationInstanceLookup? InstanceLookup => ConfigurationMembers.For(Type).InstanceLookup;
+
+        /// <summary>The secret names this type reads for an account — an account member's value, or an
+        /// instance key when <see cref="NamesSecretsByInstanceKey"/> — or globally, when its names
+        /// carry no account. Only meaningful when <see cref="GeneratesSecretNames"/>.</summary>
         public IEnumerable<string> SecretNames(string? account = null)
             => Members.Where(member => member.SecretNameTemplate != null)
-                .Select(member => member.SecretNameTemplate!.Replace(ConfigurationCatalog.AccountPlaceholder,
-                    (account == null ? null : ConfigurationMembers.For(Type).AccountSegmentOf(account.Trim())) ?? ConfigurationCatalog.AccountPlaceholder));
+                .Select(member => SecretName(member, account)!);
+
+        /// <summary>The name one secret member is read by for <paramref name="account"/> (translated as
+        /// the type declares); its template, placeholder and all, when no account is given. Null for a
+        /// member with no generated name.</summary>
+        public string? SecretName(ConfigurationMemberDescription member, string? account)
+            => member.SecretNameTemplate?.Replace(ConfigurationCatalog.AccountPlaceholder,
+                (account == null ? null : ConfigurationMembers.For(Type).AccountSegmentOf(account.Trim())) ?? ConfigurationCatalog.AccountPlaceholder);
 
         /// <summary>
         /// The account rule for a DRAFT value, before it is written: null when <paramref name="account"/>
         /// (translated as this type declares) can be the account segment of a secret name, otherwise the
-        /// reason, naming the account member's key. Null for a type that names no account.
+        /// reason, naming the account member's key — or, when <see cref="NamesSecretsByInstanceKey"/>,
+        /// the instance key. Null for a type whose secret names carry no account.
         /// </summary>
         public string? AccountProblem(string? account)
             => ConfigurationMembers.For(Type).AccountProblem(account);
@@ -106,7 +130,7 @@ namespace EastFive.Configuration
                     member.IsAccount,
                     member.Metadata!,
                     member.IsSecret && generates
-                        ? declared.AccountMember == null
+                        ? declared.AccountMember == null && !declared.NamesSecretsByInstanceKey
                             ? $"{declared.TypeName}-{member.Property.Name}"
                             : $"{declared.TypeName}-{AccountPlaceholder}-{member.Property.Name}"
                         : null,

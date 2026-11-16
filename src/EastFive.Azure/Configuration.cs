@@ -59,7 +59,9 @@ namespace EastFive.Azure.Configuration
         public string key;
 
         public const string SecretNamePropertyName = "secret_name";
-        /// <summary>The generated secret name (with an <c>{account}</c> placeholder) a secret is read by.</summary>
+        /// <summary>The generated secret name a secret is read by: with an <c>{account}</c> placeholder
+        /// on a type's own row, and the real name on the row of a keyed instance whose instance key
+        /// names its secrets.</summary>
         [ApiProperty(PropertyName = SecretNamePropertyName)]
         [JsonProperty(PropertyName = SecretNamePropertyName)]
         public string secretName;
@@ -135,6 +137,10 @@ namespace EastFive.Azure.Configuration
                             {
                                 instance = instance,
                                 key = member.Key?.Replace(IProvideConfigurationInstanceKey.Placeholder, instance, StringComparison.Ordinal),
+                                // An instance key that cannot name a secret keeps the template: there is no name to show.
+                                secretName = type.NamesSecretsByInstanceKey && type.AccountProblem(instance) == null
+                                    ? type.SecretName(member, instance)
+                                    : member.SecretNameTemplate,
                                 value = ConfigurationCatalog.CurrentValue(type.Type, member, instance),
                             }))
                         : Enumerable.Empty<Configuration>()))

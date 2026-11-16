@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Threading.Tasks;
 
 namespace EastFive.Configuration
 {
@@ -8,7 +9,10 @@ namespace EastFive.Configuration
     /// is loaded synchronously from the ambient values every time (cheap — reflection is cached and the
     /// values are an in-memory lookup — and always current, exactly like the raw reads it replaces). A
     /// type with SECRET members is served from the host's startup load
-    /// (<see cref="StartupConfiguration"/>) and never loaded here, so nothing blocks on a vault.
+    /// (<see cref="StartupConfiguration"/>) and never loaded here, so nothing blocks on a vault. A
+    /// KEYED type with secret members is not in that load — its instances are not known at startup —
+    /// so <see cref="GetAsync"/> loads an instance on first use and caches it
+    /// (<see cref="StartupConfiguration.Instances"/>), and the synchronous <c>Get</c> reads that cache.
     /// </summary>
     public static class Configured
     {
@@ -18,11 +22,40 @@ namespace EastFive.Configuration
                 ? StartupConfiguration.Get(onConfigured, onUnavailable)
                 : Get(() => new TConfig(), onConfigured, onUnavailable);
 
-        /// <summary>A value-only (typically KEYED) type built by <paramref name="construct"/>.</summary>
+        /// <summary>
+        /// A type built by <paramref name="construct"/> (typically KEYED). Value-only: read live from
+        /// the ambient values. With secret members: the cached instance, never loaded here — a keyed
+        /// instance nothing has loaded yet (see <see cref="GetAsync"/>) reaches
+        /// <paramref name="onUnavailable"/> with a <see cref="ConfigIssueCategory.NotLoaded"/> issue.
+        /// </summary>
         public static TResult Get<TConfig, TResult>(Func<TConfig> construct, Func<TConfig, TResult> onConfigured, Func<ConfigIssue, TResult> onUnavailable)
             where TConfig : IProvideConfiguration
-            => ConfigurationLoader.Load(construct, ConfigurationLoader.ReadAmbient, onConfigured,
-                (issue, _) => onUnavailable(issue), onUnavailable, onUnavailable);
+        {
+            var instance = construct();
+            var type = instance.GetType();
+            if (!ConfigurationMembers.For(type).HasSecrets)
+                return ConfigurationLoader.Load(construct, ConfigurationLoader.ReadAmbient, onConfigured,
+                    (issue, _) => onUnavailable(issue), onUnavailable, onUnavailable);
+            return instance is IProvideConfigurationInstanceKey keyed
+                ? StartupConfiguration.Instances.Get(type, keyed.InstanceKey, config => onConfigured((TConfig)config), onUnavailable)
+                : StartupConfiguration.Get(type, config => onConfigured((TConfig)config), onUnavailable);
+        }
+
+        /// <summary>
+        /// <see cref="Get{TConfig, TResult}(Func{TConfig}, Func{TConfig, TResult}, Func{ConfigIssue, TResult})"/>
+        /// for a caller that can await: a KEYED instance with secret members is loaded from the ambient
+        /// values and <see cref="SecretStore.Current"/> on first use and cached — a loaded configuration
+        /// until it is refreshed, an issue for <see cref="ConfigurationInstanceCache.IssueLifetime"/>.
+        /// Every other type is read exactly as the synchronous <c>Get</c> reads it.
+        /// </summary>
+        public static Task<TResult> GetAsync<TConfig, TResult>(Func<TConfig> construct, Func<TConfig, TResult> onConfigured, Func<ConfigIssue, TResult> onUnavailable)
+            where TConfig : IProvideConfiguration
+        {
+            var instance = construct();
+            return instance is IProvideConfigurationInstanceKey && ConfigurationMembers.For(instance.GetType()).HasSecrets
+                ? StartupConfiguration.Instances.GetOrLoadUntypedAsync(() => construct(), config => onConfigured((TConfig)config), onUnavailable)
+                : Task.FromResult(Get(construct, onConfigured, onUnavailable));
+        }
 
         /// <summary>
         /// One member of a typed configuration, in the continuation shape the raw readers had, so a

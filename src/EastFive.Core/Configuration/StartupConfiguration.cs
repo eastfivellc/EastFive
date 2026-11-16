@@ -15,7 +15,8 @@ namespace EastFive.Configuration
     /// <see cref="LoadAsync(IEnumerable{Type})"/> after initializing configuration and
     /// <see cref="SecretStore"/>; sync code calls <see cref="Get{TConfig, TResult}"/>, which never
     /// loads and never blocks. <see cref="RefreshAsync"/> re-reads everything loaded so far (a host
-    /// may schedule it to pick up rotated secrets).
+    /// may schedule it to pick up rotated secrets). The instances of KEYED types are not part of the
+    /// startup load: they are loaded on first use and cached in <see cref="Instances"/>.
     /// </summary>
     public static class StartupConfiguration
     {
@@ -49,8 +50,14 @@ namespace EastFive.Configuration
             return outcome.Issue;
         }
 
-        /// <summary>Re-reads every type loaded so far.</summary>
-        public static Task<ConfigIssue[]> RefreshAsync() => LoadAsync(loaded.Keys.ToArray());
+        /// <summary>Re-reads every type loaded so far, and every cached instance of a keyed type
+        /// (<see cref="Instances"/>; an instance's loaded configuration survives a source failure).</summary>
+        public static async Task<ConfigIssue[]> RefreshAsync()
+        {
+            var types = await LoadAsync(loaded.Keys.ToArray()).ConfigureAwait(false);
+            var instances = await Instances.RefreshAsync().ConfigureAwait(false);
+            return types.Concat(instances).ToArray();
+        }
 
         /// <summary>Re-reads every <paramref name="interval"/> until <paramref name="stop"/>; failures keep the
         /// previous outcome rather than replacing a working configuration with an outage.</summary>
@@ -66,8 +73,40 @@ namespace EastFive.Configuration
                     if (issue?.Category == ConfigIssueCategory.SourceFailure && previous.Configuration != null)
                         loaded[type] = previous;
                 }
+                await Instances.RefreshAsync().ConfigureAwait(false);
             }
         }
+
+        #region Keyed instances
+
+        /// <summary>
+        /// The instances of keyed types (<see cref="IProvideConfigurationInstanceKey"/>) this host has
+        /// used, over the ambient values and <see cref="SecretStore.Current"/>. A keyed type is never
+        /// part of the startup load — its instances are loaded on first use
+        /// (<see cref="GetOrLoadAsync"/>) and cached by (type, instance key).
+        /// </summary>
+        public static ConfigurationInstanceCache Instances { get; } = new(ConfigurationLoader.ReadAmbient, () => SecretStore.Current);
+
+        /// <summary>The instance <paramref name="construct"/> builds, loaded on first use and cached:
+        /// see <see cref="ConfigurationInstanceCache.GetOrLoadAsync"/>.</summary>
+        public static Task<TResult> GetOrLoadAsync<TConfig, TResult>(Func<TConfig> construct,
+            Func<TConfig, TResult> onLoaded, Func<ConfigIssue, TResult> onUnavailable)
+            where TConfig : IProvideConfiguration, IProvideConfigurationInstanceKey
+            => Instances.GetOrLoadAsync(construct, onLoaded, onUnavailable);
+
+        /// <summary>One cached instance of a keyed type. Never loads: an instance nothing has loaded
+        /// reaches <paramref name="onUnavailable"/> with a <see cref="ConfigIssueCategory.NotLoaded"/> issue.</summary>
+        public static TResult Get<TConfig, TResult>(string instanceKey, Func<TConfig, TResult> onLoaded, Func<ConfigIssue, TResult> onUnavailable)
+            where TConfig : IProvideConfiguration, IProvideConfigurationInstanceKey
+            => Instances.Get(instanceKey, onLoaded, onUnavailable);
+
+        public static void Forget<TConfig>(string instanceKey) where TConfig : IProvideConfiguration, IProvideConfigurationInstanceKey
+            => Instances.Forget(typeof(TConfig), instanceKey);
+
+        public static bool IsLoaded<TConfig>(string instanceKey) where TConfig : IProvideConfiguration, IProvideConfigurationInstanceKey
+            => Instances.IsLoaded(typeof(TConfig), instanceKey);
+
+        #endregion
 
         /// <summary>Hosts and tests that already hold a configuration (a test fixture, a
         /// configuration loaded by other means) install it directly.</summary>

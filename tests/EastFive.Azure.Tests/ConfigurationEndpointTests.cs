@@ -24,10 +24,30 @@ public class ConfigurationEndpointTests : TestSession
 {
     private static readonly string Tag = "endpoint" + Guid.NewGuid().ToString("N")[..8];
 
+    /// <summary>A keyed type whose instance key names its secrets, any id allowed.</summary>
+    [ConfigurationType("EndpointHook", Label = "Endpoint hook", Description = "Fixture: a keyed type with a secret.", Scope = ConfigurationScope.Environment)]
+    private sealed class EndpointHook : IProvideConfiguration, IProvideConfigurationInstanceKey
+    {
+        public EndpointHook(string id) => InstanceKey = id;
+
+        [EncodedSecretAccountSegment]
+        public string InstanceKey { get; }
+
+        public const string UrlKeyFormat = "EastFive.Tests.EndpointHook.{0}.Url";
+
+        [ConfigurationMember("EastFive.Tests.EndpointHook.{key}.Url", Kind = ConfigurationMemberKind.Optional, Label = "URL", Description = "Where it posts.")]
+        public string? Url { get; set; }
+
+        [ConfigurationMember(Kind = ConfigurationMemberKind.Secret, Label = "Signing secret", Description = "Signs each post.")]
+        public Secret SigningSecret { get; set; } = default!;
+    }
+
     static ConfigurationEndpointTests()
     {
         TestConfiguration.Ensure();
         Environment.SetEnvironmentVariable(string.Format(PingRedirectConfiguration.AuthNameKeyFormat, Tag), "endpoint-auth");
+        Environment.SetEnvironmentVariable(string.Format(EndpointHook.UrlKeyFormat, Tag), "https://hooks.example/plain");
+        Environment.SetEnvironmentVariable(string.Format(EndpointHook.UrlKeyFormat, Tag + "_x"), "https://hooks.example/encoded");
         EastFive.Web.Configuration.ConfigurationExtensions.Initialize(new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
@@ -66,6 +86,24 @@ public class ConfigurationEndpointTests : TestSession
         var instance = Assert.Single(rows, row => row.instance == Tag && row.name == nameof(PingRedirectTagConfiguration.PingAuthName));
         Assert.Equal(string.Format(PingRedirectConfiguration.AuthNameKeyFormat, Tag), instance.key);
         Assert.Equal("endpoint-auth", instance.value);
+    }
+
+    [Fact]
+    public async Task AKeyedInstance_ShowsTheSecretNameItReads()
+    {
+        var capture = await GetAsync(OAuthFixtures.SuperAdminToken());
+
+        Assert.True(capture.TryGet("onFound", out var args),
+            $"branch={capture.BranchName} status={capture.Response?.StatusCode} reason={capture.Response?.ReasonPhrase}");
+        var secrets = Assert.IsType<EastFive.Azure.Configuration.Configuration[]>(args[0])
+            .Where(row => row.configurationType == "EndpointHook" && row.name == nameof(EndpointHook.SigningSecret))
+            .ToArray();
+
+        // The type's own row keeps the template; each instance's row names its real secret.
+        Assert.Equal("EndpointHook-{account}-SigningSecret", Assert.Single(secrets, row => row.instance == null).secretName);
+        Assert.Equal($"EndpointHook-{Tag}-SigningSecret", Assert.Single(secrets, row => row.instance == Tag).secretName);
+        Assert.Equal($"EndpointHook-e{Tag}--5fx-SigningSecret", Assert.Single(secrets, row => row.instance == Tag + "_x").secretName);
+        Assert.All(secrets, row => Assert.Null(row.value));
     }
 
     [Fact]
