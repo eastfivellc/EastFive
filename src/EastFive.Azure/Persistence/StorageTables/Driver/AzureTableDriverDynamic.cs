@@ -997,6 +997,10 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
                     }
                     catch (StorageException ex)
                     {
+                        // The answer "table not found" means the table held no rows when the
+                        // query ran; a table created since must not turn that into an error.
+                        if (ex.IsProblemTableDoesNotExist())
+                            return yieldBreak;
                         if (!await table.ExistsAsync())
                             return yieldBreak;
                         if (ex.IsProblemTimeout())
@@ -1065,6 +1069,10 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
                     }
                     catch (StorageException ex)
                     {
+                        // The answer "table not found" means the table held no rows when the
+                        // query ran; a table created since must not turn that into an error.
+                        if (ex.IsProblemTableDoesNotExist())
+                            return yieldBreak;
                         if (!await table.ExistsAsync())
                             return yieldBreak;
                         if (ex.IsProblemTimeout())
@@ -1119,8 +1127,10 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
             {
                 throw;
             }
-            catch (StorageException)
+            catch (StorageException ex)
             {
+                if (ex.IsProblemTableDoesNotExist())
+                    return (new TEntity[] { }, default(string));
                 if (!await table.ExistsAsync())
                     return (new TEntity[] { }, default(string));
                 
