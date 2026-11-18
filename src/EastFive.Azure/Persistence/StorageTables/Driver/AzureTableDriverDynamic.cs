@@ -3856,20 +3856,12 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
                 var documentLocked = lockValue.HasValue;
                 return documentLocked;
             }
-            void lockDocument(TDocument document)
-            {
-                if (fieldInfo != null)
-                    fieldInfo.SetValue(document, DateTime.UtcNow);
-                else
-                    propertyInfo.SetValue(document, DateTime.UtcNow);
-            }
-            void unlockDocument(TDocument documentLocked)
-            {
-                if (fieldInfo != null)
-                    fieldInfo.SetValue(documentLocked, default(DateTime?));
-                else
-                    propertyInfo.SetValue(documentLocked, default(DateTime?));
-            }
+            // Both return the changed document: a struct is set on a boxed copy, so the caller
+            // must take the result rather than assume its own variable saw the change.
+            TDocument lockDocument(TDocument document) =>
+                (TDocument)lockedPropertyMember.SetPropertyOrFieldValue(document, DateTime.UtcNow);
+            TDocument unlockDocument(TDocument documentLocked) =>
+                (TDocument)lockedPropertyMember.SetPropertyOrFieldValue(documentLocked, default(DateTime?));
 
             // retryIncrease because some retries don't count
             Task<TResult> retry(int retryIncrease) => LockedUpdateAsync(rowKey, partitionKey,
@@ -3911,7 +3903,7 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
                                     () => retry(1),
                                     () => execute());
                             }
-                            lockDocument(document);
+                            document = lockDocument(document);
 
                             #endregion
 
@@ -3925,7 +3917,7 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
         private async Task<TResult> PerformLockedCallback<TDocument, TResult>(
             string rowKey, string partitionKey,
             TDocument documentLocked,
-            Action<TDocument> unlockDocument,
+            Func<TDocument, TDocument> unlockDocument,
             WhileLockedDelegateAsync<TDocument, TResult> success)
             where TDocument : IReferenceable
         {
@@ -3940,8 +3932,7 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
                                 await update(entityLocked,
                                     async (entityMutated) =>
                                     {
-                                        unlockDocument(entityMutated);
-                                        await save(entityMutated);
+                                        await save(unlockDocument(entityMutated));
                                     });
                                 return true;
                             },
@@ -3952,8 +3943,7 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
                         var exists = await UpdateAsync<TDocument, bool>(rowKey, partitionKey,
                             async (entityLocked, save) =>
                             {
-                                unlockDocument(entityLocked);
-                                await save(entityLocked);
+                                await save(unlockDocument(entityLocked));
                                 return true;
                             },
                             () => false);
@@ -3965,8 +3955,7 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
                 var exists = await UpdateAsync<TDocument, bool>(rowKey, partitionKey,
                     async (entityLocked, save) =>
                     {
-                        unlockDocument(entityLocked);
-                        await save(entityLocked);
+                        await save(unlockDocument(entityLocked));
                         return true;
                     },
                     () => false);
