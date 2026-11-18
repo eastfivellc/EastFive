@@ -3871,7 +3871,8 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
                 onLockRejected,
                 onAlreadyLocked,
                     shouldLock,
-                    onTimeout);
+                    onTimeout,
+                    mutateUponLock);
 
             #endregion
 

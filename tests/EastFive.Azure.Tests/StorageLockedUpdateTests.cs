@@ -285,4 +285,56 @@ public abstract class StorageLockedUpdateContract<TProbe>
         Assert.Equal(callers - 1, outcomes.Count(outcome => outcome == "refused"));
         Assert.Null(LockOf(await ReadAsync(probeRef)));
     }
+
+    [Fact]
+    public async Task MutationSurvivesARetryAfterTheLockIsReleased()
+    {
+        var probeRef = await CreateAsync();
+        var inside = NewGate();
+        var release = NewGate();
+        var alreadyLockedCalls = 0;
+        string noteInside = default;
+
+        var holder = probeRef.StorageLockedUpdateAsync<TProbe, string>(Lock,
+            async (probe, unlockAndSave, unlock) =>
+            {
+                inside.SetResult();
+                await release.Task;
+                await unlock();
+                return "held";
+            },
+            onNotFound: () => "missing");
+
+        try
+        {
+            await inside.Task.WaitAsync(GateTimeout);
+
+            var second = await probeRef.StorageLockedUpdateAsync<TProbe, string>(Lock,
+                async (probe, unlockAndSave, unlock) =>
+                {
+                    noteInside = NoteOf(await ReadAsync(probeRef));
+                    await unlock();
+                    return "ran";
+                },
+                onNotFound: () => "missing",
+                onAlreadyLocked: async (retries, elapsed, probe, continueAquiring, force) =>
+                {
+                    if (Interlocked.Increment(ref alreadyLockedCalls) > 1)
+                        return "refused again";
+                    release.TrySetResult();
+                    await holder.WaitAsync(GateTimeout);
+                    return await continueAquiring();
+                },
+                mutateUponLock: probe => WithNote(probe, "mutated"));
+
+            Assert.Equal(1, alreadyLockedCalls);
+            Assert.Equal("ran", second);
+            Assert.Equal("mutated", noteInside);
+        }
+        finally
+        {
+            release.TrySetResult();
+            Assert.Equal("held", await holder.WaitAsync(GateTimeout));
+        }
+    }
 }
