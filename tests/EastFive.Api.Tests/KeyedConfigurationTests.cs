@@ -366,11 +366,16 @@ public class KeyedSecretConfigurationTests
     [Fact]
     public async Task AmbientLoad_TakesAConstructor()
     {
-        // No Hook-nowhere-SigningSecret anywhere (Missing; SourceFailure when ambient configuration
-        // was never initialized): the load read the ambient sources for THIS instance.
+        // No Hook-nowhere-SigningSecret anywhere: the load read the ambient sources for THIS
+        // instance. Which member it stopped at depends on whether another test has initialized
+        // ambient configuration yet. Initialized, the optional URL reads as unset and the secret is
+        // Missing. Never initialized (this test ran first), the first read fails as a
+        // SourceFailure, and that read is the URL's.
         var issue = await ConfigurationLoader.LoadAsync(() => new Hook("nowhere"),
             _ => (ConfigIssue?)null, missing => missing, invalid => invalid, failed => failed);
-        Assert.Equal("Hook-nowhere-SigningSecret", issue!.Key);
+        Assert.Equal(
+            issue!.Category == ConfigIssueCategory.SourceFailure ? "Hook.nowhere.Url" : "Hook-nowhere-SigningSecret",
+            issue.Key);
         Assert.NotEqual(ConfigIssueCategory.Invalid, issue.Category);
     }
 
