@@ -11,7 +11,7 @@ generators.
 | `EastFive.Api` | Attribute-routed HTTP API framework for ASP.NET Core |
 | `EastFive.Azure` | Azure Storage/Table persistence, auth (OAuth/SAML/Ping), integrations |
 | `EastFive.Sheets` | XLSX/CSV reading and writing |
-| `EastFive.Generators` | Roslyn source generators (flow extensions, storage query helpers, test harness) |
+| `EastFive.Generators` | Roslyn source generators (flow extensions, storage query helpers, test harness) and the E5001 storage-table analyzer |
 
 All packages ship one shared version, MIT-licensed, with embedded PDBs and embedded
 source (step-into debugging works without symbol servers).
@@ -392,6 +392,30 @@ A store is named by its `StorageAccountConfiguration` type (`StorageAccount.Tabl
 `StorageAccount.Of<T>()`); its account comes from `<Store>.Account` and its credential from
 `AzureStorage-{account}-ConnectionString`. The emulator account `devstoreaccount1` is fabricated
 from `Azure.Storage.Emulator.Port` and never read from the secret store.
+
+**A table declares a public ETag member, or its updates are last writer wins.**
+`StorageUpdateAsync` and `StorageLockedUpdateAsync` save conditionally only when the table type
+has a public field or property, declared or inherited, carrying `[ETag]` (any attribute
+implementing `IModifyAzureStorageTableETag`). Then a row changed since it was read is read again
+and the mutation runs again on it. Without one the row is replaced with `*`: the mutation runs
+once, the last writer wins, and two callers can both take a lock. A non-public member is not
+found.
+
+```csharp
+[StorageTable]
+public class Order : IReferenceable
+{
+    [RowKey] public IRef<Order> orderRef;
+    [ETag] public string eTag;   // row metadata, not a column: adding it needs no migration
+}
+```
+
+EastFive.Generators reports **E5001** (warning, category `EastFive.Storage`) on a type whose
+attribute implements `IProvideEntity` and that has no such member. Suppress it with the usual
+mechanisms (`#pragma warning disable E5001`, `[SuppressMessage]`, `.editorconfig`) where an
+unconditional save is intended, such as a table whose rows are only created and deleted.
+Adding the member changes behaviour: a conflicting update now re-runs its mutation, and replacing
+an instance that was not read from storage carries no ETag, which the table client refuses.
 
 ## Entity JSON without a request
 

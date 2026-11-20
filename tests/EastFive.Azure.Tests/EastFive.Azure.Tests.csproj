@@ -15,6 +15,8 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.5" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.5" />
+    <!-- Analyzer tests compile in-memory sources; EastFive.Azure already brings this version -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
@@ -28,6 +30,8 @@
     <ProjectReference Include="..\..\src\EastFive.Api\EastFive.Api.csproj" />
     <ProjectReference Include="..\..\src\EastFive.Azure\EastFive.Azure.csproj" />
     <ProjectReference Include="..\..\src\EastFive.Sheets\EastFive.Sheets.csproj" />
+    <!-- An ordinary reference: the tests construct the analyzer; it does not run on this project -->
+    <ProjectReference Include="..\..\src\EastFive.Generators\EastFive.Generators.csproj" />
     <!-- Real-pipeline dispatch harness (TestSession.DispatchRawAsync) -->
     <ProjectReference Include="..\EastFive.Api.Tests\EastFive.Api.Tests.csproj" />
   </ItemGroup>
