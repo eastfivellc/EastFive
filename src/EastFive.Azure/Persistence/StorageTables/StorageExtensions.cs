@@ -1484,6 +1484,18 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
                     onTimeout: onTimeout);
         }
 
+        /// <summary>
+        /// Reads the row, passes it to <c>onUpdate</c>, and saves the entity <c>onUpdate</c> passes
+        /// to its save callback.
+        /// </summary>
+        /// <remarks>
+        /// The save is conditional only when <typeparamref name="TEntity"/> has a public field or
+        /// property, declared or inherited, carrying <see cref="ETagAttribute"/> (or another
+        /// attribute implementing <see cref="IModifyAzureStorageTableETag"/>). Then a row changed
+        /// since it was read is read again and <c>onUpdate</c> runs again on it. Without one the
+        /// row is replaced unconditionally: <c>onUpdate</c> runs once and the last writer wins. A
+        /// non-public member is not found. EastFive.Generators reports E5001 on such a table type.
+        /// </remarks>
         public static Task<TResult> StorageUpdateAsync<TEntity, TResult>(this IQueryable<TEntity> entityQuery,
             Func<TEntity, Func<TEntity, Task<IUpdateTableResult>>, Task<TResult>> onUpdate,
             Func<TResult> onDoesNotExists = default,
@@ -1510,6 +1522,18 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
                     onModificationFailures: onModificationFailures);
         }
 
+        /// <summary>
+        /// Reads the row, passes it to <c>onUpdate</c>, and saves the entity <c>onUpdate</c> passes
+        /// to its save callback.
+        /// </summary>
+        /// <remarks>
+        /// The save is conditional only when <typeparamref name="TEntity"/> has a public field or
+        /// property, declared or inherited, carrying <see cref="ETagAttribute"/> (or another
+        /// attribute implementing <see cref="IModifyAzureStorageTableETag"/>). Then a row changed
+        /// since it was read is read again and <c>onUpdate</c> runs again on it. Without one the
+        /// row is replaced unconditionally: <c>onUpdate</c> runs once and the last writer wins. A
+        /// non-public member is not found. EastFive.Generators reports E5001 on such a table type.
+        /// </remarks>
         public static async Task<TResult> StorageUpdateAsync<TProperty, TEntity, TResult>(this TProperty entityRef,
             Expression<Func<TEntity, TProperty>> property1,
             Func<IQueryable<TEntity>, IQueryable<TEntity>> additionalProperties,
@@ -1543,6 +1567,18 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
                     onFailure: onFailure);
         }
 
+        /// <summary>
+        /// Reads the row, passes it to <c>onUpdate</c>, and saves the entity <c>onUpdate</c> passes
+        /// to its save callback.
+        /// </summary>
+        /// <remarks>
+        /// The save is conditional only when <typeparamref name="TEntity"/> has a public field or
+        /// property, declared or inherited, carrying <see cref="ETagAttribute"/> (or another
+        /// attribute implementing <see cref="IModifyAzureStorageTableETag"/>). Then a row changed
+        /// since it was read is read again and <c>onUpdate</c> runs again on it. Without one the
+        /// row is replaced unconditionally: <c>onUpdate</c> runs once and the last writer wins. A
+        /// non-public member is not found. EastFive.Generators reports E5001 on such a table type.
+        /// </remarks>
         public static async Task<TResult> StorageUpdateAsync<TRowKey, TPartitionKey, TEntity, TResult>(this TRowKey rowKeyValue,
                 TPartitionKey partitionKeyValue,
             Func<TEntity, Func<TEntity, Task<IUpdateTableResult>>, Task<TResult>> onUpdate,
@@ -1573,6 +1609,18 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
                     onFailure: onFailure);
         }
 
+        /// <summary>
+        /// Reads the row, passes it to <c>onUpdate</c>, and saves the entity <c>onUpdate</c> passes
+        /// to its save callback.
+        /// </summary>
+        /// <remarks>
+        /// The save is conditional only when <typeparamref name="TEntity"/> has a public field or
+        /// property, declared or inherited, carrying <see cref="ETagAttribute"/> (or another
+        /// attribute implementing <see cref="IModifyAzureStorageTableETag"/>). Then a row changed
+        /// since it was read is read again and <c>onUpdate</c> runs again on it. Without one the
+        /// row is replaced unconditionally: <c>onUpdate</c> runs once and the last writer wins. A
+        /// non-public member is not found. EastFive.Generators reports E5001 on such a table type.
+        /// </remarks>
         public static async Task<TResult> StorageUpdateAsync<TEntity, TResult>(this IRef<TEntity> entityRef,
             Func<IQueryable<TEntity>, IQueryable<TEntity>> additionalProperties,
             Func<TEntity, Func<TEntity, Task<IUpdateTableResult>>, Task<TResult>> onUpdate,
@@ -1608,6 +1656,18 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
                     onFailure:onFailure);
         }
 
+        /// <summary>
+        /// Reads the row, passes it to <c>onUpdate</c>, and saves the entity <c>onUpdate</c> passes
+        /// to its save callback.
+        /// </summary>
+        /// <remarks>
+        /// The save is conditional only when <typeparamref name="TEntity"/> has a public field or
+        /// property, declared or inherited, carrying <see cref="ETagAttribute"/> (or another
+        /// attribute implementing <see cref="IModifyAzureStorageTableETag"/>). Then a row changed
+        /// since it was read is read again and <c>onUpdate</c> runs again on it. Without one the
+        /// row is replaced unconditionally: <c>onUpdate</c> runs once and the last writer wins. A
+        /// non-public member is not found. EastFive.Generators reports E5001 on such a table type.
+        /// </remarks>
         public static Task<TResult> StorageUpdateAsync<TEntity, TResult>(this IRef<TEntity> entityRef,
             Func<TEntity, Func<TEntity, Task<IUpdateTableResult>>, Task<TResult>> onUpdate,
             Func<TResult> onNotFound = default,
@@ -1984,6 +2044,18 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
 
         #region Locks
 
+        /// <summary>
+        /// Takes a lock on the row by setting the member <c>lockedPropertyExpression</c> names,
+        /// runs <c>onLockAquired</c>, and releases it when the callback unlocks.
+        /// </summary>
+        /// <remarks>
+        /// The lock is taken by a conditional save only when <typeparamref name="TEntity"/> has a
+        /// public field or property, declared or inherited, carrying <see cref="ETagAttribute"/>
+        /// (or another attribute implementing <see cref="IModifyAzureStorageTableETag"/>). Without
+        /// one the save is unconditional, so two callers can both take the lock and the last
+        /// writer wins. A non-public member is not found. EastFive.Generators reports E5001 on such
+        /// a table type.
+        /// </remarks>
         public static Task<TResult> StorageLockedUpdateAsync<TEntity, TResult>(this IRef<TEntity> entityRef,
                 Expression<Func<TEntity, DateTime?>> lockedPropertyExpression,
             AzureTableDriverDynamic.WhileLockedDelegateAsync<TEntity, TResult> onLockAquired,
@@ -2010,6 +2082,18 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
                     mutateUponLock: mutateUponLock);
         }
 
+        /// <summary>
+        /// Takes a lock on the row by setting the member <c>lockedPropertyExpression</c> names,
+        /// runs <c>onLockAquired</c>, and releases it when the callback unlocks.
+        /// </summary>
+        /// <remarks>
+        /// The lock is taken by a conditional save only when <typeparamref name="TEntity"/> has a
+        /// public field or property, declared or inherited, carrying <see cref="ETagAttribute"/>
+        /// (or another attribute implementing <see cref="IModifyAzureStorageTableETag"/>). Without
+        /// one the save is unconditional, so two callers can both take the lock and the last
+        /// writer wins. A non-public member is not found. EastFive.Generators reports E5001 on such
+        /// a table type.
+        /// </remarks>
         public static Task<TResult> StorageLockedUpdateAsync<TEntity, TResult>(this IQueryable<TEntity> entityQuery,
                 Expression<Func<TEntity, DateTime?>> lockedPropertyExpression,
             AzureTableDriverDynamic.WhileLockedDelegateAsync<TEntity, TResult> onLockAquired,

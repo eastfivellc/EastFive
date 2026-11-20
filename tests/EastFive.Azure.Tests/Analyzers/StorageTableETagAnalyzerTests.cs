@@ -14,7 +14,7 @@ namespace EastFive.Azure.Tests.Analyzers;
 /// <see cref="StorageTableETagAnalyzer"/> over in-memory compilations. The rule follows the
 /// driver: a table type is saved conditionally only when it has a PUBLIC field or property,
 /// declared or inherited, carrying an attribute that implements
-/// <see cref="IModifyAzureStorageTableETag"/> (see <c>StorageUpdateETagTests</c>).
+/// <c>EastFive.Persistence.IModifyAzureStorageTableETag</c> (see <c>StorageUpdateETagTests</c>).
 /// </summary>
 public class StorageTableETagAnalyzerTests
 {
