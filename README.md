@@ -414,10 +414,20 @@ EastFive.Generators reports **E5001** (warning, category `EastFive.Storage`) on 
 attribute implements `IProvideEntity` and that has no such member. Suppress it with the usual
 mechanisms (`#pragma warning disable E5001`, `[SuppressMessage]`, `.editorconfig`) where an
 unconditional save is intended, such as a table whose rows are only created and deleted.
-Adding the member changes behaviour in two places. A conflicting `StorageUpdateAsync` now re-runs
-its mutation. And `StorageReplaceAsync` of an instance that was read from storage is refused
+Adding the member changes behaviour in three places. A conflicting `StorageUpdateAsync` now re-runs
+its mutation: the whole of it, from a fresh read, and then the first attempt carries on after its
+save with its result discarded, so everything in a mutation, before and after the save, must be
+safe to run twice. `StorageReplaceAsync` of an instance that was read from storage is refused
 (`UpdateConditionNotSatisfied`) once the row has changed since that read. An instance that was not
-read carries no ETag and still replaces the row unconditionally.
+read carries no ETag and still replaces the row unconditionally. And `StorageDeleteAsync` by
+reference deletes with the ETag it has just read, so a delete that meets a change made in between
+throws instead of deleting.
+
+EastFive.Azure's own tables follow the same rule. `Authorization`, `Session`, `Login.Account`,
+`Authentication`, `XIntegration`, `InvocationMessage`, `VoucherToken` and
+`Integration.AccountIntegrationLookup` carry the member. The analyzer does not run in the
+library's own build; `StorageTableETagCoverageTests` checks every table type in it instead, and
+lists each one without the member with its reason.
 
 ## Entity JSON without a request
 
