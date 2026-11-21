@@ -3415,6 +3415,13 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
 
         #region DELETE
 
+        /// <summary>
+        /// Reads the row and deletes it, conditionally on the ETag it read when <typeparamref name="TData"/>
+        /// has a public ETag member. When another write lands between the read and the delete and no
+        /// <paramref name="onModified"/> is passed, the row is read again and deleted again, with the
+        /// delete modifiers run against the fresh values, until a delete succeeds or the row is gone;
+        /// <paramref name="onSuccess"/> receives the row that was actually deleted.
+        /// </summary>
         public async Task<TResult> DeleteAsync<TData, TResult>(string rowKey, string partitionKey,
             Func<TData, TResult> onSuccess,
             Func<TResult> onNotFound,
@@ -3439,6 +3446,14 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
                         onNotFound,
                         onModified: () =>
                         {
+                            if (onModified.IsDefaultOrNull())
+                                return DeleteAsync<TData, TResult>(rowKey, partitionKey,
+                                    onSuccess: onSuccess,
+                                    onNotFound: onNotFound,
+                                    onFailure: onFailure,
+                                    onTimeout: onTimeout,
+                                    tableName: tableName);
+
                             return OnModifiedAsync();
 
                             Task<TResult> OnModifiedAsync()
@@ -3462,6 +3477,13 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
                 table:table);
         }
 
+        /// <summary>
+        /// Reads the row and hands it to <paramref name="onFound"/> with a delete conditional on the
+        /// ETag it read. When that delete meets a write made since the read, <paramref name="onFound"/>
+        /// runs again on a fresh read, the way a conflicting update runs its mutation again, and the
+        /// result is that of the last run: the first run carries on after its delete with its result
+        /// discarded. A delete that fails for any other reason throws.
+        /// </summary>
         public async Task<TResult> DeleteAsync<TEntity, TResult>(string rowKey, string partitionKey,
             Func<TEntity, Func<Task<IAzureStorageTableEntity<TEntity>>>, Task<TResult>> onFound,
             Func<TResult> onNotFound,
@@ -3470,20 +3492,30 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
             string tableName = default)
         {
             return await await FindByIdAsync(rowKey, partitionKey,
-                (TEntity entity, TableResult tableResult) =>
+                async (TEntity entity, TableResult tableResult) =>
                 {
-                    return onFound(entity,
-                        () =>
+                    var rerun = default(Task<TResult>);
+                    var result = await onFound(entity,
+                        async () =>
                         {
                             var data = GetEntity(entity);
                             data.ETag = tableResult.Etag;
-                            return DeleteAsync(data,
+                            return await DeleteAsync<TEntity, IAzureStorageTableEntity<TEntity>>(data,
                                 success:() => data,
                                 onNotFound:() => data,
-                                onFailure:(a, b) => data,
+                                onModified: async () =>
+                                {
+                                    rerun = DeleteAsync(rowKey, partitionKey, onFound, onNotFound,
+                                        onFailure: onFailure,
+                                        onTimeout: onTimeout,
+                                        tableName: tableName);
+                                    await rerun;
+                                    return data;
+                                },
                                 onTimeout: onTimeout,
                                 tableName: tableName);
                         });
+                    return rerun is null ? result : await rerun;
                 },
                 onNotFound.AsAsyncFunc(),
                 onFailure.AsAsyncFunc(),
@@ -3593,8 +3625,10 @@ namespace EastFive.Persistence.Azure.StorageTables.Driver
                                             timeoutResult = await DeleteAsync<TData, TResult>(entity, 
                                                 success:success,
                                                 onNotFound:onNotFound,
+                                                onModified:onModified,
                                                 onFailure:onFailure,
-                                                onTimeout: onTimeout);
+                                                onTimeout: onTimeout,
+                                                tableName: tableName);
                                         });
                                     return timeoutResult;
                                 }

@@ -1809,6 +1809,28 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
 
         #region Delete
 
+        /// <summary>
+        /// The not-found handler a delete calls: the caller's, or one that throws an
+        /// <see cref="InvalidOperationException"/> naming the table type.
+        /// </summary>
+        private static Func<TResult> OnNotFoundOrThrow<TEntity, TResult>(Func<TResult> onNotFound)
+        {
+            if (!onNotFound.IsDefaultOrNull())
+                return onNotFound;
+            return () => throw new InvalidOperationException(
+                $"The `{typeof(TEntity).FullName}` row to delete does not exist, and no not-found handler was passed.");
+        }
+
+        /// <summary>
+        /// Deletes the row of a held instance, conditionally on the ETag the instance carries when
+        /// <typeparamref name="TEntity"/> has a public ETag member; with no such member the delete is
+        /// unconditional. When the row has changed since the instance was read, the row is read
+        /// again: <paramref name="onModified"/>, when passed, is called with the fresh entity and a
+        /// delete conditional on it; when it is not passed, the fresh row is deleted the same way,
+        /// until a delete succeeds or the row is gone. A missing row calls
+        /// <paramref name="onAlreadyDeleted"/>, or throws an <see cref="InvalidOperationException"/>
+        /// when none is passed.
+        /// </summary>
         public static Task<TResult> StorageDeleteAsync<TEntity, TResult>(this TEntity entity,
             Func<TResult> onDeleted,
             Func<TEntity, Func<Task<TResult>>, Task<TResult>> onModified = default,
@@ -1816,6 +1838,7 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
             Func<ExtendedErrorInformationCodes, string, TResult> onFailure = default)
             where TEntity : IReferenceable
         {
+            var onMissing = OnNotFoundOrThrow<TEntity, TResult>(onAlreadyDeleted);
             var tableEntity = typeof(TEntity)
                 .GetAttributesInterface<IProvideEntity>()
                 .First<IProvideEntity, IAzureStorageTableEntity<TEntity>>(
@@ -1833,25 +1856,41 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
             return driver
                 .DeleteAsync<TEntity, TResult>(tableEntity,
                     () => onDeleted(),
-                    onNotFound: onAlreadyDeleted,
+                    onNotFound: onMissing,
                     onModified: async () =>
                     {
                         return await await driver.FindByIdAsync<TEntity, Task<TResult>>(
                                 tableEntity.RowKey, tableEntity.PartitionKey,
                             (entity, result) =>
                             {
+                                if (onModified.IsDefaultOrNull())
+                                    return entity.StorageDeleteAsync(
+                                        onDeleted: onDeleted,
+                                        onAlreadyDeleted: onMissing,
+                                        onFailure: onFailure);
+
                                 return onModified(entity,
                                     () => entity.StorageDeleteAsync(
                                         onDeleted: onDeleted,
                                         onModified: onModified,
-                                        onAlreadyDeleted: onAlreadyDeleted,
+                                        onAlreadyDeleted: onMissing,
                                         onFailure: onFailure));
                             },
-                            () => onAlreadyDeleted().AsTask());
+                            () => onMissing().AsTask());
                     },
                     onFailure: onFailure);
         }
 
+        /// <summary>
+        /// Deletes the row. The driver reads it first (the delete modifiers need its stored values),
+        /// and when <typeparamref name="TEntity"/> has a public ETag member the delete is conditional
+        /// on the ETag read. When another write lands between the read and the delete, the row is
+        /// read and deleted again, with the delete modifiers run against the fresh values, until a
+        /// delete succeeds or the row is gone; <paramref name="onDeleted"/> receives the row that was
+        /// actually deleted. A missing row calls
+        /// <paramref name="onNotFound"/>, or throws an <see cref="InvalidOperationException"/> when
+        /// none is passed.
+        /// </summary>
         public static Task<TResult> StorageDeleteAsync<TRowKey, TPartitionKey, TEntity, TResult>(this TRowKey rowKeyValue,
                 TPartitionKey partitionKeyValue,
             Func<TEntity, TResult> onDeleted,
@@ -1866,10 +1905,20 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
                 .DeleteAsync<TEntity, TResult>(
                         rowKey, partitionKey,
                     onDeleted,
-                    onNotFound,
+                    OnNotFoundOrThrow<TEntity, TResult>(onNotFound),
                     onFailure: onFailure);
         }
 
+        /// <summary>
+        /// Deletes the row. The driver reads it first (the delete modifiers need its stored values),
+        /// and when <typeparamref name="TEntity"/> has a public ETag member the delete is conditional
+        /// on the ETag read. When another write lands between the read and the delete, the row is
+        /// read and deleted again, with the delete modifiers run against the fresh values, until a
+        /// delete succeeds or the row is gone; <paramref name="onDeleted"/> receives the row that was
+        /// actually deleted. A missing row calls
+        /// <paramref name="onNotFound"/>, or throws an <see cref="InvalidOperationException"/> when
+        /// none is passed.
+        /// </summary>
         public static Task<TResult> StorageDeleteAsync<TEntity, TResult>(this IRef<TEntity> entityRef,
             Func<TEntity, TResult> onDeleted,
             Func<TResult> onNotFound = default,
@@ -1882,10 +1931,20 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
                 .DeleteAsync<TEntity, TResult>(
                         rowKey, partitionKey,
                     onDeleted,
-                    onNotFound,
+                    OnNotFoundOrThrow<TEntity, TResult>(onNotFound),
                     onFailure:onFailure);
         }
 
+        /// <summary>
+        /// Reads the row and hands it to <paramref name="onFound"/>, which decides whether to delete
+        /// it. When <typeparamref name="TEntity"/> has a public ETag member the delete is conditional
+        /// on the ETag read; when it meets a write made since the read, <paramref name="onFound"/>
+        /// runs again on the fresh row, the way a conflicting update runs its mutation again, and the
+        /// result is that of the last run. The earlier run carries on after its delete with its
+        /// result discarded, so code after the delete can run more than once. A delete that fails for
+        /// any other reason throws. A missing row calls <paramref name="onNotFound"/>, or throws an
+        /// <see cref="InvalidOperationException"/> when none is passed.
+        /// </summary>
         public static Task<TResult> StorageDeleteIfAsync<TEntity, TResult>(this IRef<TEntity> entityRef,
             Func<TEntity, Func<Task>, Task<TResult>> onFound,
             Func<TResult> onNotFound = default,
@@ -1898,10 +1957,20 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
                 .DeleteAsync<TEntity, TResult>(
                         rowKey, partitionKey,
                     (entity, deleteAsync) => onFound(entity, () => deleteAsync()),
-                    onNotFound, 
+                    OnNotFoundOrThrow<TEntity, TResult>(onNotFound),
                     onFailure);
         }
 
+        /// <summary>
+        /// Reads the row and hands it to <paramref name="onFound"/>, which decides whether to delete
+        /// it. When <typeparamref name="TEntity"/> has a public ETag member the delete is conditional
+        /// on the ETag read; when it meets a write made since the read, <paramref name="onFound"/>
+        /// runs again on the fresh row, the way a conflicting update runs its mutation again, and the
+        /// result is that of the last run. The earlier run carries on after its delete with its
+        /// result discarded, so code after the delete can run more than once. A delete that fails for
+        /// any other reason throws. A missing row calls <paramref name="onNotFound"/>, or throws an
+        /// <see cref="InvalidOperationException"/> when none is passed.
+        /// </summary>
         public static Task<TResult> StorageDeleteIfAsync<TEntity, TResult>(this IQueryable<TEntity> entityQuery,
             Func<TEntity, Func<Task>, Task<TResult>> onFound,
             Func<TResult> onNotFound = default,
@@ -1915,18 +1984,27 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
                 .DeleteAsync<TEntity, TResult>(
                         rowKey, partitionKey,
                     (entity, deleteAsync) => onFound(entity, () => deleteAsync()),
-                    onNotFound,
+                    OnNotFoundOrThrow<TEntity, TResult>(onNotFound),
                     onFailure);
         }
 
+        /// <summary>
+        /// Deletes the row whose partition key comes from <paramref name="additionalProperties"/>.
+        /// When <typeparamref name="TEntity"/> has a public ETag member the delete is conditional on
+        /// the ETag read just before; when it meets a write made since, the row is read and deleted
+        /// again, and <paramref name="onFound"/> receives the row that was actually deleted. A missing
+        /// row (or a null reference) calls <paramref name="onDoesNotExists"/>, or throws an
+        /// <see cref="InvalidOperationException"/> when none is passed.
+        /// </summary>
         public static async Task<TResult> StorageDeleteAsync<TEntity, TResult>(this IRef<TEntity> entityRef,
                 Func<IQueryable<TEntity>, IQueryable<TEntity>> additionalProperties,
             Func<TEntity, TResult> onFound,
             Func<TResult> onDoesNotExists = default)
             where TEntity : IReferenceable
         {
+            var onMissing = OnNotFoundOrThrow<TEntity, TResult>(onDoesNotExists);
             if (entityRef.IsDefaultOrNull())
-                return onDoesNotExists();
+                return onMissing();
             var rowKey = entityRef.StorageComputeRowKey();
 
             var storageDriver = AzureTableDriverDynamic.FromSettings();
@@ -1941,9 +2019,19 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
                         await deleteEntity();
                         return onFound(entity);
                     },
-                    onNotFound: onDoesNotExists);
+                    onNotFound: onMissing);
         }
 
+        /// <summary>
+        /// Deletes the row. The driver reads it first (the delete modifiers need its stored values),
+        /// and when <typeparamref name="TEntity"/> has a public ETag member the delete is conditional
+        /// on the ETag read. When another write lands between the read and the delete, the row is
+        /// read and deleted again, with the delete modifiers run against the fresh values, until a
+        /// delete succeeds or the row is gone; <paramref name="onSuccess"/> is called once it
+        /// is. A missing row calls
+        /// <paramref name="onNotFound"/>, or throws an <see cref="InvalidOperationException"/> when
+        /// none is passed.
+        /// </summary>
         public static Task<TResult> StorageDeleteAsync<TEntity, TResult>(this IRef<TEntity> entityRef,
                 string partitionKey,
             Func<TResult> onSuccess,
@@ -1957,10 +2045,20 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
                         entityRef.StorageComputeRowKey(),
                         partitionKey,
                     (discard) => onSuccess(),
-                    onNotFound,
+                    OnNotFoundOrThrow<TEntity, TResult>(onNotFound),
                     onFailure:onFailure);
         }
 
+        /// <summary>
+        /// Deletes the row. The driver reads it first (the delete modifiers need its stored values),
+        /// and when <typeparamref name="TEntity"/> has a public ETag member the delete is conditional
+        /// on the ETag read. When another write lands between the read and the delete, the row is
+        /// read and deleted again, with the delete modifiers run against the fresh values, until a
+        /// delete succeeds or the row is gone; <paramref name="onDeleted"/> receives the row that was
+        /// actually deleted. A missing row calls
+        /// <paramref name="onDoesNotExists"/>, or throws an <see cref="InvalidOperationException"/> when
+        /// none is passed.
+        /// </summary>
         public static async Task<TResult> StorageDeleteByPropertyAsync<TProperty, TEntity, TResult>(
                 this TProperty rowPartitionKeyValue,
                 Expression<Func<TEntity, TProperty>> propertyExpr,
@@ -1980,7 +2078,7 @@ namespace EastFive.Azure.Persistence.AzureStorageTables
                 .FromSettings()
                 .DeleteAsync(rowKey, partitionKey,
                     onSuccess: (TEntity entity) => onDeleted(entity),
-                    onNotFound: onDoesNotExists);
+                    onNotFound: OnNotFoundOrThrow<TEntity, TResult>(onDoesNotExists));
         }
 
         public static IEnumerableAsync<TResult> StorageDeleteBatch<TEntity, TResult>(this IEnumerableAsync<IRef<TEntity>> entityRefs,
