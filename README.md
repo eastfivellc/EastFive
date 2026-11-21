@@ -419,9 +419,13 @@ its mutation: the whole of it, from a fresh read, and then the first attempt car
 save with its result discarded, so everything in a mutation, before and after the save, must be
 safe to run twice. `StorageReplaceAsync` of an instance that was read from storage is refused
 (`UpdateConditionNotSatisfied`) once the row has changed since that read. An instance that was not
-read carries no ETag and still replaces the row unconditionally. And `StorageDeleteAsync` by
-reference deletes with the ETag it has just read, so a delete that meets a change made in between
-throws instead of deleting.
+read carries no ETag and still replaces the row unconditionally. And a delete becomes conditional
+on the ETag read just before it. A delete by reference or key, or of a held instance with no
+`onModified`, that meets a change made in between reads the row again and deletes it, with the
+delete modifiers run against the fresh values; `onDeleted` receives the row actually deleted. A
+held instance's `onModified`, when passed, is called with the fresh row and a delete of it.
+`StorageDeleteIfAsync` runs its `onFound` again on the fresh row, like an update's mutation. A
+delete of a missing row with no not-found handler throws an `InvalidOperationException`.
 
 EastFive.Azure's own tables follow the same rule. `Authorization`, `Session`, `Login.Account`,
 `Authentication`, `XIntegration`, `InvocationMessage`, `VoucherToken` and
