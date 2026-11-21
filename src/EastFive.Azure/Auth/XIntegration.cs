@@ -36,6 +36,10 @@ namespace EastFive.Azure.Auth
         [RowKey]
         [RowKeyPrefix(Characters = 3)]
         public IRef<XIntegration> integrationRef;
+
+        [ETag]
+        [JsonIgnore]
+        public string eTag;
         
         [JsonIgnore]
         [Storage]

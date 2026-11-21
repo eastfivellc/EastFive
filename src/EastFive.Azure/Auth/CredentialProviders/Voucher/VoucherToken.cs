@@ -46,6 +46,10 @@ namespace EastFive.Azure.Auth.CredentialProviders.Voucher
         [ResourceIdentifier]
         public IRef<VoucherToken> voucherTokenRef;
 
+        [ETag]
+        [JsonIgnore]
+        public string eTag;
+
         [LastModified]
         public DateTime lastModified;
 

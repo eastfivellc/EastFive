@@ -40,6 +40,10 @@ namespace EastFive.Azure.Login
         [HtmlInputHidden]
         public IRef<Account> accountRef;
 
+        [ETag]
+        [JsonIgnore]
+        public string eTag;
+
         public const string UserIdentificationPropertyName = "user_identification";
         [ApiProperty(PropertyName = UserIdentificationPropertyName)]
         [JsonProperty(PropertyName = UserIdentificationPropertyName)]

@@ -36,6 +36,10 @@ namespace EastFive.Azure.Auth
         [ResourceIdentifier]
         public IRef<Session> sessionId;
 
+        [ETag]
+        [JsonIgnore]
+        public string eTag;
+
         public const string CreatedScopeName = "created";
         [ScopeDateTime(CreatedScopeName, SpanUnits = TimeSpanUnits.years, IgnoreNull = true)]
         public DateTime? created;
