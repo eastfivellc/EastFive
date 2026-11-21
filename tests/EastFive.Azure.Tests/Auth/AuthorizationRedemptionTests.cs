@@ -292,6 +292,51 @@ public class AuthorizationRedemptionTests : TestSession
 
     #endregion
 
+    #region Concurrent writers
+
+    /// <summary>
+    /// Another writer saves the session row while its PATCH is inside its mutation (the hook runs
+    /// when the PATCH resolves the account's claims, before it saves). The PATCH runs again on
+    /// the changed row, redeems the same authorization again for the same session, and keeps
+    /// the other writer's change.
+    /// </summary>
+    [Fact]
+    public async Task SessionPatch_ConflictingWriter_RerunsAndKeepsBothChanges()
+    {
+        var login = await SeedLoginAsync();
+        var sessionId = Guid.NewGuid();
+        var anonymous = AssertCreated(await PostSessionAsync(sessionId, authorization: null));
+        var sessionRef = sessionId.AsRef<Session>();
+
+        var runs = 0;
+        ResponseBranchCapture patched;
+        using (RedemptionTestLogin.OnParse(() =>
+        {
+            if (Interlocked.Increment(ref runs) != 1)
+                return;
+            Assert.True(sessionRef.StorageUpdateAsync<Session, bool>(
+                    async (session, save) =>
+                    {
+                        session.refreshToken = "concurrent";
+                        await save(session);
+                        return true;
+                    })
+                .GetAwaiter().GetResult());
+        }))
+            patched = await PatchSessionAsync(sessionId, login.Authorization, anonymous.token);
+
+        AssertAuthorized(patched, login, Updated);
+        Assert.Equal(2, runs);
+        var stored = await sessionRef.StorageGetAsync(
+            session => session,
+            () => throw new XunitException("The session was not stored."));
+        Assert.Equal("concurrent", stored.refreshToken);
+        Assert.Equal(login.Authorization.id, stored.authorization.id);
+        Assert.Equal(login.AccountId, stored.account);
+    }
+
+    #endregion
+
     #region Assertions
 
     private static Session AssertCreated(ResponseBranchCapture capture, string branch = Created)
@@ -517,10 +562,35 @@ public sealed class RedemptionTestLogin : IProvideLogin, IProvideLoginUnlisted
         Func<string, TResult> onFailure) =>
         Task.FromResult(onSuccess(responseParams));
 
+    private static readonly AsyncLocal<Action?> onParse = new();
+
+    /// <summary>
+    /// Runs <paramref name="hook"/> each time this async flow parses a credential, until the
+    /// result is disposed.
+    /// </summary>
+    internal static IDisposable OnParse(Action hook)
+    {
+        var previous = onParse.Value;
+        onParse.Value = hook;
+        return new ParseScope(previous);
+    }
+
+    private sealed class ParseScope : IDisposable
+    {
+        private readonly Action? previous;
+
+        public ParseScope(Action? previous) => this.previous = previous;
+
+        public void Dispose() => onParse.Value = previous;
+    }
+
     public TResult ParseCredentailParameters<TResult>(IDictionary<string, string> responseParams,
         Func<string, IRefOptional<Authorization>, TResult> onSuccess,
-        Func<string, TResult> onFailure) =>
-        responseParams is not null && responseParams.TryGetValue(SubjectParameter, out var subject)
+        Func<string, TResult> onFailure)
+    {
+        onParse.Value?.Invoke();
+        return responseParams is not null && responseParams.TryGetValue(SubjectParameter, out var subject)
             ? onSuccess(subject, RefOptional<Authorization>.Empty())
             : onFailure("No subject.");
+    }
 }

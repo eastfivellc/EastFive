@@ -52,6 +52,10 @@ namespace EastFive.Azure.Auth
         [ResourceIdentifier]
         public IRef<Authorization> authorizationRef;
 
+        [ETag]
+        [JsonIgnore]
+        public string eTag;
+
         [LastModified]
         [StorageQuery]
         public DateTime lastModified;
