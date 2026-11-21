@@ -50,6 +50,10 @@ namespace EastFive.Azure.Functions
         [StandardParititionKey]
         public IRef<InvocationMessage> invocationRef;
 
+        [ETag]
+        [JsonIgnore]
+        public string eTag;
+
         public const string LastModifiedPropertyName = "last_modified";
         [LastModified]
         //[DateTimeLookup(

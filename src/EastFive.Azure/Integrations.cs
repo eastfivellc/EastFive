@@ -89,6 +89,10 @@ namespace EastFive.Azure.Auth
             [StandardParititionKey]
             [JsonIgnore]
             public IRef<AccountIntegrationLookup> accountIntegrationLookupRef;
+
+            [ETag]
+            [JsonIgnore]
+            public string eTag;
             
             [JsonIgnore]
             [Storage]
