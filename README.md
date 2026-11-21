@@ -414,8 +414,10 @@ EastFive.Generators reports **E5001** (warning, category `EastFive.Storage`) on 
 attribute implements `IProvideEntity` and that has no such member. Suppress it with the usual
 mechanisms (`#pragma warning disable E5001`, `[SuppressMessage]`, `.editorconfig`) where an
 unconditional save is intended, such as a table whose rows are only created and deleted.
-Adding the member changes behaviour: a conflicting update now re-runs its mutation, and replacing
-an instance that was not read from storage carries no ETag, which the table client refuses.
+Adding the member changes behaviour in two places. A conflicting `StorageUpdateAsync` now re-runs
+its mutation. And `StorageReplaceAsync` of an instance that was read from storage is refused
+(`UpdateConditionNotSatisfied`) once the row has changed since that read. An instance that was not
+read carries no ETag and still replaces the row unconditionally.
 
 ## Entity JSON without a request
 
