@@ -1,5 +1,6 @@
 ﻿using EastFive.Extensions;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -11,14 +12,26 @@ namespace EastFive.Persistence
 {
     public static class AttributeExtensions
     {
+        /// <summary>
+        /// A type's storage members, scanned once per type. The attribute instances are shared by
+        /// every row and thread that reads or writes the type, so a storage attribute must not
+        /// write its own state while handling a row.
+        /// </summary>
+        private static readonly ConcurrentDictionary<Type, KeyValuePair<MemberInfo, IPersistInAzureStorageTables[]>[]> persistenceAttributes =
+            new ConcurrentDictionary<Type, KeyValuePair<MemberInfo, IPersistInAzureStorageTables[]>[]>();
+
         public static IEnumerable<KeyValuePair<MemberInfo, IPersistInAzureStorageTables[]>> GetPersistenceAttributes(this Type type)
         {
-            var memberQuery = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy;
-            var storageMembers = type
-                .GetMembers(memberQuery)
-                .Where(field => field.ContainsAttributeInterface<IPersistInAzureStorageTables>())
-                .Select(field => field.PairWithValue(field.GetAttributesInterface<IPersistInAzureStorageTables>()));
-            return storageMembers;
+            return persistenceAttributes.GetOrAdd(type,
+                scanned =>
+                {
+                    var memberQuery = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy;
+                    return scanned
+                        .GetMembers(memberQuery)
+                        .Where(field => field.ContainsAttributeInterface<IPersistInAzureStorageTables>())
+                        .Select(field => field.PairWithValue(field.GetAttributesInterface<IPersistInAzureStorageTables>()))
+                        .ToArray();
+                });
         }
 
         public static IEnumerable<KeyValuePair<MemberInfo, IPersistInAzureStorageTables>> StorageProperties(this Type entityType)
