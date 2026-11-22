@@ -94,18 +94,35 @@ namespace EastFive.Persistence.Azure.StorageTables
             protected IDictionary<string, EntityProperty> rawProperties;
             public IDictionary<string, EntityProperty> RawProperties => rawProperties;
 
+            /// <summary>
+            /// The first member of <typeparamref name="EntityType"/> carrying
+            /// <typeparamref name="TInterface"/>, or none. It is a fact about the entity type, so it
+            /// is found once: finding it per row read every member's attributes again for each of a
+            /// row's four keys. The attribute instance is therefore shared by every row and thread.
+            /// </summary>
+            private static class MemberSupporting<TInterface>
+            {
+                // PublicationOnly: a scan that throws is not remembered, so it throws again as before.
+                internal static readonly Lazy<KeyValuePair<MemberInfo, TInterface>[]> first =
+                    new Lazy<KeyValuePair<MemberInfo, TInterface>[]>(
+                        () => typeof(EntityType)
+                            .GetMembers()
+                            .SelectMany(
+                                memberInfo =>
+                                {
+                                    return memberInfo.GetAttributesInterface<TInterface>()
+                                        .Select(rowKeyModifier => rowKeyModifier.PairWithKey(memberInfo));
+                                })
+                            .Take(1)
+                            .ToArray(),
+                        System.Threading.LazyThreadSafetyMode.PublicationOnly);
+            }
+
             private static TResult GetMemberSupportingInterface<TInterface, TResult>(
                 Func<MemberInfo, TInterface, TResult> onFound,
                 Func<TResult> onNotFound)
             {
-                return typeof(EntityType)
-                    .GetMembers()
-                    .SelectMany(
-                        memberInfo =>
-                        {
-                            return memberInfo.GetAttributesInterface<TInterface>()
-                                .Select(rowKeyModifier => rowKeyModifier.PairWithKey(memberInfo));
-                        })
+                return MemberSupporting<TInterface>.first.Value
                     .First(
                         (propertyInterfaceKvp, next) =>
                         {

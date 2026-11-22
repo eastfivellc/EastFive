@@ -257,7 +257,7 @@ namespace EastFive.Persistence
             shouldSkip = this.WriteToStorageOnly;
             var type = memberInfo.GetPropertyOrFieldType();
             var propertyName = this.GetTablePropertyName(memberInfo);
-            if (type.TryGetAttributeInterface(
+            if (type.TryGetAttributeInterfaceCached(
                 out ISerialize<IDictionary<string, EntityProperty>> serializer))
             {
                 return serializer.Bind(values, type, propertyName, memberInfo,

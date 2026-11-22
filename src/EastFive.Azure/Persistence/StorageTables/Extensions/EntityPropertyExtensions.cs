@@ -450,7 +450,7 @@ namespace EastFive.Persistence.Azure.StorageTables
             Func<object, TResult> onBound,
             Func<TResult> onFailedToBind)
         {
-            if (type.TryGetAttributeInterface<IBindEntityProperty>(out var attributeInterface, inherit: true))
+            if (type.TryGetAttributeInterfaceCached<IBindEntityProperty>(out var attributeInterface, inherit: true))
             {
                 return attributeInterface.BindEntityProperty(value: value, type:type,
                     onBound: onBound,
