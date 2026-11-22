@@ -34,6 +34,27 @@ namespace EastFive.Persistence
                 });
         }
 
+        private static class TypeAttribute<T>
+        {
+            internal static readonly ConcurrentDictionary<(Type type, bool inherit), (bool found, T attribute)> lookups =
+                new ConcurrentDictionary<(Type type, bool inherit), (bool found, T attribute)>();
+        }
+
+        /// <summary>
+        /// <see cref="CustomAttributeExtensions.TryGetAttributeInterface{T}(Type, out T, bool)"/>,
+        /// looked up once per type, including when the type has no such attribute. The attribute
+        /// instance found is shared by every caller.
+        /// </summary>
+        internal static bool TryGetAttributeInterfaceCached<T>(this Type type, out T attribute, bool inherit = false)
+        {
+            var lookup = TypeAttribute<T>.lookups.GetOrAdd((type, inherit),
+                key => key.type.TryGetAttributeInterface<T>(out var found, inherit: key.inherit)
+                    ? (true, found)
+                    : (false, default(T)));
+            attribute = lookup.attribute;
+            return lookup.found;
+        }
+
         public static IEnumerable<KeyValuePair<MemberInfo, IPersistInAzureStorageTables>> StorageProperties(this Type entityType)
         {
             return entityType.GetPersistenceAttributes()
