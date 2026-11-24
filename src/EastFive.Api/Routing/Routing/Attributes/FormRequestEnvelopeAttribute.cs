@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.Http;
@@ -34,6 +35,13 @@ namespace EastFive.Api.Routing.Envelopes
             IRequestEnvelope envelope = new FormEnvelope(form, query);
             return Task.FromResult(envelope);
         }
+
+        /// <summary>
+        /// Whether <paramref name="form"/> carries <paramref name="key"/> as a field or a
+        /// file — the same match the [Property] form converter makes.
+        /// </summary>
+        internal static bool HasField(IFormCollection form, string key)
+            => form.ContainsKey(key) || form.Files.Any(file => file.Name == key);
 
         private sealed class FormEnvelope : IRequestEnvelope, IRequestEnvelopeBody
         {
@@ -113,8 +121,19 @@ namespace EastFive.Api.Routing.Envelopes
                     return false;
                 }
 
+                // Whole-form access: the converter extracts its own key, but a keyed
+                // requirement is fulfilled only when the key is present, as the JSON
+                // envelope does. Otherwise an omitted [PropertyOptional] field reached
+                // the converter, failed with "Key not found" and 400'd the request,
+                // instead of binding its optional default (Microsoft's form_post
+                // redirect omits most of the fields MicrosoftRedirect declares optional).
                 if (rawType == typeof(IFormCollection))
                 {
+                    if (!string.IsNullOrEmpty(key) && !HasField(this.form, key))
+                    {
+                        producer = null;
+                        return false;
+                    }
                     var captured = this.form;
                     producer = () => captured;
                     return true;

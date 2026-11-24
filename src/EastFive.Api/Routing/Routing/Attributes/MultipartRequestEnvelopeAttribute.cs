@@ -126,8 +126,17 @@ namespace EastFive.Api.Routing.Envelopes
                     return false;
                 }
 
+                // A keyed requirement is fulfilled only when its key is present, as in
+                // the URL-encoded form and JSON envelopes, so an omitted
+                // [PropertyOptional] part binds its default instead of 400'ing.
                 if (rawType == typeof(IFormCollection))
                 {
+                    if (!string.IsNullOrEmpty(key)
+                        && !FormRequestEnvelopeAttribute.HasField(this.form, key))
+                    {
+                        producer = null;
+                        return false;
+                    }
                     var captured = this.form;
                     producer = () => Task.FromResult<object>(captured);
                     return true;
