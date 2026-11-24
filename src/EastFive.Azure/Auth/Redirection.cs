@@ -95,7 +95,8 @@ namespace EastFive.Azure.Auth
                             },
                             () => onAuthorizationnotFound("Authorization not found"),
                             onCouldNotConnect,
-                            onFailure);
+                            onFailure,
+                            onRejectionRedirect: uri => onRedirect(uri, default(Guid?)));
                     }
                 },
                 () => onFailure("GUID NOT UNIQUE").AsTask());
@@ -109,7 +110,8 @@ namespace EastFive.Azure.Auth
             Func<Uri, Guid?, Func<IHttpResponse, IHttpResponse>, TResult> onRedirect,
             Func<TResult> onAuthorizationNotFound,
             Func<string, TResult> onCouldNotConnect,
-            Func<string, TResult> onGeneralFailure)
+            Func<string, TResult> onGeneralFailure,
+            Func<Uri, TResult> onRejectionRedirect = default)
         {
             var telemetry = EastFive.Azure.Monitoring.TelemetryExtensions.LoadTelemetryClient();
             return await await authentication.RedeemTokenAsync(values, application,
@@ -149,7 +151,8 @@ namespace EastFive.Azure.Auth
                                 application, request, endpoints, loginProvider, baseUri,
                             onRedirect,
                             onGeneralFailure,
-                                telemetry);
+                                telemetry,
+                            onRejectionRedirect);
                     }
 
                     #endregion
@@ -164,7 +167,8 @@ namespace EastFive.Azure.Auth
                                     application, request, endpoints, loginProvider, baseUri,
                                 onRedirect,
                                 onGeneralFailure,
-                                    telemetry);
+                                    telemetry,
+                                onRejectionRedirect);
                         },
                         () =>
                         {
@@ -185,7 +189,8 @@ namespace EastFive.Azure.Auth
                 Uri baseUri,
             Func<Uri, Guid?, Func<IHttpResponse, IHttpResponse>, TResult> onRedirect,
             Func<string, TResult> onGeneralFailure,
-            TelemetryClient telemetry)
+            TelemetryClient telemetry,
+            Func<Uri, TResult> onRejectionRedirect = default)
         {
             return await await AuthorizeWithAccountAsync(
                     authorization, saveAsync,
@@ -218,12 +223,32 @@ namespace EastFive.Azure.Auth
 
                 onGeneralFailure:(why, authorizationUpdated) =>
                 {
-                    return RejectionRedirect(authorizationUpdated, why,
+                    return Refused(authorizationUpdated, why,
                             application.GetAccountInformationProvider(), request,
-                        redirect => onRedirect(redirect, default(Guid?), response => response),
-                        () => onGeneralFailure(why)).AsTask();
+                        onRejectionRedirect,
+                        onGeneralFailure).AsTask();
                 },
                     telemetry: telemetry);
+        }
+
+        /// <summary>
+        /// A refused sign-in. Only a caller that answers the browser directly passes
+        /// <paramref name="onRejectionRedirect"/> (<see cref="ProcessRequestAsync"/>); then the
+        /// provider may send the person back to the app (<see cref="RejectionRedirect"/>).
+        /// Every other caller, including those that create a session on any redirect
+        /// (<c>Authorization.AuthenticateWithSessionAsync</c>), always gets
+        /// <paramref name="onGeneralFailure"/>, so a refusal can never reach their success path.
+        /// </summary>
+        public static TResult Refused<TResult>(Authorization authorization, string why,
+                IProvideAccountInformation accountInformation, IHttpRequest request,
+            Func<Uri, TResult> onRejectionRedirect,
+            Func<string, TResult> onGeneralFailure)
+        {
+            if (onRejectionRedirect is null)
+                return onGeneralFailure(why);
+            return RejectionRedirect(authorization, why, accountInformation, request,
+                onRejectionRedirect,
+                () => onGeneralFailure(why));
         }
 
         /// <summary>

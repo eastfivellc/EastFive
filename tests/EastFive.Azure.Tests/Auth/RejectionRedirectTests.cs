@@ -96,6 +96,48 @@ public class RejectionRedirectTests
         Assert.Equal("default", Outcome(authorization, new Describing(("sign_in", "pending"))));
     }
 
+    /// <summary>
+    /// A caller that did not opt in (one that creates a session on any redirect, such as
+    /// Authorization.AuthenticateWithSessionAsync) must get the failure, even when the provider
+    /// would redirect: a refusal must never reach a success continuation.
+    /// </summary>
+    [Fact]
+    public void ACallerWithoutARejectionContinuation_AlwaysGetsTheFailure()
+    {
+        var authorization = AuthorizationReturningTo(new Uri("https://app.example.com/login"));
+
+        var outcome = Redirection.Refused(authorization, Why,
+                new Describing(("sign_in", "pending")), Request,
+            onRejectionRedirect: null!,
+            onGeneralFailure: why => $"failed: {why}");
+
+        Assert.Equal($"failed: {Why}", outcome);
+    }
+
+    [Fact]
+    public void ACallerWithARejectionContinuation_IsRedirected()
+    {
+        var authorization = AuthorizationReturningTo(new Uri("https://app.example.com/login"));
+
+        var outcome = Redirection.Refused(authorization, Why,
+                new Describing(("sign_in", "pending")), Request,
+            onRejectionRedirect: uri => uri.AbsoluteUri,
+            onGeneralFailure: why => $"failed: {why}");
+
+        Assert.Contains("sign_in=pending", outcome);
+    }
+
+    [Fact]
+    public void AReturnLocationWithoutAQuery_StillCarriesTheProvidersParameters()
+    {
+        var authorization = AuthorizationReturningTo(new Uri("https://app.example.com/login"));
+
+        var outcome = Outcome(authorization, new Describing(("sign_in", "pending")));
+
+        Assert.Equal("pending",
+            System.Web.HttpUtility.ParseQueryString(new Uri(outcome).Query)["sign_in"]);
+    }
+
     private class Plain : IProvideAccountInformation
     {
         public Task<TResult> FindOrCreateAccountByMethodAndKeyAsync<TResult>(Method authenticationMethod,
