@@ -282,13 +282,18 @@ namespace EastFive.Azure.Auth.Google
             return default(Uri);
         }
 
+        /// <summary>The scopes every sign-in requests: identity, email and name.</summary>
+        public const string LoginScope = "openid email profile";
+
         public Uri GetLoginUrl(Guid state, Uri responseControllerLocation, Func<Type, Uri> controllerToLocation)
         {
             var tokenUrl = this.authorizationApiBase
                 .AddQueryParameter(requestParamClientId, this.clientId)
                 //.AddQueryParameter(requestParamResponseMode, "form_post")
                 .AddQueryParameter(requestParamResponseType, $"{responseParamCode}")
-                .AddQueryParameter(requestParamScope, "openid email")
+                // `profile` adds the person's name (`name`, `given_name`, `family_name`) to the
+                // id token, so a sign-in can name the account it creates or the request it files.
+                .AddQueryParameter(requestParamScope, LoginScope)
                 .AddQueryParameter(requestParamState, state.ToString("N"))
                 .AddQueryParameter(requestParamNonce, Guid.NewGuid().ToString("N"))
                 .AddQueryParameter(requestParamRedirectUri, responseControllerLocation.AbsoluteUri);
@@ -342,6 +347,18 @@ namespace EastFive.Azure.Auth.Google
                 if (parameters.ContainsKey(claimParamGivenName))
                 {
                     claimValue = parameters[claimParamGivenName];
+                    return true;
+                }
+            if (System.Security.Claims.ClaimTypes.Surname.Equals(claimType, StringComparison.OrdinalIgnoreCase))
+                if (parameters.ContainsKey(claimParamFamilyName))
+                {
+                    claimValue = parameters[claimParamFamilyName];
+                    return true;
+                }
+            if (System.Security.Claims.ClaimTypes.Name.Equals(claimType, StringComparison.OrdinalIgnoreCase))
+                if (parameters.ContainsKey(claimParamName))
+                {
+                    claimValue = parameters[claimParamName];
                     return true;
                 }
 
