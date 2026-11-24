@@ -94,3 +94,26 @@ public static class GeneratorProbe
         return onFound($"hello {who}");
     }
 }
+
+/// <summary>
+/// Regression probe for optional form fields: a URL-encoded form post that
+/// omits a [PropertyOptional] field must bind it to its default. The form
+/// envelope previously fulfilled every keyed requirement from the whole
+/// form, so an absent optional key failed with "Key not found" (400) —
+/// what broke Microsoft's form_post sign-in redirect.
+/// </summary>
+[FunctionViewController(Route = "form-optional-probe")]
+public static class FormOptionalProbe
+{
+    [HttpPost]
+    public static IHttpResponse Receive(
+            [Property(Name = "state")] string state,
+            [PropertyOptional(Name = "id_token")] string idToken,
+            [PropertyOptional(Name = "session_state")] Property<string> sessionState,
+        ContentTypeResponse<string> onReceived)
+    {
+        var token = idToken ?? "null";
+        var session = sessionState.specified ? sessionState.value : "unspecified";
+        return onReceived($"{state}|{token}|{session}");
+    }
+}
