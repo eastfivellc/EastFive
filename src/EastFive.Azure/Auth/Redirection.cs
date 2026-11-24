@@ -218,9 +218,51 @@ namespace EastFive.Azure.Auth
 
                 onGeneralFailure:(why, authorizationUpdated) =>
                 {
-                    return onGeneralFailure(why).AsTask();
+                    return RejectionRedirect(authorizationUpdated, why,
+                            application.GetAccountInformationProvider(),
+                        redirect => onRedirect(redirect, default(Guid?), response => response),
+                        () => onGeneralFailure(why)).AsTask();
                 },
                     telemetry: telemetry);
+        }
+
+        /// <summary>
+        /// Where a refused sign-in goes when the account provider implements
+        /// <see cref="IProvideRejectionRedirect"/>: the authorization's return location (an
+        /// absolute URI, or a relative one resolved against the configured landing page, as the
+        /// success path does) plus the provider's parameters. No authorization id is added, and
+        /// the authorization itself is untouched. <paramref name="onDefault"/> when the provider
+        /// lacks the hook or declines, or there is no return location.
+        /// </summary>
+        public static TResult RejectionRedirect<TResult>(Authorization authorization, string why,
+                IProvideAccountInformation accountInformation,
+            Func<Uri, TResult> onRedirect,
+            Func<TResult> onDefault)
+        {
+            if (accountInformation is not IProvideRejectionRedirect rejectionRedirect)
+                return onDefault();
+
+            var returnLocation = ReturnLocation(authorization);
+            if (returnLocation is null)
+                return onDefault();
+
+            return rejectionRedirect.DescribeRejection(why,
+                parameters => onRedirect(parameters
+                    .NullToEmpty()
+                    .Aggregate(returnLocation, (uri, kvp) => uri.SetQueryParam(kvp.Key, kvp.Value))),
+                onDefault);
+
+            static Uri ReturnLocation(Authorization authorization)
+            {
+                var location = authorization.LocationAuthenticationReturn;
+                if (location is null)
+                    return null;
+                if (location.IsAbsoluteUri)
+                    return location;
+                return SessionServerConfiguration.WithLandingPage(
+                    landingPage => new Uri(landingPage, location),
+                    why => default(Uri));
+            }
         }
 
         public static async Task<TResult> AuthorizeWithAccountAsync<TResult>(Authorization authorization,
