@@ -95,7 +95,8 @@ namespace EastFive.Azure.Auth
                             },
                             () => onAuthorizationnotFound("Authorization not found"),
                             onCouldNotConnect,
-                            onFailure);
+                            onFailure,
+                            onRejectionRedirect: uri => onRedirect(uri, default(Guid?)));
                     }
                 },
                 () => onFailure("GUID NOT UNIQUE").AsTask());
@@ -109,7 +110,8 @@ namespace EastFive.Azure.Auth
             Func<Uri, Guid?, Func<IHttpResponse, IHttpResponse>, TResult> onRedirect,
             Func<TResult> onAuthorizationNotFound,
             Func<string, TResult> onCouldNotConnect,
-            Func<string, TResult> onGeneralFailure)
+            Func<string, TResult> onGeneralFailure,
+            Func<Uri, TResult> onRejectionRedirect = default)
         {
             var telemetry = EastFive.Azure.Monitoring.TelemetryExtensions.LoadTelemetryClient();
             return await await authentication.RedeemTokenAsync(values, application,
@@ -149,7 +151,8 @@ namespace EastFive.Azure.Auth
                                 application, request, endpoints, loginProvider, baseUri,
                             onRedirect,
                             onGeneralFailure,
-                                telemetry);
+                                telemetry,
+                            onRejectionRedirect);
                     }
 
                     #endregion
@@ -164,7 +167,8 @@ namespace EastFive.Azure.Auth
                                     application, request, endpoints, loginProvider, baseUri,
                                 onRedirect,
                                 onGeneralFailure,
-                                    telemetry);
+                                    telemetry,
+                                onRejectionRedirect);
                         },
                         () =>
                         {
@@ -185,7 +189,8 @@ namespace EastFive.Azure.Auth
                 Uri baseUri,
             Func<Uri, Guid?, Func<IHttpResponse, IHttpResponse>, TResult> onRedirect,
             Func<string, TResult> onGeneralFailure,
-            TelemetryClient telemetry)
+            TelemetryClient telemetry,
+            Func<Uri, TResult> onRejectionRedirect = default)
         {
             return await await AuthorizeWithAccountAsync(
                     authorization, saveAsync,
@@ -218,9 +223,69 @@ namespace EastFive.Azure.Auth
 
                 onGeneralFailure:(why, authorizationUpdated) =>
                 {
-                    return onGeneralFailure(why).AsTask();
+                    return Refused(authorizationUpdated, why,
+                            application.GetAccountInformationProvider(), request,
+                        onRejectionRedirect,
+                        onGeneralFailure).AsTask();
                 },
                     telemetry: telemetry);
+        }
+
+        /// <summary>
+        /// A refused sign-in. Only a caller that answers the browser directly passes
+        /// <paramref name="onRejectionRedirect"/> (<see cref="ProcessRequestAsync"/>); then the
+        /// provider may send the person back to the app (<see cref="RejectionRedirect"/>).
+        /// Every other caller, including those that create a session on any redirect
+        /// (<c>Authorization.AuthenticateWithSessionAsync</c>), always gets
+        /// <paramref name="onGeneralFailure"/>, so a refusal can never reach their success path.
+        /// </summary>
+        public static TResult Refused<TResult>(Authorization authorization, string why,
+                IProvideAccountInformation accountInformation, IHttpRequest request,
+            Func<Uri, TResult> onRejectionRedirect,
+            Func<string, TResult> onGeneralFailure)
+        {
+            if (onRejectionRedirect is null)
+                return onGeneralFailure(why);
+            return RejectionRedirect(authorization, why, accountInformation, request,
+                onRejectionRedirect,
+                () => onGeneralFailure(why));
+        }
+
+        /// <summary>
+        /// Where a refused sign-in goes when the account provider implements
+        /// <see cref="IProvideRejectionRedirect"/>: the provider is handed the authorization's
+        /// return location (an absolute URI, or a relative one resolved against the configured
+        /// landing page, as the success path does) and chooses the redirect. EastFive adds no
+        /// authorization id and leaves the authorization untouched. <paramref name="onDefault"/>
+        /// when the provider lacks the hook or declines, or there is no return location.
+        /// </summary>
+        public static TResult RejectionRedirect<TResult>(Authorization authorization, string why,
+                IProvideAccountInformation accountInformation, IHttpRequest request,
+            Func<Uri, TResult> onRedirect,
+            Func<TResult> onDefault)
+        {
+            if (accountInformation is not IProvideRejectionRedirect rejectionRedirect)
+                return onDefault();
+
+            var returnLocation = ReturnLocation(authorization);
+            if (returnLocation is null)
+                return onDefault();
+
+            return rejectionRedirect.DescribeRejection(why, returnLocation, request,
+                onRedirect,
+                onDefault);
+
+            static Uri ReturnLocation(Authorization authorization)
+            {
+                var location = authorization.LocationAuthenticationReturn;
+                if (location is null)
+                    return null;
+                if (location.IsAbsoluteUri)
+                    return location;
+                return SessionServerConfiguration.WithLandingPage(
+                    landingPage => new Uri(landingPage, location),
+                    why => default(Uri));
+            }
         }
 
         public static async Task<TResult> AuthorizeWithAccountAsync<TResult>(Authorization authorization,
