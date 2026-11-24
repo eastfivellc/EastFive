@@ -25,8 +25,11 @@ public class RejectionRedirectTests
         LocationAuthenticationReturn = location!,
     };
 
+    private static readonly IHttpRequest Request =
+        new EastFive.Api.HttpRequest(new Uri("https://app.example.com/auth/TestRedirect"));
+
     private static string Outcome(Authorization authorization, IProvideAccountInformation provider) =>
-        Redirection.RejectionRedirect(authorization, Why, provider,
+        Redirection.RejectionRedirect(authorization, Why, provider, Request,
             uri => uri.AbsoluteUri,
             () => "default");
 
@@ -54,6 +57,19 @@ public class RejectionRedirectTests
 
         Assert.DoesNotContain("request_id", outcome);
         Assert.DoesNotContain(authorization.authorizationRef.id.ToString(), outcome);
+    }
+
+    [Fact]
+    public void TheProviderIsHandedTheReasonTheReturnLocationAndTheRequest()
+    {
+        var location = new Uri("https://app.example.com/login");
+        var provider = new Describing(("sign_in", "pending"));
+
+        Outcome(AuthorizationReturningTo(location), provider);
+
+        Assert.Equal(Why, provider.SeenWhy);
+        Assert.Equal(location, provider.SeenReturnLocation);
+        Assert.Same(Request, provider.SeenRequest);
     }
 
     [Fact]
@@ -95,18 +111,33 @@ public class RejectionRedirectTests
             Func<TResult> onReject) => throw new NotSupportedException();
     }
 
-    /// <summary>Describes every rejection with <paramref name="parameters"/>, or declines when given none.</summary>
+    /// <summary>
+    /// Redirects every rejection to the return location plus <c>parameters</c>, or declines when
+    /// given none; records what it was handed.
+    /// </summary>
     private sealed class Describing : Plain, IProvideRejectionRedirect
     {
         private readonly (string key, string value)[] parameters;
 
         public Describing(params (string key, string value)[] parameters) => this.parameters = parameters;
 
-        public TResult DescribeRejection<TResult>(string why,
-            Func<KeyValuePair<string, string>[], TResult> onRedirect,
-            Func<TResult> onKeepDefault) =>
-            parameters.Length == 0
-                ? onKeepDefault()
-                : onRedirect(Array.ConvertAll(parameters, p => new KeyValuePair<string, string>(p.key, p.value)));
+        public string? SeenWhy { get; private set; }
+        public Uri? SeenReturnLocation { get; private set; }
+        public IHttpRequest? SeenRequest { get; private set; }
+
+        public TResult DescribeRejection<TResult>(string why, Uri returnLocation, IHttpRequest request,
+            Func<Uri, TResult> onRedirect,
+            Func<TResult> onKeepDefault)
+        {
+            SeenWhy = why;
+            SeenReturnLocation = returnLocation;
+            SeenRequest = request;
+            if (parameters.Length == 0)
+                return onKeepDefault();
+            var uri = returnLocation;
+            foreach (var (key, value) in parameters)
+                uri = uri.SetQueryParam(key, value);
+            return onRedirect(uri);
+        }
     }
 }

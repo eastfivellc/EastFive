@@ -219,7 +219,7 @@ namespace EastFive.Azure.Auth
                 onGeneralFailure:(why, authorizationUpdated) =>
                 {
                     return RejectionRedirect(authorizationUpdated, why,
-                            application.GetAccountInformationProvider(),
+                            application.GetAccountInformationProvider(), request,
                         redirect => onRedirect(redirect, default(Guid?), response => response),
                         () => onGeneralFailure(why)).AsTask();
                 },
@@ -228,14 +228,14 @@ namespace EastFive.Azure.Auth
 
         /// <summary>
         /// Where a refused sign-in goes when the account provider implements
-        /// <see cref="IProvideRejectionRedirect"/>: the authorization's return location (an
-        /// absolute URI, or a relative one resolved against the configured landing page, as the
-        /// success path does) plus the provider's parameters. No authorization id is added, and
-        /// the authorization itself is untouched. <paramref name="onDefault"/> when the provider
-        /// lacks the hook or declines, or there is no return location.
+        /// <see cref="IProvideRejectionRedirect"/>: the provider is handed the authorization's
+        /// return location (an absolute URI, or a relative one resolved against the configured
+        /// landing page, as the success path does) and chooses the redirect. EastFive adds no
+        /// authorization id and leaves the authorization untouched. <paramref name="onDefault"/>
+        /// when the provider lacks the hook or declines, or there is no return location.
         /// </summary>
         public static TResult RejectionRedirect<TResult>(Authorization authorization, string why,
-                IProvideAccountInformation accountInformation,
+                IProvideAccountInformation accountInformation, IHttpRequest request,
             Func<Uri, TResult> onRedirect,
             Func<TResult> onDefault)
         {
@@ -246,10 +246,8 @@ namespace EastFive.Azure.Auth
             if (returnLocation is null)
                 return onDefault();
 
-            return rejectionRedirect.DescribeRejection(why,
-                parameters => onRedirect(parameters
-                    .NullToEmpty()
-                    .Aggregate(returnLocation, (uri, kvp) => uri.SetQueryParam(kvp.Key, kvp.Value))),
+            return rejectionRedirect.DescribeRejection(why, returnLocation, request,
+                onRedirect,
                 onDefault);
 
             static Uri ReturnLocation(Authorization authorization)
