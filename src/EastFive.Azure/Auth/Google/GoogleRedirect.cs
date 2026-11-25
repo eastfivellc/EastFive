@@ -43,6 +43,27 @@ namespace EastFive.Azure.Auth.Google
         public const string HdPropertyName = "hd";
         public const string IssuerPropertyName = "iss";
 
+        public const string ErrorPropertyName = "error";
+
+        /// <summary>
+        /// Google's error return: the person cancelled (<c>access_denied</c>) or the request was
+        /// refused. It carries <c>error</c> and <c>state</c> but no <c>code</c>, so it never matches
+        /// <see cref="Redirected"/>; see <see cref="Redirection.ProviderErrorAsync"/>.
+        /// </summary>
+        [Unsecured("OAuth error return - Google reports the sign-in did not complete (no code), no bearer token available during OAuth callback")]
+        [HttpGet(MatchAllQueryParameters = false)]
+        public static Task<IHttpResponse> ErrorGet(
+                [QueryParameter(Name = ErrorPropertyName)] string error,
+                [OptionalQueryParameter(Name = StatePropertyName)] string state,
+                IApplication application,
+                IHttpRequest request,
+            RedirectResponse onRedirectResponse,
+            HtmlResponse onFailure)
+            => ProviderErrorAsync(state, error,
+                    application.GetAccountInformationProvider(), request,
+                redirect => onRedirectResponse(redirect),
+                message => onFailure(message));
+
         [Unsecured("OAuth callback endpoint - receives authorization code from Google OAuth flow, no bearer token available during OAuth callback")]
         [HttpGet(MatchAllQueryParameters = false)]
         public static async Task<IHttpResponse> Redirected(

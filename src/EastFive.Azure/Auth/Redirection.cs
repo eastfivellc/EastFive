@@ -252,6 +252,69 @@ namespace EastFive.Azure.Auth
         }
 
         /// <summary>
+        /// The <c>why</c> a provider's error return carries to <see cref="IProvideRejectionRedirect"/>:
+        /// this prefix plus the OAuth <c>error</c> code (RFC 6749 §4.1.2.1: <c>access_denied</c>,
+        /// <c>consent_required</c>, <c>interaction_required</c>, ...), reduced to lowercase letters,
+        /// digits and underscores. A provider recognizes it with <see cref="TryParseProviderError"/>.
+        /// </summary>
+        public const string ProviderErrorReasonPrefix = "provider-error:";
+
+        public static string ProviderErrorReason(string error) =>
+            ProviderErrorReasonPrefix + SanitizeProviderError(error);
+
+        /// <summary>True when <paramref name="why"/> is a provider error return; <paramref name="error"/> is its OAuth code.</summary>
+        public static bool TryParseProviderError(string why, out string error)
+        {
+            if (why is not null && why.StartsWith(ProviderErrorReasonPrefix, StringComparison.Ordinal))
+            {
+                error = why.Substring(ProviderErrorReasonPrefix.Length);
+                return true;
+            }
+            error = default;
+            return false;
+        }
+
+        private static string SanitizeProviderError(string error)
+        {
+            var kept = new string((error ?? string.Empty).ToLowerInvariant()
+                .Where(c => (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')
+                .Take(64).ToArray());
+            return kept.Length == 0 ? "unknown" : kept;
+        }
+
+        /// <summary>
+        /// An identity provider returned an error instead of a code: the person cancelled, or their
+        /// organization requires admin consent (Microsoft's "Return to the application without
+        /// granting consent"). Before this existed the redirect endpoints required a code, so such a
+        /// return matched no method and the server answered 501.
+        ///
+        /// The authorization is found from <paramref name="state"/> (its id, as every login URL
+        /// sends it) and the refusal goes through <see cref="RejectionRedirect"/> with
+        /// <see cref="ProviderErrorReason"/>, so an account provider that implements
+        /// <see cref="IProvideRejectionRedirect"/> sends the person back to the app with its own
+        /// reason code. The authorization is not touched, so it stays unauthorized. Otherwise
+        /// <paramref name="onDefault"/> gets a short readable message; the provider's
+        /// <c>error_description</c> is never used, here or in a URL.
+        /// </summary>
+        public static async Task<TResult> ProviderErrorAsync<TResult>(string state, string error,
+                IProvideAccountInformation accountInformation, IHttpRequest request,
+            Func<Uri, TResult> onRedirect,
+            Func<string, TResult> onDefault)
+        {
+            var code = SanitizeProviderError(error);
+            var message = $"Sign-in did not complete ({code}). Return to the application to try again.";
+            var why = ProviderErrorReasonPrefix + code;
+            if (!Guid.TryParse(state, out var authorizationId))
+                return onDefault(message);
+
+            return await authorizationId.AsRef<Authorization>().StorageGetAsync(
+                authorization => RejectionRedirect(authorization, why, accountInformation, request,
+                    onRedirect,
+                    () => onDefault(message)),
+                () => onDefault(message));
+        }
+
+        /// <summary>
         /// Where a refused sign-in goes when the account provider implements
         /// <see cref="IProvideRejectionRedirect"/>: the provider is handed the authorization's
         /// return location (an absolute URI, or a relative one resolved against the configured
