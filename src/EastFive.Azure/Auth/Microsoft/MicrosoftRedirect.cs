@@ -108,6 +108,43 @@ namespace EastFive.Azure.Auth.Microsoft
                 });
         }
 
+        public const string ErrorPropertyName = "error";
+
+        /// <summary>
+        /// Microsoft's error return (form_post): the person cancelled, or the organization needs an
+        /// admin to consent ("Return to the application without granting consent" on "Need admin
+        /// approval"). It carries <c>error</c> and <c>state</c> but no <c>code</c>, so it never
+        /// matches <see cref="RedirectedPost"/>; see <see cref="Redirection.ProviderErrorAsync"/>.
+        /// </summary>
+        [Unsecured("OAuth error return - Microsoft reports the sign-in did not complete (no code), no bearer token available during OAuth callback")]
+        [HttpPost]
+        public static Task<IHttpResponse> ErrorPost(
+                [Property(Name = ErrorPropertyName)] string error,
+                [PropertyOptional(Name = StatePropertyName)] string state,
+                IApplication application,
+                IHttpRequest request,
+            RedirectResponse onRedirectResponse,
+            HtmlResponse onFailure)
+            => ProviderErrorAsync(state, error,
+                    application.GetAccountInformationProvider(), request,
+                redirect => onRedirectResponse(redirect),
+                message => onFailure(message));
+
+        /// <summary>The same error return when Microsoft answers by query string.</summary>
+        [Unsecured("OAuth error return - Microsoft reports the sign-in did not complete (no code), no bearer token available during OAuth callback")]
+        [HttpGet(MatchAllQueryParameters = false)]
+        public static Task<IHttpResponse> ErrorGet(
+                [QueryParameter(Name = ErrorPropertyName)] string error,
+                [OptionalQueryParameter(Name = StatePropertyName)] string state,
+                IApplication application,
+                IHttpRequest request,
+            RedirectResponse onRedirectResponse,
+            HtmlResponse onFailure)
+            => ProviderErrorAsync(state, error,
+                    application.GetAccountInformationProvider(), request,
+                redirect => onRedirectResponse(redirect),
+                message => onFailure(message));
+
         [Unsecured("OAuth callback endpoint - receives authorization code from Microsoft OAuth flow via POST, no bearer token available during OAuth callback")]
         [HttpPost]
         public static async Task<IHttpResponse> RedirectedPost(
