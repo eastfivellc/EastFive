@@ -145,7 +145,14 @@ public class ProviderErrorReturnTests : TestSession
         Assert.True(capture.BranchName is "onRedirectResponse" or "onFailure",
             $"branch={capture.BranchName ?? "none"} status={capture.Response?.StatusCode} " +
             $"reason={string.Join(",", capture.Response?.Headers?.Where(h => h.Key.Contains("reason", StringComparison.OrdinalIgnoreCase)).SelectMany(h => h.Value) ?? Array.Empty<string>())}");
-        Assert.DoesNotContain("AADSTS90094", capture.Response?.ToString() ?? string.Empty);
+        // The response delegate's ARGUMENTS hold what reaches the person (the redirect URI, or
+        // the page's text); the stub response's ToString() is only its type name, so checking it
+        // could never fail.
+        Assert.NotNull(capture.Arguments);
+        var delivered = string.Join("\n", capture.Arguments!.Select(argument => argument?.ToString() ?? string.Empty));
+        Assert.NotEqual(string.Empty, delivered);
+        Assert.DoesNotContain("AADSTS90094", delivered);
+        Assert.DoesNotContain("grant requires admin permission", delivered);
     }
 
     [Fact]
